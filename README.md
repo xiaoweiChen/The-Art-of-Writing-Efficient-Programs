@@ -2,7 +2,7 @@
 
 An advanced programmer's guide to efficient hardware utilization and compiler optimizations using C++ examples
 
-(*这是一本高级程序员指南，使用C*++的例子介绍如何高效利用硬件和优化编译器*)
+(*一本高级程序员指南，使用C++介绍如何高效利用硬件和编译器优化*)
 
 * 作者：Fedor G. Pikus
 
@@ -16,49 +16,49 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 
 ## 本书概述
 
-*Get to grips with various performance improvement techniques such as concurrency, lock-free  programming, atomic operations, parallelism, and memory management.*
+*掌握各种性能提升技术，如并发性、无锁编程、原子操作、并行性和内存管理。*
 
-The great free lunch of "performance taking care of itself" is over. Until recently, programs got faster by themselves as CPUs were upgraded, but that doesn't happen anymore. The clock frequency of new processors has almost peaked. New architectures provide small improvements to existing programs, but this only helps slightly. Processors do get larger and more powerful, but most of this new power is consumed by the increased number of processing cores and other "extra" computing units. To write efficient software, you now have to know how to program by making good use of the available computing resources, and this book will teach you how to do that.
+免费硬件性能自提升结束了，随着CPU的升级，虽然程序本身的速度也在加快，现在情况不一样了。新架构的处理器时钟频率几乎达到了峰值，对现有的程序性能上的改进并不多。虽然处理器变得体积更大、性能更强，但这些能力的大部分都在增多的核数和其他“额外”计算单元消耗掉了。为了编写高效的软件，现在的开发者必须了解如何利用现有的计算资源进行编程，这本书将带你了解如何做到这一点。
 
-The book covers all the major aspects of writing efficient programs, such as using CPU resources and memory efficiently, avoiding unnecessary computations, measuring performance, and how to put concurrency and multithreading to good use. You'll also learn about compiler optimizations and how to use the programming language (C++) more efficiently. Finally, you'll understand how design decisions impact performance.
+这本书涵盖了编写高效程序的所有主要方面，如：高效地使用CPU资源和内存，避免不必要的计算，性能测试，以及如何充分利用并发性和多线程。还将了解编译器优化，以及如何更有效地使用编程语言(C++)。最后，将了解设计决策如何对性能产生影响。
 
-By the end of this book, you'll not only have enough knowledge of processors and compilers to write efficient programs, but you'll also be able to understand which techniques to use and what to measure while improving performance. At its core, this book is about learning how to learn.
+读完这本书，您不仅将有足够的处理器和编译器知识来编写高效的程序，还能够理解使用这些技术和在提高性能时如何测量。而本书的核心在于如何学习。
 
 #### 关键特性
 
-- Understand the limitations of modern CPUs and their performance impact
-- Find out how you can avoid writing inefficient code and get the best optimizations from the compiler
-- Learn the tradeoffs and costs of writing high-performance programs
+- 了解现代CPU的局限性及对性能的影响
+- 了解如何避免编写效率低下的代码，并使用编译器进行最大优化
+- 了解编写高性能程序需要权衡策略和成本
 
 #### 内容纲要
 
-- Discover how to use the hardware computing resources in your programs effectively
-- Understand the relationship between memory order and memory barriers
-- Familiarize yourself with the performance implications of different data structures and organizations
-- Assess the performance impact of concurrent memory accessed and how to minimize it
-- Discover when to use and when not to use lock-free programming techniques
-- Explore different ways to improve the effectiveness of compiler optimizations
-- Design APIs for concurrent data structures and high-performance data structures to avoid inefficiencies
+- 了解如何有效地使用程序中的硬件计算资源
+- 理解内存顺序和内存栅栏之间的关系
+- 熟悉不同数据结构和组织方式对性能的影响
+- 评估并发内存访问对性能的影响，以及如何将影响最小化
+- 了解何时使用和不使用无锁编程技术
+- 探索提高编译器优化效率的不同方法
+- 为避免效率低下的开发，对发数据结构和高性能数据结构设计API
 
 
 
 ## 适读人群
 
-This book is for experienced developers and programmers who work on performance-critical projects and want to learn different techniques to improve the performance of their code. Programmers who belong to algorithmic trading, gaming, bioinformatics, computational genomics, or computational fluid dynamics  communities can learn various techniques from this book and apply them in their domain of work.
+这本书是为有经验的开发人员和程序员编写的，他们从事对性能至关重要的项目，并希望学习不同的技术来提高代码的性能。属于算法交易、游戏、生物信息学、计算基因组学或计算流体动力学社区的开发者，可以从这本书中学习各种技术，并将其应用到他们的工作领域中。
 
-Although this book uses the C++ language, the concepts demonstrated in the book can be easily transferred or applied to other compiled languages such as C, Java, Rust, Go, and more.
+虽然本书使用的是C++语言，但本书的概念可以很容易地转移或应用到其他编译语言，如C、Java、Rust、Go等。
 
 ## 作者简介
 
-Fedor G Pikus is a Chief Engineering Scientist in the Design to Silicon division of Mentor Graphics Corp (Siemens business). His earlier positions included a Senior Software Engineer at Google and a Chief Software Architect for Calibre PERC, LVS, DFM at Mentor Graphics. He joined Mentor Graphics in 1998 when he made a switch from academic research in computational physics to the software industry. Fedor is a recognized expert on high-performance computing and C++, he presented his works at CPPCon, SD West, DesignCon, in Software Development Journal, and is also an O'Reilly author. His responsibilities as a Chief Scientist include planning the long-term technical direction of Calibre products, directing and training the engineers who work on these products, design, and architecture of the software, and research in the new design and software technologies. Fedor has over 25 patents and over 100 papers and conference presentations on physics, EDA, software design, and C++ language.
+**Fedor G. Pikus**是Mentor Graphics公司(西门子公司)硅设计部门的首席工程科学家。他曾在谷歌担任高级软件工程师，在Mentor Graphics担任Calibre PERC、LVS、DFM的首席软件架构师。1998年，他从计算物理的学术研究转向软件行业，加入Mentor Graphics。Fedor是高性能计算和C++方面的公认专家，他在CPPCon, SD West, DesignCon, Software Development Journal上展示过作品，也是O'Reilly的作者。作为首席科学家，他的职责包括规划Calibre产品的长期技术方向，指导和培训从事这些产品、软件设计和架构的工程师，以及研究新的设计和软件技术。Fedor在物理学、EDA、软件设计和C++语言方面拥有超过25项专利和超过100篇论文和会议报告。
 
-> I want to thank my wife, Galina, and my sons, Aaron and Benjamin, who supported and encouraged me and never lost faith in me, and my cat, Pooh, for cheering me up when I needed it.
+> 我要感谢我的妻子加林娜(Galina)，我的儿子亚伦(Aaron)和本杰明(Benjamin)，他们支持和鼓励我，对我信心十足，还有我的猫维尼(Pooh)，也会在我需要的时候鼓励我。
 >
 > <p align="right"> —Fedor G. Pikus</p>
 
 ## 审评者介绍
 
-**Sergey Gomon** started his journey in IT 12 years ago at Belarus State University of Informatics and Radioelectronics, in the Artificial Intelligence department. He has about 8 years of industrial programming experience using C++ in several fields, including network programming, information security, and image processing. He currently works at N-able and is an activist in the CoreHard C++ community.
+**Sergey Gomon**在12年前在白俄罗斯国立大学信息和无线电电子学院的人工智能系，开始了他的IT之旅。他在网络编程、信息安全、图像处理等多个领域拥有大约8年使用C++的工业编程经验。他目前在N-able工作，是CoreHard C++社区的活跃成员。
 
 
 
