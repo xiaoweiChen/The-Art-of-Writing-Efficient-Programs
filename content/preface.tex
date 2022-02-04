@@ -1,0 +1,110 @@
+\begin{flushright}
+\zihao{0} 前言
+\end{flushright}
+
+The art of high-performance programming is making a comeback. I started programming in the days when the programmer had to know where every bit of data went (sometimes quite literally – with switches on the front panel). Now, computers have more than enough power for everyday tasks. Sure, there have always been domains where there is never enough computing power. But most programmers could get away with writing inefficient code. This is not a bad thing, by the way: free from performance constraints, the programmer could focus on making the code better in other ways.
+
+The very first thing this book explains, then, is why more and more programmers are forced to pay attention to performance and efficiency again. This will set the tone for the entire book because it defines the methodology we will be using in subsequent chapters: knowledge about performance must ultimately come from measurements, and every performance-related claim must be supported by data.
+
+There are five components, five elements that together determine the performance of a program. First, we delve into the details and explore the low-level foundation of all things performance: our computing hardware (no switches – promise, those days are gone). From the individual components – processors and memory – we work our way up to multiprocessor computing systems. Along the way, we learn about the memory model, the cost of data sharing, and even lock-free programming.
+
+The second component of high-performance programming is an efficient use of the programming language. It is at this point that the book becomes much more C++-specific (other languages have their own favorite inefficiencies). Following closely is the third element, the skill to help the compiler improve the performance of your programs.
+
+The fourth component is the design. Arguably, it should be the first one: if the design is not done with performance as one of its explicit goals, it is almost impossible to add good performance later as an afterthought. We study designing for performance last, however, since this is a high-level concept and it brings together all the knowledge we will have acquired earlier.
+
+The final, fifth element of high-performance programming is you, the reader. Your knowledge and skill will ultimately determine the result. To help you learn, the book includes many examples that can be used for hands-on exploration and self-study. The learning does not have to stop after you turn over the last page.
+
+\hspace*{\fill} \\ %插入空行
+\noindent\textbf{适读人群}
+
+这本书是为有经验的开发人员和程序员编写的，他们从事对性能至关重要的项目，并希望学习不同的技术来提高代码的性能。属于算法交易、游戏、生物信息学、计算基因组学或计算流体动力学社区的开发者，可以从这本书中学习各种技术，并将其应用到他们的工作领域中。
+
+虽然本书使用的是C++语言，但本书的概念可以很容易地转移或应用到其他编译语言，如C、Java、Rust、Go等。
+
+\hspace*{\fill} \\ %插入空行
+\textbf{本书内容}
+
+\textit{第1章，Introduction to Performance and Concurrency}。talks about the reasons we care about the performance of programs, specifically about the reasons why good performance doesn't just happen. We learn why, in order to achieve the best performance, or, sometimes, even adequate performance, it is important to understand the different factors affecting performance and the reasons for a particular behavior of the program, be it fast or slow execution.
+
+\textit{第2章，Performance Measurements}。is all about measurements. Performance is often non-intuitive, and all decisions involving efficiency, from design choices to optimizations, should be guided by reliable data. The chapter describes different types of performance measurements, explains how they differ and when they should be used, and teaches how to properly measure performance in different situations.
+
+\textit{第3章，CPU Architecture, Resources, and Performance Implications}。helps us begin the study of the hardware and how to use it efficiently in order to achieve optimum performance. This chapter is dedicated to learning about CPU resources and capabilities, the optimal ways to use them, the more common reasons for not making the best use of CPU resources, and how to resolve them.。
+
+\textit{第4章，Memory Architecture and Performance}。helps us learn about modern memory architectures, their inherent weaknesses, and the ways to counter or at least hide these weaknesses. For many programs, the performance is entirely dependent on whether the programmer takes advantage of the hardware features designed to improve memory performance, and this chapter teaches the necessary skills to do so.
+
+\textit{第5章，Threads, Memory, and Concurrency}。helps us continue our study of the memory system and its effects on performance, but now we extend our study to the domain of multi-core systems and multithreaded programs. It turns out that the memory, which was already the "long pole" of performance, is even more of a problem when we add concurrency. While the fundamental limits imposed by the hardware cannot be overcome, most programs aren't performing even close to these limits, and there is a lot of room for a skillful programmer to improve the efficiency of their code; this chapter gives the reader the necessary knowledge and tools to do so.
+
+\textit{第6章，Concurrency and Performance}。helps you learn about developing highperformance concurrent algorithms and data structures for thread-safe programs. On the one hand, to take full advantage of concurrency, we must take a high-level view of the problem and the solution strategy: data organization, work partitioning, and sometimes even the definition of what constitutes a solution are the choices that critically affect the performance of the program. On the other hand, as we have seen in the last chapter, performance is greatly impacted by low-level factors such as the arrangement of the data in the cache, and even the best design can be ruined by poor implementation.
+
+\textit{第7章，Data Structures for Concurrency}。explains the nature of data structures in concurrent programs and how the familiar definitions of data structures such as "stack" and "queue" mean something else when the data structure is used in a multithreaded context.
+
+\textit{第8章，Concurrency in C++}。describes the features for concurrent programming that were added to the language recently in the C++17 and C++20 standards. While it is too early to talk about the best practices when using these features for optimum performance, we can describe what they do, as well as the current state of compiler support.
+
+\textit{第9章，High-Performance C++}。switches our focus from the optimal use of the hardware resources to the optimal application of a particular programming language. While everything we have learned so far can be applied, usually quite straightforwardly, to any program in any language, this chapter deals with C++ features and idiosyncrasies. The reader will learn which features of the C++ language are likely to cause performance problems and how to avoid them. The chapter will also cover the very important matter of compiler optimizations and how the programmer can help the compiler to generate more efficient code.
+
+\textit{第10章，Compiler Optimizations in C++}。covers compiler optimizations and how the programmer can help the compiler to generate more efficient code.
+
+\textit{第11章，Undefined Behavior and Performance}。has a dual focus. On the one hand, it explains the dangers of the kinds of undefined behavior that programmers often ignore when attempting to squeeze the most performance from their code. On the other hand, it explains how we can take advantage of undefined behavior to improve performance and how to properly specify and document such situations. Overall, the chapter offers a somewhat usual but more relevant way to understand the issue of undefined behavior compared to the usual "anything can happen."
+
+\textit{第12章，Design for Performance}。reviews all the performance-related factors and features we have learned in this book and explores the subject of how the knowledge and understanding we have gained should influence the design decisions we make when developing a new software system or rearchitecting an existing one.
+
+\hspace*{\fill} \\ %插入空行
+\textbf{编译环境}
+
+The book, except the chapters specific to C++ efficiency, does not rely on any esoteric C++ knowledge. All examples are in C++, but the lessons on hardware performance, efficient data structures, and design for performance apply to any programming language. To follow the examples, you will need at least an intermediate knowledge of C++.
+
+\begin{table}[H]
+	\begin{tabular}{|l|l|}
+		\hline
+		C++ compiler(GCC, Clang, Visual Studio, and so on)                                                                                                                  & 操作系统                                                             \\ \hline
+		LLVM版本高于或等于12.x                                                                                                                  & \begin{tabular}[c]{@{}l@{}}Windows, macOS或Linux\end{tabular}                                                             \\ \hline
+		\begin{tabular}[c]{@{}l@{}} Profiler(VTune, Perf, GoogleProf, and so on)\end{tabular} &  \\ \hline
+		Benchmark Library(GoogleBench)                                                                                                                                  &                                                                                  \\ \hline
+	\end{tabular}
+\end{table}
+
+Each chapter mentions the additional software you need to compile and execute the examples, if any. For the most part, any modern C++ compiler can be used with the examples, except for Chapter 8, Concurrency in C++, which requires the latest versions to work through the section on coroutines.
+
+\textbf{If you are using the digital version of this book, we advise you to type the code yourself or access the code from the book's GitHub repository (a link is available in the next 	section). Doing so will help you avoid any potential errors related to the copying and 	pasting of code.}
+
+\hspace*{\fill} \\ %插入空行
+\textbf{下载示例}
+
+您可以从GitHub网站\url{https://	github.com/PacktPublishing/The-Art-of-Writing-Efficient-Programs}下载本书的示例代码文件。如果代码有更新，它将在现有的GitHub库中更新。
+
+我们还有其他的代码包，还有丰富的书籍和视频目录，都在\url{https://github.com/PacktPublishing/}。去看看吧!
+
+\hspace*{\fill} \\ %插入空行
+\textbf{下载彩图}
+
+我们还提供了一个PDF文件，其中包含了本书中使用的屏幕截图/图表的彩色图像。可以在这里下载：\url{https://static.packt-cdn.com/downloads/9781800208117\_ColorImages.pdf}。
+
+\hspace*{\fill} \\ %插入空行
+\textbf{联系方式}
+
+我们欢迎读者的反馈。
+
+\textbf{反馈}：如果你对这本书的任何方面有疑问，需要在你的信息的主题中提到书名，并给我们发邮件到\url{customercare@packtpub.com}。
+
+\textbf{勘误}：尽管我们谨慎地确保内容的准确性，但错误还是会发生。如果您在本书中发现了错误，请向我们报告，我们将不胜感激。请访问\url{www.packtpub.com/support/errata}，选择相应书籍，点击勘误表提交表单链接，并输入详细信息。
+
+\textbf{盗版}:如果您在互联网上发现任何形式的非法拷贝，非常感谢您提供地址或网站名称。请通过\url{copyright@packt.com}与我们联系，并提供材料链接。
+
+\textbf{如果对成为书籍作者感兴趣}：如果你对某主题有专长，又想写一本书或为之撰稿，请访问\url{authors.packtpub.com}。
+
+\hspace*{\fill} \\ %插入空行
+\textbf{欢迎评论}
+
+请留下评论。当您阅读并使用了本书，为什么不在购买网站上留下评论呢？其他读者可以看到您的评论，并根据您的意见来做出购买决定。我们在Packt可以了解您对我们产品的看法，作者也可以看到您对他们撰写书籍的反馈。谢谢你！
+
+想要了解Packt的更多信息，请访问\url{packt.com}。
+
+
+
+
+
+
+
+
+
+

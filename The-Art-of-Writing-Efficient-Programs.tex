@@ -1,0 +1,955 @@
+
+\documentclass[11pt,a4paper,UTF8]{book}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{authblk}
+
+\usepackage{ctex} %导入中文包
+%\usepackage{ulem}
+\usepackage{tocvsec2}
+
+\usepackage{tabularx}
+\usepackage{booktabs} 
+\usepackage{multirow}
+\usepackage{bbding}
+\usepackage{float}
+\usepackage{xspace}
+\usepackage[none]{hyphenat}
+
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{pifont}
+
+\usepackage{hyperref}  %制作pdf的目录
+\usepackage{subfiles} %使用多文件方式进行
+
+\usepackage{geometry} %设置页边距的包
+\geometry{left=2.5cm,right=2cm,top=2.54cm,bottom=2.54cm} %设置书籍的页边距
+
+\usepackage{url}
+\hypersetup{hidelinks, %去红框
+	colorlinks=true,
+	allcolors=black,
+	pdfstartview=Fit,
+	breaklinks=true
+}
+
+% 调整itemlist中的行间距
+\usepackage{enumitem}
+\setenumerate[1]{itemsep=0pt,partopsep=0pt,parsep=\parskip,topsep=5pt}
+\setitemize[1]{itemsep=0pt,partopsep=0pt,parsep=\parskip,topsep=5pt}
+\setdescription{itemsep=0pt,partopsep=0pt,parsep=\parskip,topsep=5pt}
+
+% 超链接样式设置
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=blue,
+	urlcolor=blue,
+	citecolor=cyan,
+}
+
+\usepackage{indentfirst}
+
+\usepackage{listings}
+\usepackage[usenames,dvipsnames,svgnames, x11names]{xcolor}
+
+\usepackage[most]{tcolorbox}
+
+%展示代码
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+\definecolor{keywordcolor}{rgb}{0.8,0.1,0.5}
+\definecolor{webgreen}{rgb}{0,.5,0}
+\definecolor{bgcolor}{rgb}{0.92,0.92,0.92}
+
+%定义CMake
+\lstdefinelanguage{CMake}
+{morekeywords={
+		cmake\_minimum\_required,
+		project,
+		add\_executable,
+		add\_library,
+		target\_link\_libraries,
+		cmake\_parse\_arguments,
+		cmake\_language,
+		set, unset,
+		option,
+		string,
+		list,
+		math,
+		message,
+		if, elseif, else, endif,
+		mark\_as\_advanced,
+		foreach, endforeach,
+		while, endwhile,
+		add\_subdirectory, include, return, include\_gurad,
+		function, endfunction,
+		macro, endmacro,
+		find\_package,
+		cmake\_push\_check\_state,
+		cmake\_pop\_check\_state,
+		cmake\_reset\_check\_state,
+		add\_test,
+		set\_tests\_properties, 
+		check\_c\_source\_runs,
+		check\_cxx\_source\_runs,
+		check\_fortran\_source\_runs,
+		check\_source\_runs,
+		check\_compiler\_flag,
+		check\_c\_compiler\_flag,
+		check\_cxx\_compiler\_flag,
+		check\_fortran\_compiler\_flag,
+		check\_symbol\_exists,
+		check\_cxx\_symbol\_exists,
+		check\_linker\_flag,
+		cmake\_policy,
+		set\_property,
+		get\_property,
+		define\_property,
+		get\_cmake\_property,
+		set\_cmake\_property,
+		set\_target\_properties,
+		get\_target\_property,
+		set\_directory\_properties,
+		get\_directory\_property,
+		set\_source\_files\_properties,
+		get\_source\_file\_property,
+		set\_tests\_properties,
+		get\_tests\_property,
+		get\_test\_property,
+		cmake\_print\_properties,
+		cmake\_print\_variables,
+		variable\_watch,
+		include\_guard,
+		target\_link\_options,
+		target\_compile\_definitions,
+		target\_compile\_options,
+		include\_directories,
+		add\_definitions,
+		remove\_definitions,
+		add\_compile\_definitions,
+		add\_compile\_options,
+		link\_libraries,
+		link\_directories,
+		add\_link\_options,
+		target\_include\_directories,
+		target\_compile\_features,
+		add\_custom\_command,
+		add\_custom\_target,
+		execute\_process,
+		cmake\_path,
+		get\_filename\_component,
+		file,
+		configure\_file,
+		generate\_export\_header,
+		export,
+		find\_file,
+		find\_library,
+		find\_package,
+		find\_program,
+		pkg\_check\_modules,
+		pkg\_search\_module,
+		pkg\_get\_variable,
+		add\_test,
+		enable\_testing,
+		set\_tests\_properties,
+		site\_name,
+		ctest\_empty\_binary\_directory,
+		ctest\_start,
+		ctest\_configure,
+		ctest\_submit,
+		ctest\_build,
+		ctest\_memcheck,
+		ctest\_upload,
+		ctest\_test,
+		gtest\_add\_tests,
+		gtest\_discover\_tests,
+		install,
+		write\_basic\_package\_version\_file,
+		configure\_package\_config\_file,
+		cpack\_add\_component,
+		cpack\_add\_install\_type,
+		cpack\_add\_component\_group,
+		ExternalProject\_Add,
+		ExternalProject\_Add\_StepDependencies,
+		ExternalProject\_Get\_Property,
+		ExternalProject\_Add\_Step,
+		FetchContent\_Declare,
+		FetchContent\_GetProperties,
+		FetchContent\_Populate,
+		source\_group,
+		target\_precompile\_headers,
+		qt5\_wrap\_cpp,
+		qt5\_wrap\_ui,
+		qt5\_add\_resources,
+		qt5\_add\_big\_resources,
+		qt5\_add\_binary\_resources,
+		qt5\_add\_translation,
+		qt5\_create\_translation,
+		compile\_definitions,
+		add\_llvm\_component\_library,
+		add\_llvm\_tool,
+		llvm\_multisource,
+		llvm\_test\_data,
+	}, %定义关键字
+	sensitive=false, %是否大小写敏感
+	morecomment=[l]{\#},
+	morestring=[b]",
+	morestring=[d]',
+}
+
+\lstdefinestyle{styleCMake}{
+	language=CMake,
+	backgroundcolor=\color{blue!3!white}, 
+	basicstyle      =   \zihao{-5}\ttfamily,
+	numberstyle     =   \zihao{-5}\ttfamily,
+	breakatwhitespace = false,
+	breaklines = true,
+	captionpos = b,
+	commentstyle = \color{mygray}\bfseries, 
+	extendedchars =false,             
+	frame=shadowbox, 
+	tabsize=2,
+	framerule=0.5pt,
+	keepspaces=true,
+	keywordstyle=\color{blue}\bfseries, % keyword style
+	otherkeywords={string}, 
+	rulecolor=\color{black},
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	columns         =   fixed,
+	stepnumber=1,
+	stringstyle=\color{purple},        % string literal style
+	flexiblecolumns,  
+}
+
+
+\lstdefinestyle{stylePython}{
+	language        =   Python, % 语言选Python
+	backgroundcolor=\color{blue!3!white}, 
+	basicstyle      =   \zihao{-5}\ttfamily,
+	numberstyle     =   \zihao{-5}\ttfamily,
+	keywordstyle    =   \color{blue},
+	keywordstyle    =   [2] \color{teal},
+	stringstyle     =   \color{magenta},
+	commentstyle    =   \color{red}\ttfamily,
+	frame = shadowbox, 
+	breaklines      =   true,   % 自动换行，建议不要写太长的行
+	columns         =   fixed,  % 如果不加这一句，字间距就不固定，很丑，必须加
+	basewidth       =   0.5em,
+	%basicstyle          =   \sffamily,          % 基本代码风格
+	%keywordstyle        =   \bfseries,          % 关键字风格
+	%commentstyle        =   \rmfamily\itshape,  % 注释的风格，斜体
+	%stringstyle         =   \ttfamily,  % 字符串风格
+	flexiblecolumns,                % 别问为什么，加上这个
+	%numbers             =   left,   % 行号的位置在左边
+	showspaces          =   false,  % 是否显示空格，显示了有点乱，所以不现实了
+	numberstyle         =   \zihao{-5}\ttfamily,    % 行号的样式，小五号，tt等宽字体
+	showstringspaces    =   false,
+	captionpos          =   t,      % 这段代码的名字所呈现的位置，t指的是top上面
+	frame               =   lrtb,   % 显示边框
+	tabsize=2,  
+}
+
+\lstdefinestyle{styleCXX}{
+	language = C++,  
+	backgroundcolor=\color{blue!3!white}, 
+	%basicstyle = \footnotesize,  
+	basicstyle      =   \zihao{-5}\ttfamily,
+	numberstyle     =   \zihao{-5}\ttfamily,   
+	%breakatwhitespace = false,    
+	basewidth       =   0.5em,    
+	breaklines = true,                 
+	captionpos = b,                    
+	commentstyle = \color{mygreen}\bfseries,
+	%extendedchars = false,             
+	frame =shadowbox, 
+	framerule=0.5pt,
+	%frameround = fttt,
+	keepspaces=true,
+	keywordstyle=\color{blue}\bfseries, % keyword style
+	otherkeywords={string}, 
+	numbers=left, 
+	numbersep=5pt,
+	numberstyle=\tiny\color{mygray},
+	rulecolor=\color{black},         
+	%showspaces=false,  
+	%showstringspaces=false, 
+	%showtabs=false,    
+	%stepnumber=1,         
+	stringstyle=\color{mymauve},        % string literal style
+	tabsize=2,          
+	columns         =   fixed,
+	flexiblecolumns,                   
+}
+
+
+\lstdefinelanguage{JavaScript}{
+	morekeywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, do, else, case, break, const, console, let},
+	morecomment=[s]{/*}{*/},
+	morecomment=[l]//,
+	morestring=[b]",
+	morestring=[b]'
+}
+
+\lstdefinestyle{styleJavaScript}{
+	language=JavaScript,
+	backgroundcolor=\color{blue!3!white}, 
+	basicstyle      =   \zihao{-5}\ttfamily,
+	numberstyle     =   \zihao{-5}\ttfamily,
+	breakatwhitespace = false,
+	breaklines = true,
+	captionpos = b,
+	commentstyle = \color{mygray}\bfseries, 
+	extendedchars =false,             
+	frame=shadowbox, 
+	tabsize=2,
+	framerule=0.5pt,
+	keepspaces=true,
+	keywordstyle=\color{blue}\bfseries, % keyword style
+	otherkeywords={string}, 
+	rulecolor=\color{black},
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	columns         =   fixed,
+	stepnumber=1,
+	stringstyle=\color{purple},        % string literal style
+	flexiblecolumns,  
+}
+
+
+\tcbset{
+	commandshell/.style={
+		listing only,
+		colback=black!75!white,
+		colupper=white,
+		lowerbox=ignored,
+		listing options={
+			language={bash},
+			basicstyle=\ttfamily,
+			columns = fixed,
+			flexiblecolumns
+		}
+}}
+
+\usepackage{tikz}
+
+% URL 正确换行
+% https://liam.page/2017/05/17/help-the-url-command-from-hyperref-to-break-at-line-wrapping-point/
+\makeatletter
+\def\UrlAlphabet{%
+	\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j%
+	\do\k\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t%
+	\do\u\do\v\do\w\do\x\do\y\do\z\do\A\do\B\do\C\do\D%
+	\do\E\do\F\do\G\do\H\do\I\do\J\do\K\do\L\do\M\do\N%
+	\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V\do\W\do\X%
+	\do\Y\do\Z}
+\def\UrlDigits{\do\1\do\2\do\3\do\4\do\5\do\6\do\7\do\8\do\9\do\0}
+\g@addto@macro{\UrlBreaks}{\UrlOrds}
+\g@addto@macro{\UrlBreaks}{\UrlAlphabet}
+\g@addto@macro{\UrlBreaks}{\UrlDigits}
+\makeatother
+
+% enable subsubsubsection
+% from https://tex.stackexchange.com/questions/274212/correct-hierarchy-levels-of-pdf-bookmarks-for-custom-section-subsubsubsection
+\usepackage[depth=3]{bookmark}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{4}
+\hypersetup{bookmarksdepth=4}
+
+\makeatletter
+
+\newcommand{\toclevel@subsubsubsection}{4}
+\newcounter{subsubsubsection}[subsubsection]
+
+\renewcommand{\thesubsubsubsection}{\thesubsubsection.\arabic{subsubsubsection}}
+
+\newcommand{\subsubsubsection}{\@startsection{subsubsubsection}{4}{\z@}%
+	{-3.25ex\@plus -1ex \@minus -.2ex}%
+	{1.5ex \@plus .2ex}%
+	{\normalfont\normalsize\bf\bfseries}}
+
+\newcommand*{\l@subsubsubsection}{\@dottedtocline{4}{11em}{5em}}  
+
+\newcommand{\subsubsubsectionmark}[1]{}
+\makeatother
+
+\begin{document}
+%\maketitle
+
+\begin{center}
+\thispagestyle{empty}
+%\includegraphics[width=\textwidth,height=\textheight,keepaspectratio]{cover.jpg}
+\begin{tikzpicture}[remember picture, overlay, inner sep=0pt]
+	\node at (current page.center) 
+	{\includegraphics[width=\paperwidth, keepaspectratio=false]{cover.jpg}};
+\end{tikzpicture}
+\newpage
+\thispagestyle{empty}
+\huge
+\textbf{LLVM Techniques, Tips, and Best Practices} 
+\\[9pt]
+\normalsize
+An advanced programmer's guide to efficient hardware utilization and compiler optimizations using C++ examples \\ 
+(一本高级程序员指南，使用C++介绍如何高效利用硬件和编译器优化)
+\\[10pt]
+\normalsize 
+作者: Fedor G. Pikus
+\\[8pt]
+\normalsize
+译者；陈晓伟
+\end{center}
+
+\hspace*{\fill} \\ %插入空行
+\noindent\textbf{本书概述}
+
+\textit{掌握各种性能提升技术，如并发性、无锁编程、原子操作、并行性和内存管理。}
+
+免费硬件性能自提升结束了，随着CPU的升级，虽然程序本身的速度也在加快，现在情况不一样了。新架构的处理器时钟频率几乎达到了峰值，对现有的程序性能上的改进并不多。虽然处理器变得体积更大、性能更强，但这些能力的大部分都在增多的核数和其他“额外”计算单元消耗掉了。为了编写高效的软件，现在的开发者必须了解如何利用现有的计算资源进行编程，这本书将带你了解如何做到这一点。
+
+这本书涵盖了编写高效程序的所有主要方面，如：高效地使用CPU资源和内存，避免不必要的计算，性能测试，以及如何充分利用并发性和多线程。还将了解编译器优化，以及如何更有效地使用编程语言(C++)。最后，将了解设计决策如何对性能产生影响。
+
+读完这本书，您不仅将有足够的处理器和编译器知识来编写高效的程序，还能够理解使用这些技术和在提高性能时如何测量。而本书的核心在于如何学习。
+
+\hspace*{\fill} \\ %插入空行
+\noindent\textbf{关键特性}
+\begin{itemize}
+\item 了解现代CPU的局限性及对性能的影响
+\item 了解如何避免编写效率低下的代码，并使用编译器进行最大优化
+\item 了解编写高性能程序需要权衡策略和成本
+\end{itemize}
+
+\hspace*{\fill} \\ %插入空行
+\noindent\textbf{内容纲要}
+\begin{itemize}
+\item 了解如何有效地使用程序中的硬件计算资源
+\item 理解内存顺序和内存栅栏之间的关系
+\item 熟悉不同数据结构和组织方式对性能的影响
+\item 评估并发内存访问对性能的影响，以及如何将影响最小化
+\item 了解何时使用和不使用无锁编程技术
+\item 探索提高编译器优化效率的不同方法
+\item 为避免效率低下的开发，对发数据结构和高性能数据结构设计API
+\end{itemize}
+
+\hspace*{\fill} \\ %插入空行
+\noindent\textbf{作者简介}
+
+\textbf{Fedor G. Pikus}是Mentor Graphics公司(西门子公司)硅设计部门的首席工程科学家。他曾在谷歌担任高级软件工程师，在Mentor Graphics担任Calibre PERC、LVS、DFM的首席软件架构师。1998年，他从计算物理的学术研究转向软件行业，加入Mentor Graphics。Fedor是高性能计算和C++方面的公认专家，他在CPPCon, SD West, DesignCon, Software Development Journal上展示过作品，也是O'Reilly的作者。作为首席科学家，他的职责包括规划Calibre产品的长期技术方向，指导和培训从事这些产品、软件设计和架构的工程师，以及研究新的设计和软件技术。Fedor在物理学、EDA、软件设计和C++语言方面拥有超过25项专利和超过100篇论文和会议报告。
+\begin{center}
+\tt
+我要感谢我的妻子加林娜(Galina)，我的儿子亚伦(Aaron)和本杰明(Benjamin)，他们支持和鼓励我，对我信心十足，还有我的猫维尼(Pooh)，也会在我需要的时候鼓励我。
+\end{center}
+
+\thispagestyle{empty}
+\hspace*{\fill} \\ %插入空行
+\noindent\textbf{审评者介绍}
+
+\textbf{Sergey Gomon}在12年前在白俄罗斯国立大学信息和无线电电子学院的人工智能系，开始了他的IT之旅。他在网络编程、信息安全、图像处理等多个领域拥有大约8年使用C++的工业编程经验。他目前在N-able工作，是CoreHard C++社区的活跃成员。
+
+
+\hspace*{\fill} \\ %插入空行
+\noindent\textbf{本书相关}
+\begin{itemize}
+\item Github翻译地址：\\\url{https://github.com/xiaoweiChen/LLVM-Techniques-Tips-and-Best-Practies}
+\end{itemize}
+\newpage
+
+%前言
+\pagestyle{empty}
+\subfile{content/preface.tex}
+
+\tableofcontents
+\newpage
+
+\setsecnumdepth{section}
+
+\color{white}
+\section*{\zihao{1}第一部分：Performance Fundamentals}
+\pagecolor{mygray}
+\addcontentsline{toc}{section}{第一部分：Performance Fundamentals}
+\textbf{\subfile{content/1/Section-1.tex}}
+\newpage
+\color{black}
+\pagecolor{white}
+
+\subsection*{\zihao{2} 第1章\hspace{0.5cm}Introduction to Performance and Concurrency}
+\addcontentsline{toc}{subsection}{第1章\hspace{0.5cm}Introduction to Performance and Concurrency}
+\subfile{content/1/chapter1/0.tex}
+
+\subsubsection*{\zihao{3} 1.1.\hspace{0.2cm}Why focus on performance?}
+\addcontentsline{toc}{subsubsection}{1.1.\hspace{0.2cm}Why focus on performance?}
+\subfile{content/1/chapter1/1.tex}
+
+\subsubsection*{\zihao{3} 1.2.\hspace{0.2cm}Why performance matters}
+\addcontentsline{toc}{subsubsection}{1.2.\hspace{0.2cm}Why performance matters}
+\subfile{content/1/chapter1/2.tex}
+
+\subsubsection*{\zihao{3} 1.3.\hspace{0.2cm}What is performance?}
+\addcontentsline{toc}{subsubsection}{1.3.\hspace{0.2cm}What is performance?}
+\subfile{content/1/chapter1/3.tex}
+
+\subsubsection*{\zihao{3} 1.4.\hspace{0.2cm}Evaluating, estimating, and predicting performance}
+\addcontentsline{toc}{subsubsection}{1.4.\hspace{0.2cm}Evaluating, estimating, and predicting performance}
+\subfile{content/1/chapter1/4.tex}
+
+\subsubsection*{\zihao{3} 1.5.\hspace{0.2cm}Learning about high performance}
+\addcontentsline{toc}{subsubsection}{1.5.\hspace{0.2cm}Learning about high performance}
+\subfile{content/1/chapter1/5.tex}
+
+\subsubsection*{\zihao{3} 1.6.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{1.6.\hspace{0.2cm}总结}
+\subfile{content/1/chapter1/6.tex}
+
+\subsubsection*{\zihao{3} 1.7.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{1.7.\hspace{0.2cm}Questions}
+\subfile{content/1/chapter1/7.tex}
+\newpage
+
+\subsection*{\zihao{2} 第2章\hspace{0.5cm}Performance Measurements}
+\addcontentsline{toc}{subsection}{第2章\hspace{0.5cm}Performance Measurements}
+\subfile{content/1/chapter2/0.tex}
+
+\subsubsection*{\zihao{3} 2.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{2.1.\hspace{0.2cm}相关准备}
+\subfile{content/1/chapter2/1.tex}
+
+\subsubsection*{\zihao{3} 2.2.\hspace{0.2cm}Performance measurements by example}
+\addcontentsline{toc}{subsubsection}{2.2.\hspace{0.2cm}Performance measurements by example}
+\subfile{content/1/chapter2/2.tex}
+
+\subsubsection*{\zihao{3} 2.3.\hspace{0.2cm}Performance benchmarking}
+\addcontentsline{toc}{subsubsection}{2.3.\hspace{0.2cm}Performance benchmarking}
+\subfile{content/1/chapter2/3.tex}
+
+\subsubsection*{\zihao{3} 2.4.\hspace{0.2cm}Performance profiling}
+\addcontentsline{toc}{subsubsection}{2.4.\hspace{0.2cm}Performance profiling}
+\subfile{content/1/chapter2/4.tex}
+
+\subsubsection*{\zihao{3} 2.5.\hspace{0.2cm}Micro-benchmarking}
+\addcontentsline{toc}{subsubsection}{2.5.\hspace{0.2cm}Micro-benchmarking}
+\subfile{content/1/chapter2/5.tex}
+
+\subsubsection*{\zihao{3} 2.6.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{2.6.\hspace{0.2cm}总结}
+\subfile{content/1/chapter2/6.tex}
+
+\subsubsection*{\zihao{3} 2.7.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{2.7.\hspace{0.2cm}Questions}
+\subfile{content/1/chapter2/7.tex}
+\newpage
+
+\subsection*{\zihao{2} 第3章\hspace{0.5cm}CPU Architecture, Resources, and Performance}
+\addcontentsline{toc}{subsection}{第3章\hspace{0.5cm}CPU Architecture, Resources, and Performance}
+\subfile{content/1/chapter3/0.tex}
+
+\subsubsection*{\zihao{3} 3.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{3.1.\hspace{0.2cm}相关准备}
+\subfile{content/1/chapter3/1.tex}
+
+\subsubsection*{\zihao{3} 3.2.\hspace{0.2cm}The performance begins with the CPU}
+\addcontentsline{toc}{subsubsection}{3.2.\hspace{0.2cm}The performance begins with the CPU}
+\subfile{content/1/chapter3/2.tex}
+
+\subsubsection*{\zihao{3} 3.3.\hspace{0.2cm}Probing performance with micro-benchmarks}
+\addcontentsline{toc}{subsubsection}{3.3.\hspace{0.2cm}Probing performance with micro-benchmarks}
+\subfile{content/1/chapter3/3.tex}
+
+\subsubsection*{\zihao{3} 3.4.\hspace{0.2cm}Data dependencies and pipelining}
+\addcontentsline{toc}{subsubsection}{3.4.\hspace{0.2cm}Data dependencies and pipelining}
+\subfile{content/1/chapter3/4.tex}
+
+\subsubsection*{\zihao{3} 3.5.\hspace{0.2cm}Pipelining and branches}
+\addcontentsline{toc}{subsubsection}{3.5.\hspace{0.2cm}Pipelining and branches}
+\subfile{content/1/chapter3/5.tex}
+
+\subsubsection*{\zihao{3} 3.6.\hspace{0.2cm}Speculative execution}
+\addcontentsline{toc}{subsubsection}{3.6.\hspace{0.2cm}Speculative execution}
+\subfile{content/1/chapter3/6.tex}
+
+\subsubsection*{\zihao{3} 3.7.\hspace{0.2cm}Optimization of complex conditions}
+\addcontentsline{toc}{subsubsection}{3.7.\hspace{0.2cm}Optimization of complex conditions}
+\subfile{content/1/chapter3/7.tex}
+
+\subsubsection*{\zihao{3} 3.8.\hspace{0.2cm}Branchless computing}
+\addcontentsline{toc}{subsubsection}{3.8.\hspace{0.2cm}Branchless computing}
+\subfile{content/1/chapter3/8.tex}
+
+\subsubsection*{\zihao{3} 3.9.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{3.9.\hspace{0.2cm}总结}
+\subfile{content/1/chapter3/9.tex}
+
+\subsubsection*{\zihao{3} 3.10.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{3.10.\hspace{0.2cm}Questions}
+\subfile{content/1/chapter3/10.tex}
+\newpage
+
+\subsection*{\zihao{2} 第4章\hspace{0.5cm}Memory Architecture and Performance}
+\addcontentsline{toc}{subsection}{第4章\hspace{0.5cm}Memory Architecture and Performance}
+\subfile{content/1/chapter4/0.tex}
+
+\subsubsection*{\zihao{3} 4.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{4.1.\hspace{0.2cm}相关准备}
+\subfile{content/1/chapter4/1.tex}
+
+\subsubsection*{\zihao{3} 4.2.\hspace{0.2cm}The performance begins with the CPU but does not end there}
+\addcontentsline{toc}{subsubsection}{4.2.\hspace{0.2cm}The performance begins with the CPU but does not end there}
+\subfile{content/1/chapter4/2.tex}
+
+\subsubsection*{\zihao{3} 4.3.\hspace{0.2cm}Measuring memory access speed}
+\addcontentsline{toc}{subsubsection}{4.3.\hspace{0.2cm}Measuring memory access speed}
+\subfile{content/1/chapter4/3.tex}
+
+\subsubsection*{\zihao{3} 4.4.\hspace{0.2cm}The speed of memory: the numbers}
+\addcontentsline{toc}{subsubsection}{4.4.\hspace{0.2cm}The speed of memory: the numbers}
+\subfile{content/1/chapter4/4.tex}
+
+\subsubsection*{\zihao{3} 4.5.\hspace{0.2cm}Optimizing memory performance}
+\addcontentsline{toc}{subsubsection}{4.5.\hspace{0.2cm}Optimizing memory performance}
+\subfile{content/1/chapter4/5.tex}
+
+\subsubsection*{\zihao{3} 4.6.\hspace{0.2cm}The ghost in the machine}
+\addcontentsline{toc}{subsubsection}{4.6.\hspace{0.2cm}The ghost in the machine}
+\subfile{content/1/chapter4/6.tex}
+
+\subsubsection*{\zihao{3} 4.7.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{4.7.\hspace{0.2cm}总结}
+\subfile{content/1/chapter4/7.tex}
+
+\subsubsection*{\zihao{3} 4.6.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{4.6.\hspace{0.2cm}Questions}
+\subfile{content/1/chapter4/6.tex}
+\newpage
+
+\subsection*{\zihao{2} 第5章\hspace{0.5cm}Threads, Memory, and Concurrency}
+\addcontentsline{toc}{subsection}{第5章\hspace{0.5cm}Threads, Memory, and Concurrency}
+\subfile{content/1/chapter5/0.tex}
+
+\subsubsection*{\zihao{3} 5.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{5.1.\hspace{0.2cm}相关准备}
+\subfile{content/1/chapter5/1.tex}
+
+\subsubsection*{\zihao{3} 5.2.\hspace{0.2cm}Understanding threads and concurrency}
+\addcontentsline{toc}{subsubsection}{5.2.\hspace{0.2cm}Understanding threads and concurrency}
+\subfile{content/1/chapter5/2.tex}
+
+\subsubsection*{\zihao{3} 5.3.\hspace{0.2cm}Understanding the cost of memory synchronization}
+\addcontentsline{toc}{subsubsection}{5.3.\hspace{0.2cm}Understanding the cost of memory synchronization}
+\subfile{content/1/chapter5/3.tex}
+
+\subsubsection*{\zihao{3} 5.4.\hspace{0.2cm}Why data sharing is expensive}
+\addcontentsline{toc}{subsubsection}{5.4.\hspace{0.2cm}Why data sharing is expensive}
+\subfile{content/1/chapter5/4.tex}
+
+\subsubsection*{\zihao{3} 5.5.\hspace{0.2cm}Learning about concurrency and order}
+\addcontentsline{toc}{subsubsection}{5.5.\hspace{0.2cm}Learning about concurrency and order}
+\subfile{content/1/chapter5/5.tex}
+
+\subsubsection*{\zihao{3} 5.6.\hspace{0.2cm}Memory model}
+\addcontentsline{toc}{subsubsection}{5.6.\hspace{0.2cm}Memory model}
+\subfile{content/1/chapter5/6.tex}
+
+\subsubsection*{\zihao{3} 5.7.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{5.7.\hspace{0.2cm}总结}
+\subfile{content/1/chapter5/7.tex}
+
+\subsubsection*{\zihao{3} 5.8.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{5.8.\hspace{0.2cm}Questions}
+\subfile{content/1/chapter5/8.tex}
+\newpage
+
+\color{white}
+\section*{\zihao{1}第二部分：Advanced Concurrency}
+\pagecolor{mygray}
+\addcontentsline{toc}{section}{第二部分：Advanced Concurrency}
+\textbf{\subfile{content/2/Section-2.tex}}
+\newpage
+\color{black}
+\pagecolor{white}
+
+\subsection*{\zihao{2} 第6章\hspace{0.5cm}Concurrency and Performance}
+\addcontentsline{toc}{subsection}{第6章\hspace{0.5cm}Concurrency and Performance}
+\subfile{content/2/chapter6/0.tex}
+
+\subsubsection*{\zihao{3} 6.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{6.1.\hspace{0.2cm}相关准备}
+\subfile{content/2/chapter6/1.tex}
+
+\subsubsection*{\zihao{3} 6.2.\hspace{0.2cm}What is needed to use concurrency effectively?}
+\addcontentsline{toc}{subsubsection}{6.2.\hspace{0.2cm}What is needed to use concurrency effectively?}
+\subfile{content/2/chapter6/2.tex}
+
+\subsubsection*{\zihao{3} 6.3.\hspace{0.2cm}Locks, alternatives, and their performance}
+\addcontentsline{toc}{subsubsection}{6.3.\hspace{0.2cm}Locks, alternatives, and their performance}
+\subfile{content/2/chapter6/3.tex}
+
+\subsubsection*{\zihao{3} 6.4.\hspace{0.2cm}Building blocks for concurrent programming}
+\addcontentsline{toc}{subsubsection}{6.4.\hspace{0.2cm}Building blocks for concurrent programming}
+\subfile{content/2/chapter6/4.tex}
+
+\subsubsection*{\zihao{3} 6.5.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{6.5.\hspace{0.2cm}总结}
+\subfile{content/2/chapter6/5.tex}
+
+\subsubsection*{\zihao{3} 6.6.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{6.6.\hspace{0.2cm}Questions}
+\subfile{content/2/chapter6/6.tex}
+\newpage
+
+\subsection*{\zihao{2} 第7章\hspace{0.5cm}Data Structures for Concurrency}
+\addcontentsline{toc}{subsection}{第7章\hspace{0.5cm}Data Structures for Concurrency}
+\subfile{content/2/chapter7/0.tex}
+
+\subsubsection*{\zihao{3} 7.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{7.1.\hspace{0.2cm}相关准备}
+\subfile{content/2/chapter7/1.tex}
+
+\subsubsection*{\zihao{3} 7.2.\hspace{0.2cm}What is a thread-safe data structure?}
+\addcontentsline{toc}{subsubsection}{7.2.\hspace{0.2cm}What is a thread-safe data structure?}
+\subfile{content/2/chapter7/2.tex}
+
+\subsubsection*{\zihao{3} 7.3.\hspace{0.2cm}The thread-safe stack}
+\addcontentsline{toc}{subsubsection}{7.3.\hspace{0.2cm}The thread-safe stack}
+\subfile{content/2/chapter7/3.tex}
+
+\subsubsection*{\zihao{3} 7.4.\hspace{0.2cm}The thread-safe queue}
+\addcontentsline{toc}{subsubsection}{7.4.\hspace{0.2cm}The thread-safe queue}
+\subfile{content/2/chapter7/4.tex}
+
+\subsubsection*{\zihao{3} 7.5.\hspace{0.2cm}The thread-safe list}
+\addcontentsline{toc}{subsubsection}{7.5.\hspace{0.2cm}The thread-safe list}
+\subfile{content/2/chapter7/5.tex}
+
+\subsubsection*{\zihao{3} 7.6.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{7.6.\hspace{0.2cm}总结}
+\subfile{content/2/chapter7/6.tex}
+
+\subsubsection*{\zihao{3} 7.7.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{7.7.\hspace{0.2cm}Questions}
+\subfile{content/2/chapter7/7.tex}
+\newpage
+
+\subsection*{\zihao{2} 第8章\hspace{0.5cm}Concurrency in C++}
+\addcontentsline{toc}{subsection}{第8章\hspace{0.5cm}Concurrency in C++}
+\subfile{content/2/chapter8/0.tex}
+
+\subsubsection*{\zihao{3} 8.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{8.1.\hspace{0.2cm}相关准备}
+\subfile{content/2/chapter8/1.tex}
+
+\subsubsection*{\zihao{3} 8.2.\hspace{0.2cm}Concurrency support in C++11}
+\addcontentsline{toc}{subsubsection}{8.2.\hspace{0.2cm}Concurrency support in C++11}
+\subfile{content/2/chapter8/2.tex}
+
+\subsubsection*{\zihao{3} 8.3.\hspace{0.2cm}Concurrency support in C++17}
+\addcontentsline{toc}{subsubsection}{8.3.\hspace{0.2cm}Concurrency support in C++17}
+\subfile{content/2/chapter8/3.tex}
+
+\subsubsection*{\zihao{3} 8.4.\hspace{0.2cm}Concurrency support in C++20}
+\addcontentsline{toc}{subsubsection}{8.4.\hspace{0.2cm}Concurrency support in C++20}
+\subfile{content/2/chapter8/4.tex}
+
+\subsubsection*{\zihao{3} 8.5.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{8.5.\hspace{0.2cm}总结}
+\subfile{content/2/chapter8/5.tex}
+
+\subsubsection*{\zihao{3} 8.6.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{8.6.\hspace{0.2cm}Questions}
+\subfile{content/2/chapter8/6.tex}
+\newpage
+
+\color{white}
+\section*{\zihao{1}第三部分：Designing and Coding High-Performance Programs}
+\pagecolor{mygray}
+\addcontentsline{toc}{section}{第三部分：Designing and Coding High-Performance Programs}
+\textbf{\subfile{content/3/Section-3.tex}}
+\newpage
+\color{black}
+\pagecolor{white}
+
+\subsection*{\zihao{2} 第9章\hspace{0.5cm}High-Performance C++}
+\addcontentsline{toc}{subsection}{第9章\hspace{0.5cm}High-Performance C++}
+\subfile{content/3/chapter9/0.tex}
+
+\subsubsection*{\zihao{3} 9.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{9.1.\hspace{0.2cm}相关准备}
+\subfile{content/3/chapter9/1.tex}
+
+\subsubsection*{\zihao{3} 9.2.\hspace{0.2cm}What is the efficiency of a programming language?}
+\addcontentsline{toc}{subsubsection}{9.2.\hspace{0.2cm}What is the efficiency of a programming language?}
+\subfile{content/3/chapter9/2.tex}
+
+\subsubsection*{\zihao{3} 9.3.\hspace{0.2cm}Unnecessary copying}
+\addcontentsline{toc}{subsubsection}{9.3.\hspace{0.2cm}Unnecessary copying}	
+\subfile{content/3/chapter9/3.tex}
+
+\subsubsection*{\zihao{3} 9.4.\hspace{0.2cm}Inefficient memory management}
+\addcontentsline{toc}{subsubsection}{9.4.\hspace{0.2cm}Inefficient memory management}
+\subfile{content/3/chapter9/4.tex}
+
+\subsubsection*{\zihao{3} 9.5.\hspace{0.2cm}Optimization of conditional execution}
+\addcontentsline{toc}{subsubsection}{9.5.\hspace{0.2cm}Optimization of conditional execution}
+\subfile{content/3/chapter9/5.tex}
+
+\subsubsection*{\zihao{3} 9.6.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{9.6.\hspace{0.2cm}总结}
+\subfile{content/3/chapter9/6.tex}
+
+\subsubsection*{\zihao{3} 9.7.\hspace{0.2cm}问题}
+\addcontentsline{toc}{subsubsection}{9.7.\hspace{0.2cm}问题}
+\subfile{content/3/chapter9/7.tex}
+\newpage
+
+\subsection*{\zihao{2} 第10章\hspace{0.5cm}Compiler Optimizations in C++}
+\addcontentsline{toc}{subsection}{第10章\hspace{0.5cm}Compiler Optimizations in C++}
+\subfile{content/3/chapter10/0.tex}
+
+\subsubsection*{\zihao{3} 10.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{10.1.\hspace{0.2cm}相关准备}
+\subfile{content/3/chapter10/1.tex}
+
+\subsubsection*{\zihao{3} 10.2.\hspace{0.2cm}Compilers optimizing code}
+\addcontentsline{toc}{subsubsection}{10.2.\hspace{0.2cm}Compilers optimizing code}
+\subfile{content/3/chapter10/2.tex}
+
+\subsubsection*{\zihao{3} 10.3.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{10.3.\hspace{0.2cm}总结}
+\subfile{content/3/chapter10/3.tex}
+
+\subsubsection*{\zihao{3} 10.4.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{10.4.\hspace{0.2cm}Questions}
+\subfile{content/3/chapter10/4.tex}
+\newpage
+
+\subsection*{\zihao{2} 第11章\hspace{0.5cm}Undefined Behavior and Performance}
+\addcontentsline{toc}{subsection}{第11章\hspace{0.5cm}Undefined Behavior and Performance}
+\subfile{content/3/chapter11/0.tex}
+
+\subsubsection*{\zihao{3} 11.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{11.1.\hspace{0.2cm}相关准备}
+\subfile{content/3/chapter11/1.tex}
+
+\subsubsection*{\zihao{3} 11.2.\hspace{0.2cm}What is undefined behavior?}
+\addcontentsline{toc}{subsubsection}{11.2.\hspace{0.2cm}What is undefined behavior?}
+\subfile{content/3/chapter11/2.tex}
+
+\subsubsection*{\zihao{3} 11.3.\hspace{0.2cm}Why have undefined behavior?}
+\addcontentsline{toc}{subsubsection}{11.3.\hspace{0.2cm}Why have undefined behavior?}
+\subfile{content/3/chapter11/3.tex}
+
+\subsubsection*{\zihao{3} 11.4.\hspace{0.2cm}Undefined behavior and C++ optimization}
+\addcontentsline{toc}{subsubsection}{11.4.\hspace{0.2cm}Undefined behavior and C++ optimization}
+\subfile{content/3/chapter11/4.tex}
+
+\subsubsection*{\zihao{3} 11.5.\hspace{0.2cm}Using undefined behavior for efficient design}
+\addcontentsline{toc}{subsubsection}{11.5.\hspace{0.2cm}Using undefined behavior for efficient design}
+\subfile{content/3/chapter11/5.tex}
+
+\subsubsection*{\zihao{3} 11.6.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{11.6.\hspace{0.2cm}总结}
+\subfile{content/3/chapter11/6.tex}
+
+\subsubsection*{\zihao{3} 11.7.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{11.7.\hspace{0.2cm}Questions}
+\subfile{content/3/chapter11/7.tex}
+\newpage
+
+\subsection*{\zihao{2} 第12章\hspace{0.5cm}Design for Performance}
+\addcontentsline{toc}{subsection}{第12章\hspace{0.5cm}Design for Performance}
+\subfile{content/3/chapter12/0.tex}
+
+\subsubsection*{\zihao{3} 12.1.\hspace{0.2cm}相关准备}
+\addcontentsline{toc}{subsubsection}{12.1.\hspace{0.2cm}相关准备}
+\subfile{content/3/chapter12/1.tex}
+
+\subsubsection*{\zihao{3} 12.2.\hspace{0.2cm}Interaction between the design and performance}
+\addcontentsline{toc}{subsubsection}{12.2.\hspace{0.2cm}Interaction between the design and performance}
+\subfile{content/3/chapter12/2.tex}
+
+\subsubsection*{\zihao{3} 12.3.\hspace{0.2cm}Design for performance}
+\addcontentsline{toc}{subsubsection}{12.3.\hspace{0.2cm}Design for performance}
+\subfile{content/3/chapter12/3.tex}
+
+\subsubsection*{\zihao{3} 12.4.\hspace{0.2cm}API design considerations}
+\addcontentsline{toc}{subsubsection}{12.4.\hspace{0.2cm}API design considerations}
+\subfile{content/3/chapter12/4.tex}
+
+\subsubsection*{\zihao{3} 12.5.\hspace{0.2cm}Design for optimal data access}
+\addcontentsline{toc}{subsubsection}{12.5.\hspace{0.2cm}Design for optimal data access}
+\subfile{content/3/chapter12/5.tex}
+
+\subsubsection*{\zihao{3} 12.6.\hspace{0.2cm}Performance trade-offs}
+\addcontentsline{toc}{subsubsection}{12.6.\hspace{0.2cm}Performance trade-offs}
+\subfile{content/3/chapter12/6.tex}
+
+\subsubsection*{\zihao{3} 12.7.\hspace{0.2cm}Making informed design decisions}
+\addcontentsline{toc}{subsubsection}{12.7.\hspace{0.2cm}Making informed design decisions}
+\subfile{content/3/chapter12/7.tex}
+
+\subsubsection*{\zihao{3} 12.8.\hspace{0.2cm}总结}
+\addcontentsline{toc}{subsubsection}{12.8.\hspace{0.2cm}总结}
+\subfile{content/3/chapter12/8.tex}
+
+\subsubsection*{\zihao{3} 12.9.\hspace{0.2cm}Questions}
+\addcontentsline{toc}{subsubsection}{12.9.\hspace{0.2cm}Questions}
+\subfile{content/3/chapter12/9.tex}
+\newpage
+
+\section*{\zihao{2} 练习答案}
+\addcontentsline{toc}{section}{练习答案}
+
+\subsection*{\zihao{2}第1章}
+\addcontentsline{toc}{subsection}{第1章}
+\subfile{content/Assessments/1.tex}
+
+\subsection*{\zihao{2}第2章}
+\addcontentsline{toc}{subsection}{第2章}
+\subfile{content/Assessments/2.tex}
+
+\subsection*{\zihao{2}第3章}
+\addcontentsline{toc}{subsection}{第3章}
+\subfile{content/Assessments/3.tex}
+
+\subsection*{\zihao{2}第4章}
+\addcontentsline{toc}{subsection}{第4章}
+\subfile{content/Assessments/4.tex}
+
+\subsection*{\zihao{2}第5章}
+\addcontentsline{toc}{subsection}{第5章}
+\subfile{content/Assessments/5.tex}
+
+\subsection*{\zihao{2}第6章}
+\addcontentsline{toc}{subsection}{第6章}
+\subfile{content/Assessments/6.tex}
+
+\subsection*{\zihao{2}第7章}
+\addcontentsline{toc}{subsection}{第7章}
+\subfile{content/Assessments/7.tex}
+
+\subsection*{\zihao{2}第8章}
+\addcontentsline{toc}{subsection}{第8章}
+\subfile{content/Assessments/8.tex}
+
+\subsection*{\zihao{2}第9章}
+\addcontentsline{toc}{subsection}{第9章}
+\subfile{content/Assessments/9.tex}
+
+\subsection*{\zihao{2}第10章}
+\addcontentsline{toc}{subsection}{第10章}
+\subfile{content/Assessments/10.tex}
+
+\subsection*{\zihao{2}第11章}
+\addcontentsline{toc}{subsection}{第11章}
+\subfile{content/Assessments/11.tex}
+
+\subsection*{\zihao{2}第12章}
+\addcontentsline{toc}{subsection}{第12章}
+\subfile{content/Assessments/12.tex}
+	
+\end{document}
+
