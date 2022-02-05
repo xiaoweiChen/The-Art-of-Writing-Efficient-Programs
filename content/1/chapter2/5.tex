@@ -273,3 +273,72 @@ Figure 2.28
 It looks like the measurements are pretty accurate; the standard deviation is quite small. Now we can benchmark the different variants of the substring comparison function against each other and figure out which one is the fastest. But before we do that, I have to let you in on a big secret.
 
 \subsubsubsection{2.5.4\hspace{0.2cm}Micro-benchmarks are lies}
+
+You will discover it soon enough as you start running more and more micro-benchmarks. At first, the results make sense, you're making good optimizations, and everything looks great. Then you make some small change and get a very different result. You go back to investigate, and now the same tests you already ran give very different numbers. Eventually, you come up with two almost identical tests that show completely opposite results, and you realize that you just can't trust micro-benchmarks. It will destroy your faith in micro-benchmarks, and the only thing I can do about it is to destroy it now, in a controlled manner, while we can still salvage something from the wreckage.
+
+The fundamental problem with micro-benchmarks and any other detailed performance measurements is that they strongly depend on the context. As you read through the rest of the book, you will understand more and more that the performance behavior of modern computers is very complex. The results do not just depend on what the code is doing, but also on what the rest of the system is doing at the same time, on what it was doing earlier, and on the path the execution took through the code before it got to the point of interest. None of these things are replicated in a micro-benchmark.
+
+Instead, the benchmark has its own context. The authors of the benchmarking libraries are not ignorant of this problem, and they try to counter it the best they can. For example, unseen to you, the Google Benchmark library does a burn-in on every test: the first few iterations may have very different performance characteristics from the rest of the run, so the library ignores the initial measurements until the results "settle." But this also defines a particular context, probably different from the real program where every call to the function is repeated only once (on the other hand, sometimes we do end up calling the same function with the same arguments many times throughout the run of the program, so that could be a different context).
+
+There is nothing you can do to faithfully reproduce the real environment of a large program in every detail before running the benchmark. But some details are more important than others. In particular, the greatest source of contextual differences, by far, is the compiler, or, more specifically, the optimizations it does on a real program versus the micro-benchmark. We have already seen how the compiler stubbornly tries to figure out that the entire micro-benchmark is basically a very slow way of doing nothing useful (or at least nothing observable), and replace it with a much faster way of doing the same. The DoNotOptimize wrapper we used earlier gets us around some of the problems caused by the compiler optimizations.
+
+However, there is still the possibility that the compiler may, for example, figure out that every call to the function returns the same result. Also, because the function definition is in the same file as the call site, the compiler can inline the entire function and use any information it can gather about the arguments to optimize the function code. Such optimizations would not be available in the general case when the function is called from another compilation unit. 
+
+To represent the real situation more accurately in our micro-benchmark, we can move the comparison function into its own file and compile it separately. Now we have one file (compilation unit) with just the benchmark fixtures:
+
+\begin{lstlisting}[style=styleCXX]
+// 11_compare_mbm.C
+#include "benchmark/benchmark.h"
+extern bool compare_int(const char* s1, const char* s2);
+extern bool compare_uint(const char* s1, const char* s2);
+extern bool compare_uint_l(const char* s1, const char* s2,
+unsigned int l);
+void BM_loop_int(benchmark::State& state) {
+	const unsigned int N = state.range(0);
+	unique_ptr<char[]> s(new char[2*N]);
+	::memset(s.get(), 'a', 2*N*sizeof(char));
+	s[2*N-1] = 0;
+	const char* s1 = s.get(), *s2 = s1 + N;
+	for (auto _ : state) {
+		benchmark::DoNotOptimize(compare_int(s1, s2));
+	}
+	state.SetItemsProcessed(N*state.iterations());
+}
+void BM_loop_uint(benchmark::State& state) {
+	… compare_uint(s1, s2) …
+}
+void BM_loop_uint_l(benchmark::State& state) {
+	… compare_uint_l(s1, s2, 2*N) …
+}
+BENCHMARK(BM_loop_int)->Arg(1<<20);
+BENCHMARK(BM_loop_uint)->Arg(1<<20);
+BENCHMARK(BM_loop_uint_l)->Arg(1<<20);
+\end{lstlisting}
+
+We can compile the files separately and link them together (any full-program optimizations must be turned off). Now we have a reasonable expectation that the compiler is not generating some special reduced version of the substring comparison because of what it figured out about the arguments we use in our benchmark. With this simple precaution alone, the results are much more consistent with what we observed when we profiled the entire program:
+
+\hspace*{\fill} \\ %插入空行
+\begin{center}
+\includegraphics[width=0.9\textwidth]{content/1/chapter2/images/29.jpg}\\
+Figure 2.29
+\end{center}
+
+The initial version of the code used the unsigned int index and a boundary condition in the loop (the last line); simply dropping that boundary condition check as entirely unnecessary results in a surprising performance degradation (the middle line); finally, changing the index to a signed int recovers the lost performance and even improves it (the first line).
+
+Compiling the code fragments separately is usually enough to avoid any unwanted optimizations. Less commonly, you may find that the compiler does different optimizations to a particular chunk of code depending on what else is in the same file. This could be simply a bug in the compiler, but it can also be a result of some heuristic that is, in the experience of the compiler writers, more often right than not. If you observe that the results depend on some code that is not executed at all, only compiled, this may be the reason. One solution is to use the compilation unit from the real program and just call the function that you want to benchmark. Of course, you will have to satisfy compilation and link dependencies, so here is yet another reason to write modular code and minimize dependencies.
+
+The other source of the context is the state of the computer itself. Obviously, if the entire program ran out of memory and is cycling pages in and out of swap, your small memory benchmark will not be representative of the real problem; on the other hand, the problem now is not in the "slow" code, the problem is that too much memory is consumed elsewhere. However, more subtle versions of this context dependency exist and may affect the benchmarks. A tell-tale sign of this situation is usually this: the results depend on the order in which the tests are executed (in the micro-benchmark, it is the order of the BENCHMARK macros). If reordering the tests or running just a subset of tests gives different results, there is some sort of dependency between them. It could be a code dependency, often as straightforward as data accumulation in some global data structure. Or it could be a subtle dependency on the hardware state. Those are much harder to figure out, but you will learn about some situations that lead to such dependencies later in this book.
+
+Finally, there is a major source of context dependency that is entirely in your hands (which does not necessarily make it easy to avoid, but at least possible). It is the dependency on the state of your program. We already had to deal with the most obvious aspect of such dependency: the inputs to the code we want to benchmark. Sometimes, the inputs are known or can be reconstructed. Often, the performance problem happens only for certain kinds of inputs, and we don't know what is so special about them until we analyze the performance of the code with these specific inputs, which is exactly what we were trying to do with the micro-benchmark in the first place. In such cases, it is often the easiest to capture the inputs from the real run of the real program, store them in a file, and use them to recreate the state of the code we're measuring. This input could be as simple as a collection of data or as complex as a sequence of events that need to be recorded and "played back" to an event handler to reproduce the desired behavior.
+
+The more complex the state we need to reconstruct is, the harder it is to reproduce the performance behavior of the real program in a partial benchmark. Note that this problem somewhat resembles the problem of writing unit tests: they, too, are much harder to write if the program cannot be broken up into smaller units with a simpler state. Once again, we see the advantages of a well-designed software system: a codebase with good unit test coverage is usually much easier to micro-benchmark, piece by piece.
+
+As you were warned when we started this section, it is meant to partially restore your faith in micro-benchmarks. They can be a useful tool, as we will see many times in this book. They can also lead you astray, sometimes very far. You now understand some of the reasons why and are better prepared to try to recover the useful bits of information from the results, rather than giving up on small-scale benchmarking altogether.
+
+None of the tools we have presented in this chapter is a solution to every problem; they are not meant to be. You can achieve the best results by using these tools to collect information in various ways, so they complement each other.
+
+
+
+
+
+
