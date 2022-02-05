@@ -1,0 +1,87 @@
+
+
+We understand now how pipelining keeps the CPU busy and how, by predicting the results of conditional branches and executing the expected code speculatively, before we know for sure that it must be executed, we allow the conditional code to be pipelined. Figure 3.21 illustrates this approach: by assuming that the end of the loop condition is not going to happen after the current iteration, we can interleave the instruction from the next iteration with those of the current one, so we have more instructions to execute in parallel.
+
+Sooner or later, our prediction will be wrong, but all we have to do is discard some results that should have never been computed in the first place and make it look like they were indeed never computed. This costs us some time, but we more than make up for it by speeding up the pipeline when the branch prediction is correct. But is this really all we have to do to cover up the fact that we tried to execute some code that doesn't really exist?
+
+Consider Figure 3.21 again: if the i-th iteration is the last iteration in the loop, then the next iteration should not have happened. Sure, we can discard the value a[i+1] and not write it into memory. But, in order to do any pipelining, we have to read the value of v1[i+1]. There is no discarding the fact that we read it: we access v1[i+1] before we check whether the iteration i is the last iteration, and there is no way to deny that we did access it. But the element v1[i+1] is outside of the valid memory region allocated for the vector; even reading it results in undefined behavior.
+
+An even more convincing example of the dangers hiding behind the innocent label of speculative execution is this very common code:
+
+\begin{lstlisting}[style=styleCXX]
+int f(int* p) {
+	if (p) {
+		return *p;
+	} else {
+		return 0;
+	}
+}
+\end{lstlisting}
+
+Let us assume that the pointer p is rarely NULL, so the branch predictor learns that the true branch of the if(p) statement is usually taken. What happens when the function is finally called with p == NULL? The branch predictor is going to assume the opposite, as usual, and the true branch is executed speculatively. The first thing it does is dereference a NULL pointer. We all know what happens next: the program will crash. Later, we would have discovered that oops, very sorry, we should not have taken that branch in the first place, but how do you undo a crash?
+
+From the fact that code like our function f() is very common and does not suffer from unexpected random crashes, we can conclude that either the speculative execution does not really exist, or there is a way to undo a crash, sort of. We have seen some evidence that speculative execution indeed happens and is very effective for improving performance. We will see more direct evidence in the next chapter. How, then, does it handle the situation when we speculatively attempt to do something impossible, like dereferencing a NULL pointer? The answer is, the catastrophic response to such a potential disaster must be held pending, neither discarded nor allowed to become a reality until the branch condition is actually evaluated, and the processor knows whether the speculative execution should be considered a real execution or not. In this regard, the faults and other invalid conditions are no different from the ordinary memory writes: any action that cannot be undone is treated as a potential action as long as the instruction that caused that action remains speculative. The CPU must have special hardware circuits, such as buffers, to store these events temporarily. The end result is, the processor really does dereference a NULL pointer or read the non-existing vector element v[i+1] during the speculative execution, then pretends that it never happened.
+
+Now that we understand how branch prediction and speculative execution allow the processor to operate efficiently despite the uncertainties created by the data and code dependencies, we can turn our attention to optimizing our programs.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
