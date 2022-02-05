@@ -1,0 +1,41 @@
+As we have just seen, the notion of metrics is fundamental to the concept of performance. With metrics, there is always the implied possibility and necessity of measurements: if we say "we have a metric," it implies that we have a way of quantifying and measuring something, and the only way to find out the value of the metric is to measure it.
+
+The importance of measuring performance cannot be overstated. It is often said that the first law of performance is never to guess about performance. The very next chapter in this book is dedicated to performance measurements, measurement tools, how to use them, and how to interpret the results.
+
+Guessing about performance is, unfortunately, all too widespread. So are overly general statements like "avoid using virtual functions in C++, they are slow." The problem with such statements is not that they are imprecise, that is, they do not reference a metric of how much slower a virtual function is, compared to a non-virtual one. As an exercise for the reader, here are several answers to choose from, all quantified:
+
+\begin{itemize}
+\item A virtual function is 100\% slower
+\item A virtual function is about 15-20\% slower
+\item A virtual function is negligibly slower
+\item A virtual function is 10-20\% faster
+\item A virtual function is 100 times slower
+\end{itemize}
+
+Which is the right answer? If you selected any one of these answers, congratulations: you have chosen the correct answer. That is right, each of these answers is correct under certain circumstances and within a specific context (to learn why, you will have to wait until Chapter 9, High-Performance C++).
+
+Unfortunately, by accepting the truth that it is almost impossible to intuit or guess about performance, we risk falling into another trap: using it as an excuse to write inefficient code "to be optimized later" because we don't guess about performance. While true, the latter maxim can be taken too far, just like the popular dictum do not optimize prematurely.
+
+Performance cannot be added to the program later, so it should not be an afterthought during the initial design and development. Performance considerations and targets have their place at the design stage, just like other design goals. There is a definite tension between these early performance-related goals and the rule to never guess about performance. We have to find the right compromise, and a good way to describe what we really want to accomplish at the design stage with regard to performance is this: while it's lmost impossible to predict the best optimizations in advance, it is possible to identify design decisions that would make subsequent optimizations very hard or even unfeasible.
+
+The same holds later, during program development: it is foolish to spend long hours optimizing a function that ends up being called once a day and takes only a second. On the other hand, it is very wise to encapsulate this code into a function in the first place, so if the use patterns change as the program evolves, it can be optimized later without rewriting the rest of the program.
+
+Another way to describe the limitations of the do not optimize prematurely rule is to qualify it by saying yes, but do not pessimize intentionally either. Recognizing the difference between the two requires knowledge of good design practices as well as an understanding of different aspects of programming for high performance. 
+
+So, what do you, as a developer/programmer, need to learn and understand in order to become proficient in developing high-performance applications? In the next section, we will start with an abbreviated list of these goals before diving into each of them in detail.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,16 @@
+First of all, you will need a C++ compiler. All examples in this chapter were compiled on a Linux system using GCC or Clang compilers. All major Linux distributions have GCC as a part of their regular install; newer versions may be available in the distribution's repositories. The Clang compiler is available through the LLVM project, \url{http://llvm.org/}, although several Linux distributions also maintain their own repositories. On Windows, Microsoft Visual Studio is the most common compiler, but both GCC and Clang are available as well.
+
+Second, you will need a program profiling tool. In this chapter, we will use the Linux "perf " profiler. Again, it comes installed (or is available for installation) on most Linux distributions. The documentation can be found here: \url{https://perf.wiki.kernel.org/index.php/Main_Page}.
+
+We will also demonstrate the use of another profiler, the CPU profiler from the set of Google Performance tools (GperfTools) found here: \url{https://github.com/gperftools/gperftools} (again, your Linux distribution may have it available for installation through its repositories).
+
+There are many other profiling tools available, both free and commercial. They all present fundamentally the same information, but in different ways and with many different analysis options. By following the examples in this chapter, you can learn what to expect of the profiling tool and what are the possible limitations; the specifics of each tool you use will have to be mastered on your own.
+
+Finally, we will use a micro-benchmarking tool. In this chapter, we use the Google Benchmark library found at \url{https://github.com/google/benchmark}. You will, most likely, have to download and install it yourself: even if it comes installed with your Linux distribution, it is likely to be outdated. Follow the installation instructions on the web page.
+
+With all the necessary tools installed, we are ready to do our first experiment in performance measurements.
+
+The code for the chapter can be found here: \url{https://github.com/PacktPublishing/The-Art-of-Writing-Efficient-Programs/tree/master/Chapter02}.
+
+
+

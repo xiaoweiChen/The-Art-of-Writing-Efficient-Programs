@@ -1,0 +1,57 @@
+What makes a program high-performing? We could say "efficiency," but, first of all, this is not always true (although often it is), and second, it just begs the question, because the next obvious question becomes, OK, what makes the program efficient? And what do we need to learn in order to write efficient or high-performing programs? Let's make a general list of the required skills and knowledge:
+
+\begin{itemize}
+\item Choosing the right algorithm
+\item Using CPU resources effectively
+\item Using memory effectively
+\item Avoiding unnecessary computations
+\item Using concurrency and multi-threading effectively
+\item Using the programming language effectively, avoiding inefficiencies
+\item Measuring performance and interpreting results
+\end{itemize}
+
+The most important factor in achieving high performance is choosing a good algorithm. One cannot "fix" a bad algorithm by optimizing the implementation. However, this is also the one factor that is outside of the scope of this book. The algorithms are problem-specific, and this is not a book on algorithms. You will have to do your own research to find the best ones for the problem you are facing.
+
+The methods and techniques to achieve high performance, on the other hand, are largely problem-agnostic. They do depend on the performance metrics, of course: for example, the optimization of real-time systems is a highly specific area with many idiosyncratic problems. In this book, we largely focus on the metrics of performance in the high-performance computing sense: doing a lot of computations as fast as possible.
+
+In order to succeed in this quest, we have to learn to use as much of the available computing hardware as possible. This goal has a spatial and temporal component: in terms of space, we're talking about utilizing more of the transistors that the processor has in such huge numbers. The processors are becoming larger, if not faster. What is the added area used for? Presumably, it adds some new computing capabilities that we could use. In terms of time, we mean that we should be using as much hardware as possible at every time. Either way, computing resources are of no use to us if they are idle, so the goal is to avoid that. At the same time, busywork does not pay off, and we want to avoid doing anything we don't absolutely need to. This is not as obvious as it sounds; there are a lot of subtle ways your program could be doing computations you do not need. 
+
+In this book, we will start with a single processor and learn to use its computational resources efficiently. We will then expand our view to include not just the processor but also its memory. Then, naturally, we will look at using multiple processors at once.
+
+But using the hardware efficiently is only one of the necessary qualities of a high-performing program: it does us no good to efficiently do the work that could have been avoided in the first place. The key to not creating unnecessary work is the effective use of the programming language, in our case, C++ (most of what we learn about the hardware can be applied to any language, but some of the language optimization techniques are very specific to C++). Furthermore, the compilers stand between the language that we write in and the hardware that we use, so we must learn how to use the compilers to produce the most efficient code.
+
+Finally, the only way to quantify the degree of success for any of the goals we just listed is to measure it: how much of the CPU resources are we using? How much time do we spend waiting for memory? What is the performance gain achieved by adding another thread? And so on. Obtaining good quantitative performance data is not easy; it requires a thorough understanding of the measurement tools. Interpreting the results is often even harder.
+
+You can expect to learn these skills from this book. We will learn about the hardware architecture, and what is hidden behind some programming language features, and how to see our code the way the compilers see it. These skills are important, but what is even more important is to understand why things work the way they do. The computing hardware changes fairly often, the languages evolve, and new optimization algorithms for the compilers are invented. Thus, the specific knowledge in any of these areas has a fairly short shelf life. However, if you understand not just the best ways to use a particular processor or compiler but also the ways in which we have arrived at this knowledge, you will be well prepared to repeat this process of discovery and, therefore, continue to learn.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

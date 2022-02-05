@@ -1,0 +1,189 @@
+
+The easiest way to collect information about the performance of a program is to run it and measure how long it takes. Of course, we need more data than that to make any useful optimizations: it would be nice to know which parts of the program make it take that long, so we don't waste our own time optimizing the code that may be very inefficient but also takes very little time and thus does not contribute to the bottom line.
+
+We already saw a simple example of that when we added a timer to our sample program: now we know how long the sort itself takes. That is, in a nutshell, the whole idea of benchmarking. The rest is elbow grease, instrumenting the code with timers, collecting the information, and reporting it in a useful format. Let us see what tools we have for that, starting with the timers provided by the language itself.
+
+\subsubsubsection{2.3.1\hspace{0.2cm}C++ chrono timers}
+
+C++ has some facilities that can be used to collect timing information in its chrono library. You can measure the time that elapsed between any two points in the program:
+
+\begin{lstlisting}[style=styleCXX]
+// example.C
+#include <chrono>
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::system_clock;
+  …
+auto t0 = system_clock::now();
+  … do some work …
+auto t1 = system_clock::now();
+auto delta_t = duration_cast<milliseconds>(t1 – t0);
+cout << "Time: " << delta_t.count() << endl;
+\end{lstlisting}
+
+We should point out that the C++ chrono clocks measure real time (often called wallclock time). Usually, this is what you want to measure. However, a more detailed analysis often requires measuring the CPU time, which is the time that is passing only when the CPU is working and stands still when the CPU is idle. In a single-threaded program, the CPU time cannot be greater than the real time; if the program is compute-intensive, the two times are ideally the same, this means that the CPU was fully loaded. On the other hand, a user interface program spends most of the time waiting for the user and idling the CPU; here, we want the CPU time to be as low as possible: it is a sign that the program is efficient and uses as few CPU resources as possible to service the user's requests. For that, we have to go beyond what is available in C++17.
+
+
+\subsubsubsection{2.3.2\hspace{0.2cm}High-resolution timers}
+
+To measure the CPU time, we have to use OS-specific system calls; on Linux and other POSIX-compliant systems, we can use the clock\_gettime() call to access the hardware high-resolution timers:
+
+\begin{lstlisting}[style=styleCXX]
+// clocks.C
+timespec t0, t1;
+clockid_t clock_id = …; // Specific clock
+clock_gettime(clock_id, &t0);
+  … do some work …
+clock_gettime(clock_id, &t1);
+double delta_t = t1.tv_sec – t0.tv_sec +
+  1e-9*(t1.tv_nsec – t0.tv_nsec);
+\end{lstlisting}
+
+The function returns the current time in its second argument; tv\_sec is the number of seconds since some point in the past, and tv\_nsec is the number of nanoseconds since the last whole second. The origin of time does not really matter since we always measure time intervals; however, take care to subtract seconds first and only then add nanoseconds, otherwise, you lose significant digits of the result by subtracting two large numbers.
+
+There are several hardware timers we can use in the previous code, one of which is selected by the value of the clock\_id variable. One of these timers is the same system or real-time clock we have used already. Its ID is CLOCK\_REALTIME. The other two timers of interest to us are the two CPU timers: CLOCK\_PROCESS\_CPUTIME\_ID is a timer that measures the CPU time used by the current program, and CLOCK\_THREAD\_CPUTIME\_ID is a similar timer, but it measures only the time used by the calling thread.
+
+When benchmarking the code, it is often helpful to report the measurements from more than one timer. In the simplest case of a single-threaded program that is doing uninterrupted computations, all three timers should return the same result:
+
+\begin{lstlisting}[style=styleCXX]
+// clocks.C
+double duration(timespec a, timespec b) {
+	return a.tv_sec - b.tv_sec + 1e-9*(a.tv_nsec - b.tv_nsec);
+}
+…
+{
+	timespec rt0, ct0, tt0;
+	clock_gettime(CLOCK_REALTIME, &rt0);
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ct0);
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tt0);
+	constexpr double X = 1e6;
+	double s = 0;
+	for (double x = 0; x < X; x += 0.1) s += sin(x);
+	timespec rt1, ct1, tt1;
+	clock_gettime(CLOCK_REALTIME, &rt1);
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ct1);
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tt1);
+	cout << "Real time: " << duration(rt1, rt0) << "s, "
+	  "CPU time: " << duration(ct1, ct0) << "s, "
+	  "Thread time: " << duration(tt1, tt0) << "s" <<
+	  endl;
+}
+\end{lstlisting}
+
+Here the "CPU-intensive work" is some kind of computation, and all three times should be almost identical. You can observe this in a simple experiment with any kind of computation. The values of the times will depend on the speed of the computer, but, that aside, the result should look like this:
+
+\begin{tcblisting}{commandshell={}}
+Real time: 0.3717s, CPU time: 0.3716s, Thread time: 0.3716s
+\end{tcblisting}
+
+If the reported CPU time does not match the real time, it is likely that the machine is overloaded (many other processes are competing for the CPU resources), or the program is running out of memory (if the program uses more memory than the physical memory on the machine, it will have to use the much slower disk swap, and the CPUs can't do any work while the program is waiting for the memory to be paged in from disk).
+
+On the other hand, if the program does not compute much but instead, waits on user input, or receives the data from the network, or does some other work that does not take many CPU resources, we will see a very different result. The simplest way to observe this behavior is by calling the sleep() function instead of the computation we used earlier:
+
+\begin{lstlisting}[style=styleCXX]
+// clocks.C
+{
+	timespec rt0, ct0, tt0;
+	clock_gettime(CLOCK_REALTIME, &rt0);
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ct0);
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tt0);
+	sleep(1);
+	timespec rt1, ct1, tt1;
+	clock_gettime(CLOCK_REALTIME, &rt1);
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ct1);
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tt1);
+	cout << "Real time: " << duration(rt1, rt0) << "s, "
+	  "CPU time: " << duration(ct1, ct0) << "s, "
+	  "Thread time: " << duration(tt1, tt0) << "s" <<
+  	  endl;
+}
+\end{lstlisting}
+
+Now we will, hopefully, see that a sleeping program uses very little CPU:
+
+\begin{tcblisting}{commandshell={}}
+Real time: 1.000s, CPU time: 3.23e-05s, Thread time: 3.32e-05s
+\end{tcblisting}
+
+The same should be true for a program that is blocked on a socket or a file or is waiting for a user action.
+
+So far, we have not seen any difference between the two CPU timers, and you will not see any unless your program uses threads. We can make our compute-heavy program do the same work but use a separate thread for it:
+
+\begin{lstlisting}[style=styleCXX]
+// clocks.C
+{
+	timespec rt0, ct0, tt0;
+	clock_gettime(CLOCK_REALTIME, &rt0);
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ct0);
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tt0);
+	constexpr double X = 1e6;
+	double s = 0;
+	auto f = std::async(std::launch::async,
+	  [&]{ for (double x = 0; x < X; x += 0.1) s += sin(x);
+	  });
+	f.wait();
+	timespec rt1, ct1, tt1;
+	clock_gettime(CLOCK_REALTIME, &rt1);
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ct1);
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tt1);
+	cout << "Real time: " << duration(rt1, rt0) << "s, "
+	  "CPU time: " << duration(ct1, ct0) << "s, "
+	  "Thread time: " << duration(tt1, tt0) << "s" <<
+	  endl;
+}
+\end{lstlisting}
+
+The total amount of computations remains the same, and there is still only one thread doing the work, so we do not expect any changes to the real time or the process-wide CPU time. However, the thread that is calling the timers is now idle; all it does is wait on the future returned by std::async until the work is done. This waiting is very similar to the sleep() function in the previous example, and we can see it in the results:
+
+\begin{tcblisting}{commandshell={}}
+Real time: 0.3774s, CPU time: 0.377s, Thread time: 7.77e-05s
+\end{tcblisting}
+
+Now the real time and the process-wide CPU time look like those from the "heavy computing" example, but the thread-specific CPU time is low, like in the "sleeping" example. That is because the overall program is doing heavy computing, but the thread that calls the timers is indeed mostly sleeping.
+
+Most of the time, if we are going to use threads for computing, the goal is to do more computations faster, so we will use several threads and spread the work between them. Let us modify the preceding example to compute also on the main thread:
+
+\begin{lstlisting}[style=styleCXX]
+// clocks.C
+{
+	timespec rt0, ct0, tt0;
+	clock_gettime(CLOCK_REALTIME, &rt0);
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ct0);
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tt0);
+	constexpr double X = 1e6;
+	double s1 = 0, s2 = 0;
+	auto f = std::async(std::launch::async,
+	  [&]{ for (double x = 0; x < X; x += 0.1) s1 += sin(x);
+	  });
+	for (double x = 0; x < X; x += 0.1) s2 += sin(x);
+	f.wait();
+	timespec rt1, ct1, tt1;
+	clock_gettime(CLOCK_REALTIME, &rt1);
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ct1);
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tt1);
+	cout << "Real time: " << duration(rt1, rt0) << "s, "
+	  "CPU time: " << duration(ct1, ct0) << "s, "
+	  "Thread time: " << duration(tt1, tt0) << "s" <<
+	  endl;
+}
+\end{lstlisting}
+
+Now both threads are doing computations, so the CPU time used by the program passes at a double rate compared to the real time:
+
+\begin{tcblisting}{commandshell={}}
+Real time: 0.5327s, CPU time: 1.01s, Thread time: 0.5092s
+\end{tcblisting}
+
+This is pretty good: we have done 1 second worth of computations in only 0.53 seconds of real time. Ideally, this would have been 0.5 seconds, but in reality, there is some overhead for launching threads and waiting for them. Also, one of the two threads might have taken slightly longer to do the work, then the other thread was idle some of the time.
+
+Benchmarking a program is a powerful way to collect performance data. Simply by observing the time it takes to execute a function or handle an event, we can learn a lot about the performance of the code. For compute-intensive code, we can see whether the program is indeed doing computations non-stop or is waiting on something. For multi-threaded programs, we can measure how effective the concurrency is and what the overhead is. But we are not just limited to collecting execution times: we can also report any counts and values we deem relevant: how many times a function was called, how long the average string we sort is, anything we need to help us interpret the measurements.
+
+However, this flexibility comes at a price: with benchmarking, we can answer almost any question about the performance of the program that we want to ask. But we have to ask the question first: we report only what we decided to measure. If we want to know how long a certain function takes, we have to add the timers to it; if they aren't there, we will learn nothing until we rewrite the code and rerun the benchmark. On the other hand, it would not do to sprinkle timers everywhere in the code: these function calls are fairly expensive, so using too many can both slow down your program and distort the performance measurements. With experience and good coding discipline, you can learn to instrument the code you write in advance, so at least its major sections can be benchmarked easily.
+
+But what should you do if you have no idea where to start? What if you have inherited a code base that was not instrumented for any benchmarking? Or, maybe, you isolated your performance bottleneck to a large section of code, but there are no more timers  inside of it? One approach is to continue instrumenting the code until you have enough data to analyze the problem. But this brute-force approach is slow, so you will want some guidance on where to focus your efforts. This is where profiling comes in: it lets you collect performance data for a program that wasn't instrumented, by hand, for easy benchmarking. We will learn about profiling in the next section.
+
+
+
+
+
+
