@@ -339,4 +339,203 @@ Assuming that we need a fully generic stack, the essence of the problem of the p
 
 It looks like we have to give up the idea of the wait-free stack implementation and make one of the threads wait for the other one to complete its operation. We also have to deal with the possibility of the empty stack when the top index is zero and a consumer thread attempts to further decrement it. A similar problem occurs at the upper bound of the array when the top index points to the last element and a producer thread needs another slot.
 
+Both of these problems require a bounded atomic increment operation: perform the increment (or decrement) unless the value equals the specified bound. There is no readymade atomic operation for this in C++ (or on any mainstream hardware available today), but we can implement it using compare-and-swap (CAS) as follows:
+
+\begin{lstlisting}[style=styleCXX]
+std::atomic<int> n_ = 0;
+int bounded_fetch_add(int dn, int maxn) {
+	int n = n_.load(std::memory_order_relaxed);
+	do {
+		if (n + dn >= maxn || n + dn < 0) return -1;
+	} while (!n_.compare_exchange_weak(n, n + dn,
+			std::memory_order_release,
+			std::memory_order_relaxed));
+	return n;
+}
+\end{lstlisting}
+
+This is a typical example of how CAS operation is used to implement a complex lock-free atomic operation:
+
+\begin{enumerate}
+\item Read the current value of the variable.
+\item Check the necessary conditions. In our case, we verify that the increment would not give us the value outside of the specified bounds [0, maxn). If the bounded increment fails, we signal it to the caller by returning -1 (this is an arbitrary choice; usually, there is a specific action to be performed for the out-of-bounds case).
+\item Atomically replace the value with the desired result if the current value is still equal to what we read earlier.
+\item If step 3 failed, the current value has been updated, check it again, and repeat steps 3 and 4 until we succeed.
+\end{enumerate}
+
+While this may seem to be a kind of lock, there is a fundamental difference: the only way the CAS comparison can fail on one thread is if it succeeded (and the atomic variable was incremented) on another thread, so any time there is a contention for the shared resource, at least one thread is guaranteed to make forward progress.
+
+There is one more important observation that often makes all the difference between a scalable implementation and a very inefficient one. The CAS loop, as written, is very hostile to the scheduling algorithms of most modern operating systems: the thread that loops unsuccessfully also consumes more CPU time and will be given higher priority. This is the exact opposite of what we want: we want the thread that is currently doing the useful work to run faster. The solution is for a thread to yield the scheduler after a few unsuccessful CAS attempts. This is accomplished by a system call that is OS-dependent, but C++ has a system-independent API via the call to std::this\_thread::yield(). On Linux, usually one can get better performance by calling the nanosleep() function to sleep for the minimum possible time (1 nanosecond) every few iterations of the loop:
+
+\begin{lstlisting}[style=styleCXX]
+int i = 0;
+while ( … ) {
+	if (++i == 8) {
+		static constexpr timespec ns = { 0, 1 };
+		i = 0;
+		nanosleep(&ns, NULL);
+	}
+}
+\end{lstlisting}
+
+The same approach can be used to implement much more complex atomic transactions, such as stack push and pop operations. But first, we have to figure out what atomic variables are needed. For the producer threads, we need the index of the first free slot in the array. For the consumer threads, we need the index of the last fully constructed element. This is all the information we need about the current state of the stack, assuming we do not allow "holes" in the array:
+
+\hspace*{\fill} \\ %插入空行
+\begin{center}
+\includegraphics[width=0.9\textwidth]{content/2/chapter7/images/14.jpg}\\ Figure 7.14 – Lock-free stack: c\_ is the index of the last fully constructed element, and p\_ is the index of the first free slot in the array
+\end{center}
+
+First of all, neither push nor pop can proceed if the two indices are currently not equal: different counts imply that either a new element is being constructed or the current top element is being copied out. Any stack modification in this state may lead to the creation of holes in the array.
+
+If the two indices are equal, then we can proceed. To do the push, we need to atomically increment the producer index p\_ (bounded by the current capacity of the array). Then we can construct the new element in the slot we just reserved (indexed by the old value of p\_). Then we increment the consumer index c\_ to indicate that the new element is available to the consumer threads. Note that another producer thread could grab the next slot even before the construction is completed, but we would have to wait until all new elements are constructed before we allow any consumer thread to pop an element. Such an implementation is possible, but it is more complex, and it tends to favor the currently executed operation: if a push is currently in progress, a pop has to wait, but another push can proceed without delay. The result is likely to be a swarm of push operations executing while all consumer threads are waiting (the effect is similar if a pop operation is in progress; it favors another pop).
+
+The pop is implemented similarly, only we first decrement the consumer index c\_ to reserve the top slot, and then decrement p\_ after the object is copied or moved from the stack.
+
+There is just one more trick we have to learn, and that is how to manipulate both counts atomically. For example, we said earlier that a thread has to wait for the two indices to become equal. How can this be accomplished? If we read one index atomically and then the other index, also atomically, there is a chance that the first index has changed since we read it. We have to read both indices in a single atomic operation. The same is true for other operations on the indices. C++ allows us to declare an atomic struct of two integers; however, we must be careful: very few hardware platforms have a double CAS instruction that operates on two long integers atomically, and even then, it is usually very slow. The better solution is to pack both values into a single 64-bit word (on a 64-bit processor). The hardware atomic instructions such as load or compare-and-swap do not really care how you are going to interpret the data they read or write: they just copy and compare 64-bit words. You can later treat these bits as a long or a double or a pair of ints (the atomic increment is, of course, different, which is why you cannot use it on a double value).
+
+Now, all that is left is to convert the preceding algorithm into code:
+
+\begin{lstlisting}[style=styleCXX]
+// 02b_stack_cas.C
+
+template <typename T> class mt_stack {
+	std::deque<T> s_;
+	int cap_ = 0;
+	struct counts_t {
+		int p_ = 0; // Producer index
+		int c_ = 0; // Consumer index
+		bool equal(std::atomic<counts_t>& n) {
+			if (p_ == c_) return true;
+			*this = n.load(std::memory_order_relaxed);
+			return false;
+		}
+	};
+	mutable std::atomic<counts_t> n_;
+	public:
+	mt_stack(size_t n = 100000000) : s_(n), cap_(n) {}
+	void push(const T& v);
+	std::optional<T> pop();
+};
+\end{lstlisting}
+
+The two indices are 32-bit integers packed into a 64-bit atomic value. The method equal() may look strange, but its purpose will become evident in a moment. It returns true if the two indices are equal; otherwise, it updates the stored index values from the specified atomic variable. This follows the CAS pattern we have seen earlier: if the desired condition is not met, read the atomic variable again.
+
+Note that we can no longer build our thread-safe stack on top of the STL stack: the container itself is shared between threads, and the push() and pop() operations on it are not thread-safe without locking even if the container is not growing. For simplicity, in our example, we used a deque that was initialized with a large enough number of default-constructed elements. As long as we don't call any container member functions, we can operate on different elements of the container from different threads independently. Remember that this is just a shortcut to avoid dealing with memory management and thread safety at the same time: in any practical implementation, you don't want to default-construct all the elements upfront (and the element type may not even have a default constructor). Often, high-performance concurrent software systems have their own custom memory allocators anyway. Otherwise, you can also use an STL container of a dummy type of the same size and alignment as the stack element type, but with a simple constructor and destructor (the implementation is simple enough and is left as an exercise to the reader).
+
+The push operation implements the algorithm we discussed earlier: wait for the indices to become equal, advance the producer index p\_, construct the new object, and advance the consumer index c\_ when done:
+
+\begin{lstlisting}[style=styleCXX]
+// 02b_stack_cas.C
+	
+void push(const T& v) {
+	counts_t n = n_.load(std::memory_order_relaxed);
+	if (n.p_ == cap_) abort();
+	while (!n.equal(n_) ||
+	!n_.compare_exchange_weak(n, {n.p_ + 1, n.c_},
+	std::memory_order_acquire,
+	std::memory_order_relaxed)) {
+		if (n.p_ == cap_) { … allocate more memory … }
+	};
+	++n.p_;
+	new (&s_[n.p_]) T(v);
+	assert(n_.compare_exchange_strong(n, {n.p_, n.c_ + 1},
+	std::memory_order_release, std::memory_order_relaxed);
+}
+\end{lstlisting}
+
+The last CAS operation should never fail unless there is a bug in our code: once the calling thread successfully advanced p\_, no other thread can change either value until the same thread advanced c\_ to match (as we already discussed, there is an inefficiency in that, but fixing it comes at the cost of much higher complexity). Also, note that, for brevity, we omitted the call to nanosleep() or yield() inside the loop, but it is essential in any practical implementation.
+
+The pop operation is similar, only it first decrements the consumer index c\_ and then, when it is done removing the top element from the stack, decrements p\_ to match c\_:
+
+\begin{lstlisting}[style=styleCXX]
+	// 02b_stack_cas.C
+	
+std::optional<T> pop() {
+	counts_t n = n_.load(std::memory_order_relaxed);
+	if (n.c_ == 0) return std::optional<T>(std::nullopt);
+	while (!n.equal(n_) ||
+		!n_.compare_exchange_weak(n, {n.p_, n.c_ - 1},
+			std::memory_order_acquire,
+			std::memory_order_relaxed)) {
+		if (n.c_ == 0) return std::optional<T>(std::nullopt);
+	};
+	--n.cc_;
+	std::optional<T> res(std::move(s_[n.p_]));
+	s_[n.pc_].~T();
+	assert(n_.compare_exchange_strong(n, {n.p_ - 1, n.c_},
+		std::memory_order_release, std::memory_order_relaxed));
+	return res;
+}
+\end{lstlisting}
+
+Again, the last compare-and-swap should not fail if the program is correct.
+
+The lock-free stack is one of the simplest lock-free data structures possible, and it is already fairly complex. The testing required to validate that our implementation is correct is not straightforward: in addition to all the single-threaded unit tests, we have to validate that there are no race conditions. This task is made much easier by the sanitizer tools such as the Thread Sanitizer (TSAN) available in recent GCC and CLANG compilers. The advantage of these sanitizers is that they detect potential data races, not just the data races that actually happen during the test (in a small test, the chances to observe two threads accessing the same memory incorrectly at the same time are rather slim).
+
+After all our effort, what is the performance of the lock-free stack? As expected, on X86 processors, it does not outperform the spinlock-based version:
+
+\hspace*{\fill} \\ %插入空行
+\begin{center}
+\includegraphics[width=0.9\textwidth]{content/2/chapter7/images/15.jpg}\\ 
+Figure 7.15 – Performance of the lock-free stack on X86 CPU (compare with Figure 7.11)
+\end{center}
+
+For comparison, the spinlock-guarded stack can execute about 70M operations per second on the same machine. This is consistent with the expectations we had after the performance estimates in the previous section. The same estimates, however, suggested that the lock-free stack may be superior on ARM processors. The benchmark confirms that our efforts were not wasted:
+
+\hspace*{\fill} \\ %插入空行
+\begin{center}
+\includegraphics[width=0.9\textwidth]{content/2/chapter7/images/16.jpg}\\ 
+Figure 7.16 – Performance of the lock-free stack on ARM CPU (compare with Figure 7.12)
+\end{center}
+
+While the single-threaded performance of the lock-based stack is superior, the lock-free stack is much faster if the number of threads is large. The advantage of the lock-free stack becomes even greater if the benchmark includes a large fraction of top() calls (that is, many threads read the top element before one thread pops it) or if the producer and consumer threads are distinct (some threads call only push(), while other threads call only pop()).
+
+To conclude this section, we have explored the different implementations of a thread-safe stack data structure. To understand what is required for thread safety, we had to analyze each operation separately, as well as the interaction of multiple concurrent operations. The following are the lessons that we learned:
+
+\begin{itemize}
+\item 
+With a good lock implementation, a lock-guarded stack offers reasonable performance and is much simpler than the alternatives.
+
+\item 
+Any application-specific knowledge about the limitations on the use of the data structure should be exploited to gain performance cheaply. This is not the place to develop generic solutions, quite the opposite: implement as few features as you can and try to gain performance advantages from the restrictions.
+
+\item 
+A generic lock-free implementation is possible but, even for a data structure, that is as simple as a stack, it is quite complex. Sometimes, this complexity may even be justified.
+
+\end{itemize}
+
+So far, we have skirted the issue of memory management: it is hidden behind the vague allocate more memory when the stack runs out of capacity. We will need to come back to that later. But first, let's explore more different data structures.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
