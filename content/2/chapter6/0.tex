@@ -1,0 +1,17 @@
+In the last chapter, we learned about the fundamental factors that affect the performance of concurrent programs. Now it is time to put this knowledge to practical use and learn about developing high-performance concurrent algorithms and data structures for thread-safe programs.
+
+On the one hand, to take full advantage of concurrency, one must take a high-level view of the problem and the solution strategy: data organization, work partitioning, sometimes even the definition of what constitutes a solution are the choices that critically affect the performance of the program. On the other hand, as we have seen in the last chapter, the performance is greatly impacted by low-level factors such as the arrangement of the data in the cache, and even the best design can be ruined by poor implementation. These low-level details are often difficult to analyze, hard to express in code, and require very careful coding. This is not the kind of code you want to be scattered around in your program, so the encapsulation of the tricky code is a necessity. We will have to give some thought to the best way to encapsulate this complexity.
+
+In this chapter, we're going to cover the following main topics:
+
+\begin{itemize}
+\item Efficient concurrency
+\item Use of locks, pitfalls of locking, and an introduction to lock-free programming
+\item Thread-safe counters and accumulators
+\item Thread-safe smart pointers
+\end{itemize}
+
+
+
+
+

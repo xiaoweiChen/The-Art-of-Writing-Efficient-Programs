@@ -1,0 +1,51 @@
+need to do just two things. The first one is to have enough work for the concurrent threads and processes to do so they are busy at all times. The second one is to reduce the use of the shared data since, as we have seen in the previous chapter, accessing a shared variable concurrently is very expensive. The rest is just a matter of the implementation.
+
+Unfortunately, the implementation tends to be quite difficult, and the difficulty increases when the desired performance gains are larger and when the hardware becomes more powerful. This is due to Amdahl's Law, which is something every programmer working with concurrency has heard about, but not everyone has understood the full extent of its implications.
+
+The law itself is simple enough. It states that, for a program that has a parallel (scalable) part and a single-threaded part, the maximum possible speedup s is as follows:
+
+\begin{center}
+$ s = \dfrac{s_0}{s_0(1-p)+p} $
+\end{center}
+
+Here, is the speedup of the parallel part of the program, and is the fraction of the program that is parallel. Now consider the consequences for a program that is running on a large multi-processor system: if we have 256 processors and are able to fully utilize them except for a measly 1/256th of the run time, the total speedup of the program is limited to 128, that is, it is cut in half. In other words, if only 1/256th of the program is single-threaded or executed under a lock, that 256-processor system will never be used at more than 50\% of its total capacity, no matter how much we optimize the rest of the program.
+
+This is why, when it comes to developing concurrent programs, the focus of the design, implementation, and optimization should be on making the remaining single-threaded computations concurrent and on reducing the amount of time the program spends accessing the shared data.
+
+The first objective, making the computations concurrent, starts with the choice of the algorithms, but many design decisions influence the outcome, so we should learn more about it. The second one, reducing the cost of the data sharing, is the continuation of the theme from the last chapter: when all threads are waiting to access some shared variable or a lock (which is also a shared variable in itself), the program is effectively single-threaded only the thread that has access at the moment is running. This is why global locks and globally shared data are particularly bad for performance. But even the data shared between several threads limit the performance of these threads if it is accessed concurrently.
+
+As we have mentioned several times earlier, the need for data sharing is driven, fundamentally, by the nature of the problem itself. The amount of data sharing for any particular problem can be greatly influenced by the algorithm, the choice of data structures, and other design decisions, as well as by the implementation. Some data sharing is the artifact of the implementation or the consequence of the choice of the data structures, but other shared data is inherent in the problem. If we need to count data elements that satisfy a certain property, at the end of the day, there is only one count, and all threads must update it as a shared variable. How much sharing actually happens and what the impact is on the total program speedup is, however, can depend greatly on the implementation.
+
+There are two tracks we will pursue in this chapter: first, given that some amount of data sharing is inevitable, we will look at making this process more efficient. Then we will consider the design and implementation techniques that can be used to reduce the need for data sharing or the time spent waiting for access to this data. We start with the first problem, efficient data sharing.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,14 @@
+In this chapter, we have learned about the C++ memory model and the guarantees it gives to the programmer. The result is a thorough understanding of the low level of what happens when multiple threads interact through shared data.
+
+In multi-threaded programs, unsynchronized and unordered access to memory leads to undefined behavior and must be avoided at any cost. The cost, however, is usually paid in performance. While we always value a correct program over an incorrect but fast one, when it comes to memory synchronization, it is easy to overpay for correctness. We have seen different ways to manage concurrent memory accesses, their advantages, and tradeoffs. The simplest option is to lock all accesses to the shared data. The most elaborate implementation, on the other hand, uses atomic operations and restricts memory order as little as possible.
+
+The first rule of performance is in full force here: performance must be measured, not guessed. This is even more important for concurrent programs where clever optimizations can fail to yield measurable results for a multitude of reasons. On the other hand, the one guarantee you always have is that a simple program with locks is easier to write and is more likely to be correct. 
+
+Armed with the understanding of the fundamental factors affecting the performance of data sharing, you can better understand the results of your measurements, as well as developing some sense for when it makes sense to even try to optimize the concurrent memory accesses: the larger the part of your code affected by the memory order restrictions, the more likely it is that relaxing these restrictions will improve the performance. Also, keep in mind that some of the restrictions come from the hardware itself.
+
+Overall, this is much more complex material than anything you had to deal with in the earlier chapters (not surprising, concurrency is hard in general). The next chapter shows some of the ways you can manage this complexity in your program without giving up the performance benefits. You will also see the practical applications of the knowledge you have learned here.
+
+
+
+
+

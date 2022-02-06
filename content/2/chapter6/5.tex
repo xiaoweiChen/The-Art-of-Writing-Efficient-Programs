@@ -1,0 +1,7 @@
+In this chapter, we have learned about the performance of the basic building blocks of any concurrent program. All accesses to the shared data must be protected or synchronized, but there is a wide range of options when it comes to implementing such synchronization. While mutex is the most commonly used and the simplest alternative, we have learned several other, better-performing options: spinlocks and their variants, as well as lock-free synchronization.
+
+The key to an efficient concurrent program is to make as much data as possible local to one thread and minimize the operations on the shared data. The requirements specific to each problem usually dictate that such operations cannot be eliminated completely, so this chapter is all about making the concurrent data accesses more efficient.
+
+We studied how to count or accumulate results across multiple threads, again with and without locks. Understanding the data dependency issues led us to the discovery of the publishing protocol and its implementation in several thread-safe smart pointers, suitable for different applications. 
+
+We are now well prepared to take our study to the next level and put several of these building blocks together in the form of more complex thread-safe data structures. In the next chapter, you will learn how to use these techniques to design practical data structures for concurrent programs.
