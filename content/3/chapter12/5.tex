@@ -1,0 +1,56 @@
+We discussed the impact of data organization on performance in detail in Chapter 4, Memory Architecture and Performance. There, we observed that whenever you have no "hot code," you will usually find "hot data." In other words, if the runtime is spread over a large part of the code and nothing stands out as a good optimization opportunity, it is likely that there is some data (one or more data structures) that is being accessed throughout the program, and it is these accesses that limit the overall performance.
+
+This can be a very unpleasant situation to find oneself in: the profiler shows no low-hanging fruit for optimization, you may find some sub-optimal code, but the measurements show that you can save at most a percent or two of total runtime from each of these places. Unless you know what to look for, it is very hard to find ways to improve the performance of such code. 
+
+Now that you know that you need to look for "hot data," how do you do it? First of all, it is much easier if all data accesses are done through function calls and not by directly reading and writing public data members. Even if these accessor functions do not take much time themselves, you can instrument them to count the access operations, which will directly show which data is hot. This approach is similar to code profiling, only instead of finding instructions that are executed many times, you find memory locations that are accessed many times (some profiles will do such measurements for you without the need to instrument the code). Once again, we come back to the design guideline that prescribes clearly defined interfaces that do not expose internal details such as data layout in memory – the ability to easily monitor data access is another benefit of this approach.
+
+We should point out that every design concerns itself with both the organization of code (components, interfaces, and so on) and the organization of data. You may not be thinking about the specific data structures yet, but you absolutely must consider data flows: every component needs some information to do its work. Which parts of the system generate this information, who owns it, who is responsible for delivering it to the component or module where it is needed? The computations usually produce some new information. Again, where should it be delivered, and who will own it? Every design includes such data flow analysis: if you think that you don't have it, you are doing it implicitly through the documentation of the interfaces. The information flow and its ownership can be inferred from the totality of the API contracts, but this is a rather convoluted way of going about it. 
+
+Once you explicitly describe the information flow, you know what data is present at every step of the execution and is accessed by every component. You also know what data must be transferred between components. You can now think about ways to organize this data.
+
+There are two approaches you can take at the design stage when it comes to data organization. One approach is to rely on the interfaces to provide an abstract view of the data while concealing all details about its true organization. This is our very first guideline from the beginning of this chapter, the minimum information principle, taken to the extreme. If it works, you can implement optimizing the data structures behind the interfaces later as needed. The caveat is that it is rarely possible to design an interface that does not restrict the underlying data organization in any way, and doing so usually comes at a high cost. For example, if you have an ordered collection of data, do you want to allow insertions in the middle of the collection? If the answer is yes, the data will not be stored in an array-like structure that requires moving half the elements to open up a space in the middle (a restriction on the implementation). On the other hand, if you steadfastly refuse to allow any interface that limits your implementation, you will end up with a very limited interface and may be unable to use the fastest algorithms (the cost of not committing to a particular data organization early).
+
+The second approach is to consider at least some of the data organization as a part of the design. This will reduce the flexibility of the implementation but will relax some of the restrictions on the interface design. For example, you may decide that, in order to access the data in a particular order, you will use an index that points to the locations where the data elements are stored. You will embed the cost of the indirect access into the foundation of your system architecture, but you gain the flexibility of data access: the elements can be stored optimally, and the right index can be constructed for any kind of random or ordered access. Our index\_tree is a trivial example of such a design. 
+
+Note that we had to use some pretty low-level concepts when discussing how the data organization is designed for performance. Usually, the details like "access through an extra pointer" are seen as implementation matters. But when designing high-performance systems, you have to be concerned with things like cache locality and indirect references. 
+
+The best results are usually obtained through combining both approaches: you identify the most important data and come up with an efficient organization. Not in every detail, of course, but in general, for example, if your program, at its basic level, searches a lot of strings many times, you may decide to store all strings in a large, contiguous block of memory and use indices for searches and other targeted accesses. You would then design a high-level interface to build an index and use it through iterators, but the exact organization of such index is left to the implementation. Your interface imposes some restrictions: for example, you may decide that the caller may request random access or bidirectional iterators when building the index, which would, in turn, affect the implementation. 
+
+The design of concurrent systems requires extra attention to the sharing of data. At the design stage, you should pay particular attention to classifying the data as not shared, read-only, or shared for writing. The latter should be minimized, of course: as we have seen in Chapter 6, Concurrency and Performance, accessing shared data is expensive. On the other hand, redesigning a component or a data structure that was intended for exclusive single-threaded access to be thread-safe is difficult and often results in poor performance (it is hard to graft thread safety on top of a fundamentally unsafe design). You should spend time at the design stage during the data flow analysis to clearly define data ownership and access restrictions. Since the words "data ownership" often refer to very low-level details such as "do we use a smart pointer and which class has it?," it may be preferable to talk about information ownership and access to information. Identify the pieces of information that must be available together, determine which component produces and owns the information, which components modify some of the information, and whether or not it is done concurrently. The design should include a high-level classification of all data by its access: single-threaded (exclusive), read-only, or shared. Note that these roles could change in time: some data could be produced by a single thread but later read, without modifications, by multiple threads at once. This should be reflected in the design as well. 
+
+The overall guideline to treat the flow of data, or the flow of knowledge, as a part of the design is often forgotten but is otherwise quite straightforward. It is the more specific guideline to consider the combination of data organization restrictions and interfaces that leave significant implementation freedom during the design that is often seen as a premature optimization. Many a programmer will insist that the words "cache locality" have no place during the design stage. This is, indeed, one of the compromises we have to make when we treat performance as one of the design goals. We often have to weigh such competing motivations during system design, which brings us to the subject of making trade-offs when designing for performance.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -75,8 +75,10 @@ We have just seen examples of the three main types of concurrent programs:
 
 The difference between the three programs is clear, in theory. But, I bet every reader wants to know the answer to the same question: which one is faster? We can run each version of the code inside a Google benchmark. For example, here is the lock-based version:.
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_sharing\_incr\_mbm.C}
 \begin{lstlisting}[style=styleCXX]
-// 01_sharing_incr_mbm.C
 std::mutex m;
 size_t count = 0;
 void BM_lock(benchmark::State& state) {
@@ -144,8 +146,10 @@ Even with this optimization, the lock performs pretty poorly. The reason has to 
 
 There are several ways for a thread to release the control on the CPU; most are done by a system function call. There isn't a universal best way to do so. Experimentally, on Linux, a call to sleep for a very short time (1 nanosecond) by calling nanosleep() seems to yield the best results, usually better than a call to sched\_yield(), which is another system function to yield CPU access. All system calls are expensive compared to hardware instructions, so you don't want to call them too often. The best balance is achieved when we try to get the lock several times, then yield the CPU to another thread, then try again:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01c\_spinlock\_count.C}
 \begin{lstlisting}[style=styleCXX]
-// 01c_spinlock_count.C
 class Spinlock {
 	void lock() {
 		for (int i=0; flag_.load(std::memory_order_relaxed) ||

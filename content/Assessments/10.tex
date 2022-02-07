@@ -1,0 +1,14 @@
+\begin{enumerate}
+\item 
+The most important constraint is that the result (or, more strictly, the observable behavior) of the program must not change. The bar here is high: the compiler is allowed to optimize only when it can be proven that the results are correct for all possible inputs. The second consideration is practicality: the compiler has to make tradeoffs between compilation time and efficiency of the optimized code. Even with the highest optimization enabled, it may be too expensive to prove that some code transformations do not break the program. 
+
+\item 
+In addition to the obvious effect (elimination of the function call), inlining enables the compiler to analyze a larger fragment of code. Without inlining, the compiler generally has to assume that "anything is possible" inside a function body. With inlining, the compiler can see, for example, whether the call to the function produces any observable behavior, such as I/O. The inlining is beneficial only up to a point: when overdone, it increases the size of the machine code. Also, the compilers have difficulties analyzing very long code fragments (the longer the fragment, the more memory and time it takes for the optimizer to process it). Compilers have heuristics that determine whether a particular function is worth inlining.
+
+\item 
+If the compiler does not make an optimization, it is often because this transformation is not guaranteed to be correct. The compiler does not have the same knowledge of how the program is going to be used that the programmer does; any combination of inputs is assumed to be valid. The other common reason is that the optimization is not expected to be universally effective. The compiler may be right on this count, but if the measurements show that the programmer is right, the optimization would have to be forced into the source code somehow.
+
+\item
+The main benefit of inlining is not that it eliminates the cost of the function call. Rather, it is that it allows the compiler to see what is going on inside the function. This enables continuous analysis of the code that immediately precedes and follows the function call. Some optimizations that were not possible when each section of the code was considered in isolation become possible when a larger code fragment is optimized as a single basic block.
+
+\end{enumerate}

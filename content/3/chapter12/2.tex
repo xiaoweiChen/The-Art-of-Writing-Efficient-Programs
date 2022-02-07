@@ -1,0 +1,77 @@
+Does good design help to achieve good performance, or do you have to occasionally compromise best design practices to achieve the best performance? These issues are hotly debated in the programming community. Usually, the design evangelists will argue that if you think that you need to choose between good design and good performance, your design is not good enough. On the other hand, hackers (we're using this term in the classic sense, programmers who hack together solutions, nothing to do with the criminal aspect) often view design guidelines as constraints on the best possible optimization. 
+
+The aim of this chapter is to show that both points of view are valid, to a degree. They are also mistaken if viewed as "the whole truth." It would be dishonest to deny that many design practices, when applied to a specific software system, can constrain performance. On the other hand, many guidelines for achieving and maintaining efficient code are also solid design recommendations and improve both the performance and the design quality. 
+
+We take a more nuanced view of the tension between design and performance. For a particular system (and you are most interested in your system, the one you are working on right now), some design guidelines and practices can indeed cause inefficiencies and poor performance. We would be hard-pressed to name a design rule that is always antithetical to efficiency, but for a particular system, and maybe in some specific context, such rules and practices are quite common. If you embrace a design that follows such rules, you may indeed end up embedding inefficiencies into the core architecture of your software system, and it will be very hard to remedy by "optimizations" short of a total rewrite of the critical parts of the program. Anyone who dismisses or sugar-coats the potential severity of this pitfall does not have your best interests in mind. On the other hand, anyone who claims that this justifies abandoning solid design practices presents a false, oversimplified choice. 
+
+If you realize that a particular design approach follows good practices, improves clarity and maintainability, but degrades performance, the correct response is to choose a different but also good design approach. In other words, while it is common to discover that some good designs produce poor performance, it is highly unlikely that, for a given software system, every good design would cause inefficiencies. "All" you need to do is select from several possible good-quality designs the one that also allows for a good performance. 
+
+Now, this is easier said than done, of course, but hopefully, this book will help. In the rest of the chapter, we will focus on two sides of the problem. First, what design practices are suggested when performance is a concern? Second, how can we evaluate the likely performance impact when we don't have a program we could run and measure, but all we have is a (possibly incomplete) design?
+
+If you read the last two paragraphs carefully, you cannot escape the observation that performance is a design consideration: just like we factor into the design our requirements such as "support many users" or "store terabytes of data on disk," the performance targets are a part of the requirements and should be explicitly considered at the design stage. This leads us to the key concept of designing high-performance systems, which is…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

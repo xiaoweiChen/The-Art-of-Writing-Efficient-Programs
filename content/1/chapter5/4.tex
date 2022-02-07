@@ -6,8 +6,10 @@ It is easy to describe what was observed: incrementing a shared variable from mu
 
 The measurement we are missing is this one: non-shared access to guarded data. Of course, we don't really need to protect accesses to data that is accessed by only one thread, but we are trying to understand exactly what makes shared data access so expensive: the fact that it is shared or the fact that it is atomic (or protected by the lock). We have to make one change at a time, so let us keep the atomic access and remove data sharing. There are at least two simple ways to do this. The first one is to create a global array of atomic variables and have each thread access its own array element:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{04\_local\_incr.C}
 \begin{lstlisting}[style=styleCXX]
-// 04_local_incr.C
 std::atomic<unsigned long> a[1024];
 void BM_false_shared(benchmark::State& state) {
 	std::atomic<unsigned long>& x = a[state.thread_index];
@@ -19,8 +21,10 @@ void BM_false_shared(benchmark::State& state) {
 
 The thread index in Google Benchmark is unique for each thread, the numbers start from 0 and are compact (0, 1, 2…). The other simple way is to declare the variable in the benchmark function itself as shown in the following code:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{04\_local\_incr.C}
 \begin{lstlisting}[style=styleCXX]
-// 04_local_incr.C
 void BM_not_shared(benchmark::State& state) {
 	std::atomic<unsigned long> x;
 	for (auto _ : state) {
@@ -63,9 +67,10 @@ One may wonder whether the reason locks are expensive is also found in the share
 
 We now understand why the cost of accessing the shared data concurrently is so high. This understanding gives us two important lessons. The first one is to avoid false data sharing when we attempt to create non-shared data. How can the unintended false sharing creep into our program? Consider the simple example we have studied throughout this chapter: accumulating a sum concurrently. Some of our approaches were slower than others, but they were all very slow (slower than the single-threaded program, or, at best, no faster). We understand that accessing shared data is expensive. So, what is less expensive? Not accessing the shared data, of course! Or at least not accessing it as often. There is no reason for us to access the shared sum value every time we want to add something to it: we can make all the additions locally, on the thread, and add them to the shared accumulator value once, at the very end. The code would look something like this: 
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{04\_local\_incr.C}
 \begin{lstlisting}[style=styleCXX]
-// 04_local_incr.C
-
 // Global (shared) results
 std::atomic<unsigned long> sum;
 unsigned long local_sum[…];

@@ -9,9 +9,10 @@ Now, what if at least one thread is modifying the stack, and we need a stronger 
 
 A better option is to wrap the stack class with our own, like this:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_stack.C}
 \begin{lstlisting}[style=styleCXX]
-// 02_stack.C
-
 template <typename T> class mt_stack {
 	std::stack<T> s_;
 	std::mutex l_;
@@ -30,13 +31,13 @@ Note that we could use inheritance instead of encapsulation. Doing so would make
 Our thread-safe or multi-threaded stack (that's what mt stands for) now has the push functionality and is ready to receive data. We just need the other half of the interface, the pop. We can certainly follow the preceding example and wrap the pop() method, but this is not enough: the STL stack uses three separate member functions to remove elements from the stack. pop() removes the top element but returns nothing, so if you want to know what's on top of the stack, you have to call top() first. It is undefined behavior to call either of those if the stack is empty, so you have to call empty() first and check the result. OK, we can wrap all three methods, but this gives us nothing at all. In the following code, assume that all member functions of the stack are guarded by a lock:
 
 \begin{lstlisting}[style=styleCXX]
-	mt_stack<int> s;
-	… push some data on the stack …
-	int x = 0;
-	if (!s.empty()) {
-		x = s.top();
-		s.pop();
-	}
+mt_stack<int> s;
+… push some data on the stack …
+int x = 0;
+if (!s.empty()) {
+	x = s.top();
+	s.pop();
+}
 \end{lstlisting}
 
 Each member function is perfectly thread-safe and perfectly useless in a multi-threaded context: the stack may be non-empty one moment – the moment we happen to call s.empty() – but become empty the next, before we call s.top(), because another thread could remove the top element in the meantime.
@@ -45,9 +46,10 @@ This may very well be the most important lesson from the entire book: in order t
 
 Fortunately, since we are writing our own wrapper class anyway, we are not constrained to use the interface of the wrapped class verbatim. So, what should we do instead? Clearly, the entire pop operation should be a single member function: it should remove the top element from the stack and return it to the caller. One complication is what to do when the stack is empty. We have multiple options here. We could return a pair of the value and a Boolean flag that indicates whether the stack was empty (the value would have to be default-constructed in this case). We could return the Boolean alone and pass the value by reference (it remains unchanged if the stack is empty). In C++17, the natural solution is to return std::optional, as shown in the following code. It's a perfect fit for the job of holding a value that may not exist:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_stack.C}
 \begin{lstlisting}[style=styleCXX]
-// 02_stack.C 
-
 template <typename T> class mt_stack {
 	std::stack<T> s_;
 	std::mutex l_;
@@ -75,9 +77,10 @@ How well does our stack perform? Given that every operation is locked from start
 
 To simplify the benchmark, you may choose to implement a single-threaded non-blocking wrapper around std::stack that presents the same interface as our mt\_stack. Beware that you cannot benchmark just by pushing on the stack: your benchmark will probably run out of memory.  Similarly, you cannot reliably benchmark the pop operation unless you want to measure the cost of popping from an empty stack. If the benchmark runs long enough, you have to combine both push and pop. The simplest benchmark may look like this:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_stack.C}
 \begin{lstlisting}[style=styleCXX]
-// 02_stack.C 
-	
 mt_stack<int> s;
 void BM_stack(benchmark::State& state) {
 	const size_t N = state.range(0);
@@ -130,9 +133,10 @@ There are other scenarios where the search for a more limited, application-speci
 
 More complex data structures offer a variety of use models, but even the stack can be used by more than simple push and pop. We can also look at the top element without deleting it. The std::stack provides the top() member function, but, once again, it is not transactional, so we have to create our own. It is very similar to the transactional pop() function, only without removing the top element:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_stack.C}
 \begin{lstlisting}[style=styleCXX]
-// 02_stack.C
-
 template <typename T> class mt_stack {
 	std::stack<T> s_;
 	mutable std::mutex l_;
@@ -395,9 +399,10 @@ There is just one more trick we have to learn, and that is how to manipulate bot
 
 Now, all that is left is to convert the preceding algorithm into code:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02b\_stack\_cas.C}
 \begin{lstlisting}[style=styleCXX]
-// 02b_stack_cas.C
-
 template <typename T> class mt_stack {
 	std::deque<T> s_;
 	int cap_ = 0;
@@ -424,9 +429,10 @@ Note that we can no longer build our thread-safe stack on top of the STL stack: 
 
 The push operation implements the algorithm we discussed earlier: wait for the indices to become equal, advance the producer index p\_, construct the new object, and advance the consumer index c\_ when done:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02b\_stack\_cas.C}
 \begin{lstlisting}[style=styleCXX]
-// 02b_stack_cas.C
-	
 void push(const T& v) {
 	counts_t n = n_.load(std::memory_order_relaxed);
 	if (n.p_ == cap_) abort();
@@ -447,9 +453,10 @@ The last CAS operation should never fail unless there is a bug in our code: once
 
 The pop operation is similar, only it first decrements the consumer index c\_ and then, when it is done removing the top element from the stack, decrements p\_ to match c\_:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02b\_stack\_cas.C}
 \begin{lstlisting}[style=styleCXX]
-// 02b_stack_cas.C
-	
 std::optional<T> pop() {
 	counts_t n = n_.load(std::memory_order_relaxed);
 	if (n.c_ == 0) return std::optional<T>(std::nullopt);

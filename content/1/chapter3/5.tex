@@ -36,9 +36,10 @@ The x86 CPUs have a conditional move instruction, cmove (although not all compil
 
 While branches and conditionals happen everywhere in most real-life programs, they can disappear when the program is reduced to just a few lines for a benchmark. One reason is that that the compiler may decide to use one of the conditional instructions we have mentioned earlier. Another reason that is common in poorly constructed benchmarks is that the compiler may be able to figure out, at compile-time, what the condition evaluates to. For example, most compilers will completely optimize away any code like if (true) or if (false): there is no trace of this statement in the generated code, and any code that is never going to be executed is also eliminated. To observe the deleterious effect of the branches on the loop pipelining, we have to construct a test where the compiler cannot predict the outcome of the condition check. In your real-life benchmarks, you may have a data set extracted from your real program. For this next demonstration, we will use random values:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_branch.C}
 \begin{lstlisting}[style=styleCXX]
-\\02_branch.C
-
 std::vector<unsigned long> v1(N), v2(N);
 std::vector<int> c1(N);
 for (size_t i = 0; i < N; ++i) {

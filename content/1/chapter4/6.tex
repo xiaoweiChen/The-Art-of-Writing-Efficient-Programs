@@ -162,8 +162,10 @@ The final step is to put it all together and run the procedure many times to acc
 
 The following function attacks a single byte outside of the data array:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{spectre.C}
 \begin{lstlisting}[style=styleCXX]
-// spectre.C
 char spectre_attack(const char* data,
                     size_t size, size_t evil_index) {
 	constexpr const size_t num_val = 256;
@@ -215,8 +217,10 @@ Once a large enough gap opens between the best score and the second-best score, 
 
 We have two utility functions to compute the average scores for the latencies and find the two best scores; these can be implemented any way you want as long as they give the correct results. The first function computes the average latency and increments the scores for the timing elements that have latencies somewhat below average (the threshold for somewhat has to be adjusted experimentally but is not very sensitive). Note that we expect one array element to be significantly faster to access, so we can skip it when computing the average latency (ideally, that one element would have much lower latency than the rest, and the rest would all be the same):
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{spectre.C}
 \begin{lstlisting}[style=styleCXX]
-// spectre.C
 template <typename T>
 double average(const T& a, size_t skip_index) {
 	double res = 0;
@@ -241,8 +245,10 @@ size_t ok_index) {
 
 The second function simply finds the two best scores in the array:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{spectre.C}
 \begin{lstlisting}[style=styleCXX]
-// spectre.C
 template<typename S>
 std::pair<size_t, size_t> best_scores(const S& scores) {
 	size_t i1 = -1, i2 = -1;
@@ -261,8 +267,10 @@ std::pair<size_t, size_t> best_scores(const S& scores) {
 
 Now we have a function that returns the value of a single byte outside of the specified array without ever reading this byte directly. We are ready to use it to get access to some secret data! For demonstration, we are going to allocate a very large array but designate most of it off-limits by specifying a small value as the array size. This is, in practice, the only way you can demonstrate this attack today: since its discovery, most computers have been patched against the Spectre vulnerability, so, unless you have a machine that was hidden in a cave and not updated for a few years, the attack will not work against any memory that you are really not allowed to access. The patches do not prevent you from using Spectre against any data that you are allowed to access, but you have to examine the code and prove that it really does return the values without accessing the memory directly. That is what we are going to do: our spectre\_attack function does not read any memory outside of the data array of the specified size, so we can create an array that is twice as large as specified and hide a secret message in the upper half:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{spectre.C}
 \begin{lstlisting}[style=styleCXX]
-// spectre.C
 int main() {
 	constexpr const size_t size = 4096;
 	char* const data = new char[2*size];

@@ -1,0 +1,14 @@
+\begin{enumerate}
+\item 
+Undefined behavior is what happens when a program is executed out of contract: the specification says what the valid inputs are and what the results should be. If invalid input is detected, this is also a part of the contract. If the invalid input is not detected and the program proceeds on the (false) assumption that the input is valid, the results are undefined: the specification does not say what must happen.
+
+\item 
+In C++, there are two main reasons for allowing undefined behavior. First of all, there are operations that require hardware support or are executed differently on different hardware. It may be very difficult or even impossible to deliver a specific result on some hardware systems. The second reason is performance: it may be expensive to guarantee a specific outcome across all computing architectures.
+
+\item 
+No, an undefined result does not mean that the result must be wrong. The desired result is also permitted under undefined behavior, it's just not guaranteed. Further, undefined behavior taints the entire program. Compiling the same code in a file together with some other code may produce unexpected results. A new version of the compiler may be able to make better optimizations on the assumption that undefined behavior never happens. You should run the sanitizer and fix the errors it reports.
+
+\item
+For the same reason, the C++ standard does it: performance. If there is a special case that is hard to handle correctly without adding overhead to the "normal" case, you may choose not to handle the special case at all. While it is preferable to detect this situation at run time, such detection may also be expensive. In this case, the input validation should be optional. If the user supplies an invalid input but fails to run the detection tool, the program's behavior is undefined since the algorithm itself assumes that the input is valid and that assumption has been violated.
+
+\end{enumerate}

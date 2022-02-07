@@ -7,8 +7,10 @@ Let's start with something that should be obvious but is often forgotten in prac
 
 A simple example is the thread-safe counter we used in the previous chapter. If you need all threads to see the current value of the counter at all times, then it was the right solution. However, let's say that all we need is to count some event that happens on multiple threads, such as searching for something in a large set of data that has been divided between the threads. A thread does not need to know the current value of the count to do the search. Of course, it would need to know the latest value of the count to increment it, but that is true only if we try to increment the single shared count on all threads, like this:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01a\_shared\_count.C}
 \begin{lstlisting}[style=styleCXX]
-// 01a_shared_count.C
 std::atomic<unsigned long> count;
 …
 for ( … counting loop … ) { // On each thread
@@ -30,9 +32,10 @@ The scaling of the counting is actually negative: it takes longer to get to the 
 
 Assuming we only care about the value of the count at the very end of the computation, a much better solution is, of course, to maintain local counts on each thread and increment the shared count only once:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01b\_per\_thread\_count.C}
 \begin{lstlisting}[style=styleCXX]
-// 01b_per_thread_count.C
-
 unsigned long count;
 std::mutex M; // Guards count
 …

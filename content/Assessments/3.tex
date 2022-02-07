@@ -1,0 +1,20 @@
+\begin{enumerate}
+\item 
+Modern CPUs have multiple computing units, many of which can operate at the same time. Using as much of the CPU computing power as possible at any time is the way to maximize a program's efficiency
+
+\item 
+Any two computations that can be done at the same time take only as much time as the longer of the two computations; the other one is effectively free. In many programs, we can replace some computations that are to be done in the future with other computations that can be done now. Often the tradeoff is doing more computations now than would have been done later, but even that improves the overall performance as long as the extra computations take no additional time because they are done in parallel with some other work that has to be done anyway.
+
+\item 
+This situation is known as data dependency. The countermeasure is the pipelining, where part of the future computation that does not depend on any unknown data is executed in parallel with the code that precedes it in the program order.
+
+\item
+Conditional branches make the future computations indeterminate, which prevents the CPU from pipeline them. The CPU attempts to predict the code that will be executed so that it can maintain the pipeline. Whenever such a prediction fails, the pipeline must be flushed, and the results of all instructions that were predicted incorrectly are discarded.
+
+\item
+Any code that may or may not be needed but is executed based on the CPU's branch prediction is evaluated speculatively. In the speculative execution context, any action that cannot be undone must not be fully committed: the CPU cannot overwrite the memory, do any I/O operations, issue interrupts, or report any errors. The CPU has the necessary hardware to hold these actions suspended until the speculatively executed code is confirmed as real code, or not. In the latter case, all would-be results of the speculative execution are discarded with no observable effects.
+
+\item 
+A well-predicted branch typically has only a minor impact on performance. Therefore, the two main solutions to performance degradation caused by mispredicted branches are: rewrite the code such that the conditions become more predictable or change the computations to use conditionally accessed data instead of conditionally executed code. The latter is known as branchless computing.
+	
+\end{enumerate}

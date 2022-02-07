@@ -1,7 +1,62 @@
 
+Design is often the art of compromise; there are competing goals and requirements that must be balanced. In this section, we are going to talk specifically about performance-related trade-offs. You will make many such decisions when designing high-performance systems. Here are some to be aware of.
 
 \subsubsubsection{12.6.1\hspace{0.2cm}Interface design}
 
+We have witnessed the benefits of exposing implementation as little as possible throughout this chapter. But there is a tension between the freedom to optimize that we gain in doing so vs. the cost of very abstract interfaces. 
+
+This tension requires making trade-offs between optimizing different components: an interface that does not restrict the implementation in any way usually limits the client quite severely. For example, let us revisit our collection of points. What can we do without restricting its implementation? We cannot allow any insertions except at the end (the implementation may be a vector, and copying half the collection is unacceptable). We can only append to the end, which means we cannot maintain sorted order, for example. There can be no random access (the collection may be stored in a list). We may be unable to provide even a reverse iterator if the collection is compressed. A point collection that leaves almost unlimited freedom to the implementer is restricted to forward iterators (streaming access) and maybe append operations. Even the latter is a restriction, some compression schemes require finalizing the data before it can be read, so the collection can be in a write-only state or a read-only state.
+
+We are not giving this example to demonstrate how rigorous pursuit of implementation-agnostic APIs leads to unrealistic restrictions on the clients. Quite the contrary: this is a valid design for processing large amounts of data. The collections are written by appending to the end; there is no particular order to the data until the writing is finalized. Finalization may include sorting and compression. To read the collection, we uncompress it on the fly (if our compression algorithm works on several points at once, we need a buffer to hold uncompressed data). If the collection must be edited, we can use the algorithm we first introduced in Chapter 4, Memory Architecture and Performance, for memory-efficient editing or strings: we always read the entire collection from the beginning to the end; each point is modified as needed, new points are added, etc. We write the results into the new collection and eventually delete the original one. This design allows for very efficient data storage, both in terms of memory use (high compression) and in terms of efficient memory access (cache-friendly sequential accesses only). It also requires the clients to implement all their operations in terms of streaming access and read-modify-write operations. 
+
+You can arrive at the same point from the other end: if you analyze your data access patterns and conclude that you can live with streaming access and read-modify-write updates, you can make that part of your design. Not a specific compression scheme, of course, but the high-level data organization: writing must be finalized before anything can be read, and the only way to alter the data is to copy the entire collection to a new one, modifying its content during copying as needed. 
+
+An interesting observation about this trade-off is that not only may we have to balance performance requirements against ease of use or other design considerations, but there is usually a decision to be made about which aspect of performance is more important. Usually, the low-level components should be given precedence: their architecture is more fundamental to the overall design than the choice of algorithms in higher-level components. Thus, it is harder to change later, which makes it more important to make an informed design decision. Note that, when it comes to designing components, there are other trade-offs to be made. 
+
 \subsubsubsection{12.6.2\hspace{0.2cm}Component design}
 
+We have just seen that sometimes for one component to have a great performance by design, limitations must be imposed on other components whose performance then requires careful choice of algorithms and skillful implementation. But this is not the only trade-off we have to make. 
+
+One of the most common balancing acts in design for performance is that of choosing the appropriate granularity level for components and modules. Making small components is generally a good design practice, particularly in test-driven design (but generally in any design that has testability as one of the goals). On the other hand, splitting the system into too many pieces with restricted interactions between them can be bad for performance. Often, treating larger units of data and code as single components allows for more efficient implementation. Again, our point collection is an example: it is more efficient if we don't allow unrestricted access to point objects inside the collection. 
+
+In the end, these decisions should be made by considering the conflicting requirements and taking advantage of the opportunities to resolve the contradictions. It would be good to have a point as a separate unit, testable and reusable in other code. But do we really need to expose the point collection as a collection of these point units? Perhaps, we can instead treat it as a collection of all the information contained in the points it stores, while the point object is created only for reading and writing points into the collection, one at a time. This approach allows us to retain good modularity and achieve high performance. In general, the interfaces are implemented in terms of clear and testable components, while internally, the larger components store the data in an entirely different format. 
+
+What should be avoided is creating "back doors" in the interfaces that are made specifically to work around the restrictions that resulted from following good design practices but now lead to performance limitations. This generally compromised both competing design goals in an ad hoc manner. Instead, it is better to redesign the involved components. If you don't see a way to resolve the contradicting requirements, erase the component boundary and make the smaller units into internal, implementation-specific subcomponents.
+
+Another design aspect we have not concerned ourselves at all with so far is error handling, so a few words are in order.
+
 \subsubsubsection{12.6.3\hspace{0.2cm}Errors and undefined behavior}
+
+Error handling is one of those things that are often treated as an afterthought but should be an equal and important factor in design decisions. In particular, it is very difficult to add exception safety (and, by extension, error safety) to a program that was not designed with a particular exception-handling methodology in mind.
+
+Error handling begins with the interfaces: all interfaces are essentially contracts that govern the interactions between components. These contracts should include any restrictions on the input data: a component will function as specified if certain external conditions are met. But the contract should also specify what happens if the conditions are not met and the component cannot fulfill the contract (or the programmer decided that it is undesirable or too difficult to do so). 
+
+Much of this error response should also be covered by the contract: if the specified requirements are not met, the component will report an error in a certain way. It could be exceptions, error codes, status flags, or a combination of other methods. Other books are written on the best practices of error handling. Here we focus on performance.
+
+From the performance point of view, the most important consideration is usually the overhead of handling a potential error in the much more common case when the inputs and the results are correct and nothing bad happens. It is often expressed simply as "error handling must be cheap."
+
+What is meant by this is that error handling must be cheap in the normal, no-error case. Conversely, we usually don't care about the expense of processing errors when this rare event actually happens. What exactly this entails varies greatly from one design to the next one. 
+
+For example, in applications that handle transactions, we usually want commit-or-rollback semantics: each transaction either succeeds or does nothing at all. The performance cost of such a design may be high, however. Often, it is acceptable to have a failed transaction still affect some changes, as long as these changes do not change the primary invariants of the system. For a disk-based database, it may be acceptable to waste some space on disk; then, we can always allocate the space for the transaction and write to the disk, but, in case of error, we leave this partially written region inaccessible to the user.
+
+In such cases where we "hide" the full consequences of an error to improve performance, it is good to design a separate mechanism to clean such aftereffects of errors. For our database, such cleanup can proceed in a separate background process with low priority to avoid interfering with the primary accesses. Again, this is an example of resolving contradictions by separating them in time: if we have to recover from errors but it is too expensive to do so, do the expensive part later.
+
+Finally, we have to consider the possibility that even detecting a contract violation is too expensive in some cases. Chapter 11, Undefined Behavior and Performance, covered this scenario. The interface contract should clearly state that if certain restrictions are violated, the results are undefined. If you choose this approach, do not make the program spend time making the undefined results more "acceptable." Undefined means undefined; anything can happen. This should not be done lightly, and you should consider alternatives such as lightweight data collection that leaves the expensive work to the code path that handles the real errors when they occur. But being clear about the contract boundaries and undefined outcomes is preferable to uncertain alternatives along the lines of "we will do the best we can, but no promises." 
+
+There are many trade-offs that have to be made during the design stage, and this chapter is not meant to be a complete list of trade-offs or an all-encompassing guide to achieving balance. Instead, we show several commonly occurring contradictions and the possible approaches to resolving them. 
+
+In order to make informed decisions when balancing performance design goals against other targets and motivations, it is important to have some performance estimates. But how do we get performance metrics so early in the design stage? This is the last and, in some ways, the hardest part of designing for performance that we are yet to discuss.
+
+
+
+
+
+
+
+
+
+
+
+
+
+

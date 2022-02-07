@@ -1,0 +1,14 @@
+\begin{enumerate}
+\item 
+Design for performance boils down to creating a design that does not prevent high-performing algorithms and implementations by imposing constraints incompatible with such implementations.
+
+\item 
+In general, the less the interface reveals the internal details of a component, the more freedom the implementer has. This should be balanced against the freedom of the client to use efficient algorithms.
+
+\item 
+Higher-level interfaces allow for better performance because they allow the implementer to temporarily violate the invariants specified by the interface contract. The initial and the final states of the component are visible to the caller and must maintain these invariants. However, if the implementer knows that the intermediate states are not exposed to the outside world, a more efficient temporary state can often be found.
+
+\item
+The short answer is, we can't. The objective is, then, to find a way to collect such measurements. This is done by measuring the performance of modeling benchmarks and prototypes and using the results to estimate performance limitations that result from different design decisions.
+
+\end{enumerate}

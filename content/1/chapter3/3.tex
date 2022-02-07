@@ -1,8 +1,10 @@
 
 The outcome of the previous section may leave you somewhat daunted: the processor is very complex and, apparently, needs a lot of hand-holding on the part of the programmer to operate at peak efficiency. Let us start small and see how fast a processor can do some basic operations. To that end, we will use the same Google Benchmark tool we have used in the last chapter. Here is a benchmark for the simple addition of two arrays:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_superscalar.C}
 \begin{lstlisting}[style=styleCXX]
-// 01_superscalar.C
 #include "benchmark/benchmark.h"
 void BM_add(benchmark::State& state) {
 	srand(1);
@@ -84,8 +86,10 @@ a1 += p1[i] + p2[i];
 
 From the efficiency point of view, we want to focus on that last step: our CPU can add or multiply two numbers in under a nanosecond, not bad, but can it do more? A lot of transistors are dedicated to processing and executing instructions, so they have to be good for something more. Let us try to do two operations on the same values instead of just one:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_superscalar.C}
 \begin{lstlisting}[style=styleCXX]
-\\ 01_superscalar.C
 void BM_add_multiply(benchmark::State& state) {
 	… prepare data …
 	for (auto _ : state) {

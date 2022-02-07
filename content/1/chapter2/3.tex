@@ -7,8 +7,10 @@ We already saw a simple example of that when we added a timer to our sample prog
 
 C++ has some facilities that can be used to collect timing information in its chrono library. You can measure the time that elapsed between any two points in the program:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{example.C}
 \begin{lstlisting}[style=styleCXX]
-// example.C
 #include <chrono>
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
@@ -28,8 +30,10 @@ We should point out that the C++ chrono clocks measure real time (often called w
 
 To measure the CPU time, we have to use OS-specific system calls; on Linux and other POSIX-compliant systems, we can use the clock\_gettime() call to access the hardware high-resolution timers:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{clocks.C}
 \begin{lstlisting}[style=styleCXX]
-// clocks.C
 timespec t0, t1;
 clockid_t clock_id = …; // Specific clock
 clock_gettime(clock_id, &t0);
@@ -45,8 +49,10 @@ There are several hardware timers we can use in the previous code, one of which 
 
 When benchmarking the code, it is often helpful to report the measurements from more than one timer. In the simplest case of a single-threaded program that is doing uninterrupted computations, all three timers should return the same result:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{clocks.C}
 \begin{lstlisting}[style=styleCXX]
-// clocks.C
 double duration(timespec a, timespec b) {
 	return a.tv_sec - b.tv_sec + 1e-9*(a.tv_nsec - b.tv_nsec);
 }
@@ -80,8 +86,10 @@ If the reported CPU time does not match the real time, it is likely that the mac
 
 On the other hand, if the program does not compute much but instead, waits on user input, or receives the data from the network, or does some other work that does not take many CPU resources, we will see a very different result. The simplest way to observe this behavior is by calling the sleep() function instead of the computation we used earlier:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{clocks.C}
 \begin{lstlisting}[style=styleCXX]
-// clocks.C
 {
 	timespec rt0, ct0, tt0;
 	clock_gettime(CLOCK_REALTIME, &rt0);
@@ -109,8 +117,10 @@ The same should be true for a program that is blocked on a socket or a file or i
 
 So far, we have not seen any difference between the two CPU timers, and you will not see any unless your program uses threads. We can make our compute-heavy program do the same work but use a separate thread for it:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{clocks.C}
 \begin{lstlisting}[style=styleCXX]
-// clocks.C
 {
 	timespec rt0, ct0, tt0;
 	clock_gettime(CLOCK_REALTIME, &rt0);
@@ -143,8 +153,10 @@ Now the real time and the process-wide CPU time look like those from the "heavy 
 
 Most of the time, if we are going to use threads for computing, the goal is to do more computations faster, so we will use several threads and spread the work between them. Let us modify the preceding example to compute also on the main thread:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{clocks.C}
 \begin{lstlisting}[style=styleCXX]
-// clocks.C
 {
 	timespec rt0, ct0, tt0;
 	clock_gettime(CLOCK_REALTIME, &rt0);

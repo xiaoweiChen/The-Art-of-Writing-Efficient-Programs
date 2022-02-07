@@ -1,0 +1,14 @@
+\begin{enumerate}
+\item 
+If it is necessary to make a copy of the object, then passing it by value accomplishes that. The programmer has to be careful to avoid making a second, unnecessary copy. Usually, this is done by moving from the function parameter; however, the programmer is responsible for not using the moved-from object as the compiler will not prevent it.
+
+\item 
+In the most common case, when the function operates on the object but does not affect its lifetime, the function should not get any access that allows it to affect the ownership. Even if the object ownership is managed by shared pointers, such functions should use references or raw pointers instead of creating unnecessary copies of shared pointers.
+
+\item 
+Return value optimization refers to the compiler optimization technique where a local variable is returned by value from a function. The optimization effectively removes the local variable and constructs the result directly in the memory allocated for it by the caller. This optimization is particularly useful in factory functions that must construct and return objects.
+
+\item
+In memory-bound programs, the run time is limited by the speed of getting data to and from memory. Using less memory often leads directly to a faster running program. The second reason is more straightforward: memory allocations themselves take time. In concurrent programs, they also involve a lock, which serializes part of the execution.
+
+\end{enumerate}

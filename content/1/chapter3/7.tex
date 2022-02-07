@@ -2,9 +2,10 @@ When it comes to a program with many conditional statements, usually if() statem
 
 It is very important to understand that the hardware branch prediction is based on the conditional instructions executed by the processor. As such, the processor's understanding of what a condition is can be different from our understanding. The following example helps to drive this point home, with force:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_branch.C}
 \begin{lstlisting}[style=styleCXX]
-\\ 02_branch.C
-
 std::vector<unsigned long> v1(N), v2(N);
 std::vector<int> c1(N), c2(N);
 for (size_t i = 0; i < N; ++i) {

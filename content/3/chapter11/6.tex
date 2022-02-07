@@ -1,0 +1,15 @@
+We have a whole chapter dedicated to the subject of UB in C++ and in programs in general. Why? Because this subject is inextricably linked to performance.
+
+First of all, understand that UB occurs when the program receives an input that is outside of the contract that specifies the program's behavior. In addition, the specification also says that the program is not required to detect such input and issue a diagnostic. This is true for the UB as defined by the C++ Standard and for the UB of your own program.
+
+Next, the reason the specification (or the standard) does not cover all possible inputs and defining the results is mostly related to performance: UB is often introduced when it would be very expensive to produce a specific result reliably. For UB in C++, the variety of processor and memory architectures also leads to cases that are difficult to handle uniformly. Without a viable way to guarantee a specific result, the standard leaves the outcome undefined.
+
+Finally, the reason the program is not required to at least detect, if not handle, the invalid input is that such detection may also be very costly: sometimes it takes longer to confirm that the input is valid than to compute the result.
+
+You should keep these considerations in mind when designing software: it is always desirable to have a broad contract that defines the outcome for any or almost any input. But doing so can impose performance overhead on users who only provide the typical or "normal" input. When offered a choice between faster execution of a task the user wants to do and reliable execution of a task the user never wants to solve in the first place, most users will choose performance. As a compromise, you can offer the users a way to validate the inputs; if this validation is costly, it should be optional.
+
+When it comes to UB laid out by the C++ Standard, the tables are turned, and you are the user. It is essential to understand that if a program includes code with UB, the entire program is ill-defined, not just the one line in question. This is because the compiler can assume that UB never happens at runtime and reason backward from that to make the corresponding optimizations to your code. Modern compilers all do that to some extent, and future compilers will only be more aggressive in their deductions. 
+
+Finally, many compiler developers also offer validation tools that can detect undefined behavior at run time – UB sanitizers. Just like a validator for the input of your own program, these tools take time to run, which is why the sanitizer is an optional tool. You should take advantage of it in your software testing and development process. 
+
+We are almost at the end of the book; in the next, which is the final chapter, we will review everything we have learned with an eye for the implications and lessons for designing software.

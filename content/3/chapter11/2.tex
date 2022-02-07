@@ -1,0 +1,93 @@
+The concept of undefined behavior (UB) is shrouded in mystery, complete with arcane warnings for the uninitiated. The Usenet group comp.std.c warns, "When the compiler encounters (an undefined construct), it is legal for it to make demons fly out of your nose. "Launching nuclear missiles and neutering your cat (even if you don't own a cat) have been mentioned in a similar context. One of the tangential goals of this chapter is to demystify UB: while the ultimate goal is to explain the relationship between UB and performance and to show how to take advantage of UB, we cannot do that until we can discuss the concept rationally.
+
+First of all, what is UB in the context of C++ (or any other programming language)? There are specific places in the standard where the words the behavior is undefined or the program is ill-formed are used. The standard further says that if the behavior is undefined, the standard imposes no requirements on the results. The corresponding situations are referred to as UB. For example, refer to the following code:
+
+\begin{lstlisting}[style=styleCXX]
+int f(int k) {
+	return k + 10;
+}
+\end{lstlisting}
+
+The standard says that the result of the preceding code is undefined if the addition causes integer overflow (that is, if k is greater than INT\_MAX-10).
+
+When UB is mentioned, the discussion tends to go toward one of the two extremes. The first one we have just seen. The exaggerated language may be well-intentioned as a warning against the danger of UB, but it is also a barrier to a rational explanation. Your nose is quite safe from the wrath of the compiler, and so is your cat. The compiler will, in the end, generate some code from your program, and you will run this code. It is not going to give your computer any superpowers: anything this program does, you could accomplish intentionally, for example, by writing an identical sequence of instructions by hand in assembler. If there is no way for you to execute machine instructions that result in launching nuclear missiles, your compiler will be unable to do that, UB or no UB (of course, if you are programming the missile launch controller, it's a different game altogether). The bottom line is, when your program's behavior is undefined, according to the standard, the compiler can generate code you do not expect, but this code cannot do anything that you could not do already.
+
+While overstating the dangers of UB is not helpful, on the flip side, there is a tendency to reason about UB, which is also an unfortunate practice. For example, consider this code:
+
+\begin{lstlisting}[style=styleCXX]
+int k = 3;
+k = k++ + k;
+\end{lstlisting}
+
+While the C++ standards have progressively tightened the rules on executing this kind of expression, the result of this particular one remains undefined in C++17. Many programmers underestimate the danger of this situation. They say, "the compiler will either evaluate k++ first or evaluate k + k first." To explain why this is wrong and dangerous, we have to first split some hairs in the standard.
+
+The C++ Standard has three related and often confused categories of behavior: implementation-defined, unspecified, and undefined. The exact specification of implementation-defined behavior must be provided by the implementation. This is not optional: a standard-compliant implementation must augment the standard by defining the behavior of the implementation-defined language construct. Unspecified behavior is similar, except the implementation is under no obligation to document the behavior: the standard usually provides a range of possible outcomes, and the implementation can specify its own possible outcomes without specifying which one is going to happen. Finally, for undefined behavior, the standard imposes no requirements whatsoever on the behavior of the entire program. It is vitally important to consider the wording of this sentence carefully: the standard does not say that one of the several alternative ways of evaluating the expression k++ + k must take place (that would be unspecified behavior, which is not what the standard says). The standard says that the entire program is ill-formed and imposes no restrictions on its outcome (but before you panic and fear for your nose, remember that the result is restricted to some executable code).
+
+A counter-argument is often made stating that whatever the compiler does when it compiles the line with UB, it still has to handle the rest of the code in a Standardmandated way, so (the argument goes) the damage is limited to one of the possible outcomes from that particular line. Just like it is important to not overstate the danger, it is important to understand why this argument is wrong. The compiler is written on the assumption that the program is well defined and is required to produce the correct results in this case and only in this case. There are no preconceptions of what happens if the assumption is violated. One way to describe the situation is to say that the compiler is not required to condone the UB. Let us go back to our first example:
+
+\begin{lstlisting}[style=styleCXX]
+int f(int k) {
+	return k + 10;
+}
+\end{lstlisting}
+
+Since the program is ill-defined for a large enough k to cause an integer overflow, the compiler is allowed to assume that this will never happen. What if it does happen? Well, if you compile this function by itself (in a separate compilation unit), the compiler will generate some code that produces correct results for all k <= INT\_MAX-10. If there are no whole-program transformations in your compiler and linker, the same code will probably execute for a larger k, and the result will be whatever your hardware does in this case. The compiler could insert a check for k, but it probably won't (with some compiler options, it might, though).
+
+What if the function is a part of a larger compilation unit? That is where things get interesting: the compiler now knows that the input argument to the f() function is restricted. That knowledge can be used for optimization. For example, refer to the following code:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_opt.C}
+\begin{lstlisting}[style=styleCXX]
+int g(int k) {
+	if (k > INT_MAX-5) cout << "Large k" << endl;
+	return f(k);
+}
+\end{lstlisting}
+
+If the definition of the f() function is visible to the compiler, the compiler can deduce that the printout never happens: if k is large enough for this program to print, then the entire program is ill-formed and the standard does not require it to print anything. If the value of k is within the bounds of defined behavior, the program will never print anything. Either way, printing nothing is a valid result according to the standard. Note that just because your compiler does not currently do this optimization, it does not mean that it never will: this type of optimization is becoming more aggressive in newer compilers.
+
+So what about our second example? The result of the expression k++ + k is always undefined for any value of k. What can the compiler do with that? Again, remember: the compiler is not required to condone UB. The only way this program can remain well defined is if this line is never executed. The compiler is allowed to assume that this is the case and then reason backward: the function containing this code is never called, any conditions necessary for that to happen must be true, and so on, up to, possibly, the conclusion that the entire program will never be executed.
+
+If you think that real compilers don't do that sort of stuff, I have a surprise for you:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_infC}
+\begin{lstlisting}[style=styleCXX]
+int i = 1;
+int main() {
+	cout << "Before" << endl;
+	while (i) {}
+	cout << "After" << endl;
+}
+\end{lstlisting}
+
+The natural expectation for this program is to print Before and hang forever. When compiled with GCC (version 9, optimization O3), that is precisely what it does. When compiled with Clang (version 13, also O3), it prints Before, then After, and then terminates immediately without any errors (it doesn't crash, it just exits). Both outcomes are valid because the results of a program that encounters an infinite loop are undefined (unless certain conditions are met, none of which apply here).
+
+The preceding example is very instructive for understanding why we have UB at all. In the next section, we are going to lift the veil and explain the reasons for UB.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

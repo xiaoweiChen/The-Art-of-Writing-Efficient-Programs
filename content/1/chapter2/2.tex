@@ -6,8 +6,10 @@ Any real-world program that you may have to analyze and optimize is likely to be
 
 We can use the STL sort algorithm, std::sort, to sort the substrings if we represent them with a character pointer: swapping two substrings now involves just swapping the pointers while the underlying string remains unchanged. Here is our example program:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_substring\_sort.C}
 \begin{lstlisting}[style=styleCXX]
-// 01_substring_sort.C
 bool compare(const char* s1, const char* s2, unsigned int l);
 int main() {
 	constexpr unsigned int L = …, N = …;
@@ -57,8 +59,11 @@ In our case, the lambda expression has the second role: in addition to calling t
 
 The comparison function itself is only declared in this example, but not defined. Its definition is in a separate file and reads as follows:
 
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]
-// 01_substring_sort_a.C
 bool compare(const char* s1, const char* s2, unsigned int l) {
 	if (s1 == s2) return false;
 	for (unsigned int i1 = 0, i2 = 0; i1 < l; ++i1, ++i2) {
@@ -76,8 +81,10 @@ The only thing that is missing in our example is the actual data for the string.
 
 We can simulate this type of data as well by filling the string with a single character and then randomly changing a few of them:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]
-// 01_substring_sort_a.C
 constexpr unsigned int L = 1 << 18, N = 1 << 14;
 unique_ptr<char[]> s(new char[L]);
 vector<const char*> vs(N);
@@ -132,8 +139,10 @@ The profiler shows that almost all the time is spent in the comparison function 
 
 Since the substring comparison function takes 98\% of the total run time, we have only two ways to improve the performance: we can make this function faster, or we can call it fewer times (many people forget the second possibility and go straight for the first one). The second approach would require the use of a different sort algorithm and is, therefore, outside of the scope of this book. Here we will focus on the first option. Let us again review the code for the comparison function:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]
-// 01_substring_sort_a.C
 bool compare(const char* s1, const char* s2, unsigned int l) {
 	if (s1 == s2) return false;
 	for (unsigned int i1 = 0, i2 = 0; i1 < l; ++i1, ++i2) {
@@ -151,8 +160,10 @@ The only case where we could potentially read past the end of the string is when
 
 The change in the code is simple enough: we can just remove the comparison (we also do not need to pass the length into the comparison function anymore):
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{03\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]
-// 03_substring_sort_a.C
 bool compare(const char* s1, const char* s2) {
 	if (s1 == s2) return false;
 	for (unsigned int i1 = 0, i2 = 0;; ++i1, ++i2) {
@@ -174,8 +185,10 @@ To say that this didn't go according to plan would be a major understatement. Th
 
 To wrap up this example, which is actually a much-condensed example from a real-life program, I will tell you that while we were trying to optimize this fragment of code, another programmer was working in a different part of the code and also needed a substring comparison function. When the separately developed pieces of code were put together, only one version of this function was kept, and it happens to be the one we did not write; the other programmer wrote almost the same code:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{04\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]
-// 04_substring_sort_a.C
 bool compare(const char* s1, const char* s2) {
 	if (s1 == s2) return false;
 	for (int i1 = 0, i2 = 0;; ++i1, ++i2) {

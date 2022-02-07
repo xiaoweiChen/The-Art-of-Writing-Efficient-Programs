@@ -49,8 +49,10 @@ The C++11 standard changed that and gave C++ its own memory model. We have alrea
 
 We have seen these guarantees in the form of the different memory order specifications: relaxed, acquire, release, and acquire-release. C++ has an even stricter memory order called sequentially consistent (std::memory\_order\_seq\_cst), which is the default order you get when you don't specify one: not only there is a bidirectional memory barrier associated with each atomic operation that specifies this order, but the entire program satisfies the sequential consistency requirement. This requirement states that the program behaves as if all operations executed by all processors were executed in a single global order. Furthermore, this global order has an important property: consider any two operations A and B that are executed on one processor such that A executed before B. These two operations must appear in the global order with A preceding B as well. You can think of a sequentially consistent program like this: imagine a deck of cards for every processor, where the cards are operations. Then we slide these decks together without shuffling them; cards from one deck slide between cards from the other deck, but the order of the cards from the same deck never changes. The one combined deck of cards is the apparent global order of the operations in the program. Sequential consistency is a desirable property because it makes it much easier to reason about the correctness of a concurrent program. It does, however, often come at a cost in performance. We can demonstrate this cost in a very simple benchmark that compares different memory orders:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{05\_barrier\_store.C}
 \begin{lstlisting}[style=styleCXX]
-// 05b_barrier_store.C
 void BM_order(benchmark::State& state) {
 	for (auto _ : state) {
 		x.store(1, memory_order);

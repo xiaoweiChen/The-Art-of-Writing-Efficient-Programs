@@ -15,8 +15,10 @@ Alternatively, we could use a list to store the same numbers. The std::list is a
 
 Those of you who, at this point, demanded proof, have learned something valuable from the previous chapter. We can easily construct a micro-benchmark to compare writing data into a list and a vector of the same size. Here is the benchmark for the vector:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{03\_list\_vector.C}
 \begin{lstlisting}[style=styleCXX]
-// 03_list_vector.C
 template <class Word>
 void BM_write_vector(benchmark::State& state) {
 	const size_t size = state.range(0);

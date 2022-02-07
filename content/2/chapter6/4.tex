@@ -56,8 +56,10 @@ The CAS loop can be used to implement any accumulator, regardless of the operati
 
 The spinlock can be further optimized for the case when it is used to access a single variable or a single object. Instead of a generic flag, we can make the lock itself be the only reference to the object it is guarding. The atomic variable is going to be a pointer, not an integer, but otherwise, the locking mechanism remains unchanged. The lock() function is non-standard because it returns the pointer to the counter:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01d\_ptrlock\_count.C}
 \begin{lstlisting}[style=styleCXX]
-// 01d_ptrlock_count.C
 template <typename T>
 class PtrSpinlock {
 	public:
@@ -103,8 +105,10 @@ The second reason is more subtle, and it has to do with the exact guarantees the
 
 We studied memory visibility in the previous chapter when we discussed the memory model. At the time, it might  have appeared to be a largely theoretical matter, but not anymore. From the last chapter, we know that the way we control the visibility is by restricting the memory order or by using memory barriers (two different ways to talk about the same thing). The key difference between a count and an index in a multi-threaded program is that the index provides an additional guarantee: if the thread that increments the index from N-1 to N had completed the initialization of the array element N before it incremented the index, then any other thread that reads the index and gets the value of N (or greater) is guaranteed to see at least N fully initialized and safe to read elements in the array (assuming no other thread writes into these elements, of course). This is a non-trivial guarantee, do not easily dismiss it: multiple threads are accessing the same location in memory (the array element N) without any locking, and one of these threads is writing into this location, and yet, the access is safe, there is no data race. If we could not arrange for this guarantee using the shared index, we would have to lock all accesses to the array, and only one thread would be able to read it at any time. Instead, we can use this atomic index class:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_atomic\_index.C}
 \begin{lstlisting}[style=styleCXX]
-// 02_atomic_index.C
 class AtomicIndex {
 	std::atomic<unsigned long> c_;
 	public:
@@ -189,8 +193,10 @@ The challenge of concurrent (thread-safe) data structures is how to add, remove,
 
 Here is a basic publishing pointer that also includes the functionality of a unique, or owning, pointer (so we can call it a thread-safe unique pointer):
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{03\_owning\_ptr\_mbm.C}
 \begin{lstlisting}[style=styleCXX]
-// 03_owning_ptr_mbm.C
 template <typename T>
 class ts_unique_ptr {
 	public:
@@ -303,8 +309,10 @@ Again, the numbers should be compared with those from Figure 6.5: the publishing
 
 Even if you need shared ownership (and there are some concurrent data structures that are really hard to design without it), usually, you can do much better if you design your own reference-counted pointer with limited functionality and optimal implementation. One very common approach is to use intrusive reference counting. An intrusive shared pointer stores its reference count in the object it points to. When designed for a specific object, such as a list node in our particular data structure, the object is designed with the shared ownership in mind and contains a reference counter. Otherwise, we can use a wrapper class for almost any type and augment it with a reference counter:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{04\_intr\_shared\_ptr\_mbm.C}
 \begin{lstlisting}[style=styleCXX]
-// 04_intr_shared_ptr_mbm.C
 template <typename T> struct Wrapper {
 	T object;
 	Wrapper(… arguments …) : object(…) {}

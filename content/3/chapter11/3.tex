@@ -1,0 +1,61 @@
+The obvious question that arises from the last section is, why does the standard have UB at all? Why doesn't it specify the result for every situation? A slightly subtler question that acknowledges the reality that C++ is used on a wide variety of hardware with very different properties is this: why doesn't the standard fall back on implementation-defined behavior instead of leaving it undefined?
+
+The last example from the previous section provides us with a perfect demonstration vehicle for the rationale behind the existence of UB. The statement is that an infinite loop is UB; another way of saying that is that the standard does not require a specific outcome from a program that enters an infinite loop (the standard is more nuanced than that, and some forms of infinite loops will cause the program to hang, but these details are not important at the moment). To understand why the rule is there, consider the following code:
+
+\begin{lstlisting}[style=styleCXX]
+size_t n1 = 0, n2 = 0;
+void f(size_t n) {
+	for (size_t j = 0; j != n; j += 2) ++n1; 
+	for (size_t j = 0; j != n; j += 2) ++n2;
+}
+\end{lstlisting}
+
+The loops are identical, so we are paying the overhead of the loop (increment of the loop variable and comparison) twice. The compiler clearly should do the following optimization by folding the loops together:
+
+\begin{lstlisting}[style=styleCXX]
+void f(size_t n) {
+	for (size_t j = 0; j != n; j += 2) ++n1, ++n2;
+}
+\end{lstlisting}
+
+Note, however, that this transformation is valid only if the first loop terminates; otherwise, the count n2 should never be incremented at all. It is impossible to know during compilation whether the loop terminates – it depends on the value of n. If n is odd, the loop runs forever (unlike signed integer overflow, incrementing the unsigned type size\_t past its maximum value is well defined, and the value rolls over back to zero). In general, it is not possible for the compiler to prove that a particular loop eventually terminates (this is a known NP-complete problem). The decision was made to assume that every loop eventually terminates and to allow the optimizations that would otherwise be invalid. Because these optimizations can make a program with an infinite loop invalid, such loops are considered UB, meaning the compiler does not have to preserve the behavior of a program with an infinite loop.
+
+To avoid oversimplifying the issue, we must mention that not all types of UB defined in the C++ Standard have similar reasoning behind them. Some UB is introduced because the language has to be supported on different types of hardware, and some of these cases can be considered obsolete today. As this is a book on performance, we will focus on examples of UB that exist for reasons of efficiency or that can be used to improve certain optimizations.
+
+In the next section, we will see more examples of how the compiler can use UB to its (and your) advantage.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

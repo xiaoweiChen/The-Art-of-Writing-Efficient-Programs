@@ -1,0 +1,14 @@
+\begin{enumerate}
+\item 
+The memory model describes the interaction of threads through shared memory; it is the set of restrictions and guarantees that are given when multiple threads access the same data in memory
+
+\item 
+On the one hand, if we did not need the shared data, all threads would run completely independently, and the program would scale perfectly as long as more processors are available. Also, writing such a program is no harder than writing a single-threaded program. On the other hand, all the bugs related to concurrency ultimately arise from invalid access to some shared data.
+
+\item 
+The overall memory model is a superposition of the several memory models for different components of the system: first of all, the hardware has a memory model that applies to any program running on it. The OS and the runtime environment may provide additional restrictions and guarantees. Finally, the compiler implements the memory model of the language such as C++ and may impose additional restrictions if it offers a stricter memory model than the language requires.
+
+\item
+Several factors limit the performance of concurrent programs. First is the availability of work to be done in parallel (this problem is to be solved by advances in concurrent algorithms and is outside of the scope of this book). Second is the availability of the hardware to actually do this work (we have seen the example of a program becoming memory-bound). Finally, any time the threads must access the same data (shared data) concurrently, this access must be synchronized, and the ability of the compiler and the hardware to optimize the execution across such synchronized accesses is severely limited.
+
+\end{enumerate}

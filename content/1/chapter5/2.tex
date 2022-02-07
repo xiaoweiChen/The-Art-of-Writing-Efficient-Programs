@@ -37,8 +37,10 @@ Let us first examine the performance of the memory system in the presence of thr
 
 The memory benchmark itself is almost the same as the one we used earlier. In fact, the benchmark function itself is exactly the same. For example, to benchmark sequential reading, we use this function:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01c\_cache\_sequential\_read.C}
 \begin{lstlisting}[style=styleCXX]
-// 01c_cache_sequential_read.C
 template <class Word>
 void BM_read_seq(benchmark::State& state) {
 	const size_t size = state.range(0);
@@ -69,8 +71,10 @@ BENCHMARK_TEMPLATE1(BM_read_seq, unsigned long) ARGS;
 
 You can specify as many runs as you want for different thread counts or use the ThreadRange() argument to generate a range of 1, 2, 4, 8, … threads. You have to decide how many threads you want to use; for an HPC benchmark, in general, there is no reason to go over the number of CPUs you have (accounting for SMT). The benchmarking of other memory access modes, such as random access, is done the same way; you have already seen the code in the last chapter. For writing, we would need something to write; any value will do:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01d\_cache\_sequential\_write.C}
 \begin{lstlisting}[style=styleCXX]
-// 01d_cache_sequential_write.C
 Word fill; ::memset(&fill, 0xab, sizeof(fill));
 for (auto _ : state) {
 	for (volatile Word* p = p0; p != p1; ) {

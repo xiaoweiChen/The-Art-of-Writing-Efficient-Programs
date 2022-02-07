@@ -1,0 +1,18 @@
+\begin{enumerate}
+\item 
+Any data structure designed for thread safety must have a transactional interface:
+every operation must either not change the state of the data structure or transform it from one well-defined state to another well-defined state.
+
+\item 
+This comes to the general observation of the performance of concurrent code: the more shared variables there are, the slower the code is. A complex data structure usually needs more data shared between threads that access it concurrently. In addition, there are simple algorithms (some are wait-free) that allow limited threadsafe operations on the data structures.
+
+\item 
+With an efficient lock, a lock-guarded data structure is not necessarily slower. Often, it is faster. Again, it comes to how many variables are shared: a lock-free scheme that requires multiple atomic variables may be slower than a single lock. We also have to consider the locality of the access: if the data structure is accessed in one or two places (like a queue), the lock can be quite efficient. A data structure with many elements that can all be accessed simultaneously is likely to have very poor performance if the entire data structure must be locked every time.
+
+\item
+The main challenge is that adding memory to a data structure is usually a very disruptive operation that requires rearranging large parts of the internal data. It is difficult to do this while allowing other concurrent operations on the same data structure. For a lock-guarded data structure, this is of little concern (sometimes the lock is held for much longer than usual when one thread has to manage memory, but long delays can happen for other reasons as well, the program has to expect it). In lock-free data structures, it is very hard to manage memory if it affects the entire data structure. Nodal data structures do all their memory management on a single thread and use the publishing protocol to add new nodes to the structure, but sequential data structures may require data reallocation or at least complex internal memory management. In such cases, double-checked locking should be used to lock down the entire data structure while its memory is being reorganized.
+
+\item
+The A-B-A problem is common to all lock-free implementations of nodal data structures that use the position of data in memory to detect when a change was made. The problem happens when a new node is allocated in the memory of a previously deleted node. This creates the potential data race when another thread observes identical initial and final memory addresses, and the assumption is made that the data structure is unchanged. Multiple solutions exist, but all of them use various techniques to defer the deallocation of memory until the reallocation at the same address is no longer a problem.
+
+\end{enumerate}

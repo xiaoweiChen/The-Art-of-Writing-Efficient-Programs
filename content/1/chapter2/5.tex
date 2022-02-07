@@ -118,8 +118,10 @@ There are a few exceptions to the preceding rules, none of which apply to our pr
 
 With this new understanding, let us take another look at the benchmark code: the results of the string comparison do not affect the observable behavior in any way, so the entire computation can be done or omitted at the compiler's discretion. This observation also gives us a way to fix this problem: we have to make sure that the result of the computation affects the observable behavior. One way to do it is to take advantage of the volatile semantics described previously:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{05\_compare\_timer.C}
 \begin{lstlisting}[style=styleCXX]
-\\ 05_compare_timer.C
 int main() {
 	constexpr unsigned int N = 1 << 20;
 	constexpr int NI = 1 << 11;
@@ -197,9 +199,10 @@ Writing a micro-benchmark involves a lot of boilerplate code, mostly for measuri
 
 To use the Google Benchmark library, we have to write a small program that will prepare the inputs and execute the code we want to benchmark. This is a basic Google Benchmark program for measuring the performance of one of our string comparison functions:
 
-
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{10\_compare\_mbm.C}
 \begin{lstlisting}[style=styleCXX]
-\\ 10_compare_mbm.C
 #include "benchmark/benchmark.h"
 using std::unique_ptr;
 bool compare_int(const char* s1, const char* s2) {
@@ -286,8 +289,10 @@ However, there is still the possibility that the compiler may, for example, figu
 
 To represent the real situation more accurately in our micro-benchmark, we can move the comparison function into its own file and compile it separately. Now we have one file (compilation unit) with just the benchmark fixtures:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{11\_compare\_mbm.C}
 \begin{lstlisting}[style=styleCXX]
-// 11_compare_mbm.C
 #include "benchmark/benchmark.h"
 extern bool compare_int(const char* s1, const char* s2);
 extern bool compare_uint(const char* s1, const char* s2);

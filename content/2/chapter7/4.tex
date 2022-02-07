@@ -3,9 +3,10 @@ The next data structure we are going to consider is the queue. It is again a ver
 
 Just like the stack, the STL has a queue container, std::queue, and it has the exact  same problem when it comes to concurrency: the interface for removing elements is  not transactional, it requires three separate member function calls. If we wanted to use std::queue with a lock to create a thread-safe queue, we would have to wrap it just like we did with the stack:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{03\_queue.C}
 \begin{lstlisting}[style=styleCXX]
-// 03_queue.C
-	
 template <typename T> class mt_queue {
 	std::queue<T> s_;
 	mutable spinlock l_;
@@ -69,9 +70,10 @@ The consumer must operate in reverse order: first, check the size to make sure t
 
 While exploring the stack, we deferred the issue of adding more memory to the array and assumed that we somehow know the maximum capacity of the stack and will not exceed it (we could also make the push operation fail if that capacity is exceeded). For the queue, the same assumption is not enough: as the elements are added and removed from the queue, both the front and the back indices advance and will eventually reach the end of the array. Of course, at this point, we have the first elements of the array unused, so the simplest solution is to treat the array as a circular buffer and use modulo arithmetic for array indices:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{03a\_atomic\_pc\_queue.C}
 \begin{lstlisting}[style=styleCXX]
-// 03a_atomic_pc_queue.C
-	
 template <typename T> class pc_queue {
 	public:
 	explicit pc_queue(size_t capacity) : 
@@ -109,9 +111,10 @@ std::atomic<size_t> size_;
 
 This queue requires a special benchmark because of the constraints we accepted on its design: one producer thread and one consumer thread:
 
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{03a\_atomic\_pc\_queue.C}
 \begin{lstlisting}[style=styleCXX]
-// 03a_atomic_pc_queue.C
-	
 pc_queue<size_t> q(1UL<<20);
 void BM_queue_prod_cons(benchmark::State& state) {
 	const bool producer = state.thread_index & 1;

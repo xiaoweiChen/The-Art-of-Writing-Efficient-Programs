@@ -1,0 +1,11 @@
+\begin{enumerate}
+\item 
+Any data structure designed for thread safety must have a transactional interface:Without the standard giving some guarantees on the behavior of C++ programs in the presence of threads, it is not possible to write any portable concurrent C++ programs. Of course, in practice, we were using concurrency long before C++11, but this was made possible by the compiler writers who chose to follow an additional standard, such as POSIX. The downside of that situation was that these additional standards varied. There was no portable way to write, for example, concurrent programs for Linux and Windows without conditional compilation and OS-specific extensions for each platform. Similarly, atomic operations were implemented as CPU-specific extensions. Also, there were some subtle differences between various standards followed by different compilers, which occasionally resulted in very hard-to-find bugs.
+
+\item 
+The use of parallel algorithms is very simple: any algorithm that has a parallel version can be invoked with an execution policy as the first argument. If this is the parallel execution policy, the algorithm will run on multiple threads. To achieve the best performance, on the other hand, it may be necessary to redesign parts of the program. In particular, parallel algorithms provide no benefit if the data sequence is too short (what constitutes short depends on the algorithm and the cost of operating on the data elements). It may be necessary, therefore, to redesign the program to operate on larger sequences at once.
+
+\item 
+Coroutines are functions that can suspend their own execution. After suspension, the control is returned to the caller (or to the resumer if this is not the first suspension). The coroutine can be resumed from any location in the code, from a different function or another coroutine, even from another thread.
+
+\end{enumerate}
