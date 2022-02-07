@@ -1,0 +1,7 @@
+C++11 was the first version of the standard to acknowledge the existence of threads. It laid the foundation for documenting the behavior of C++ programs in concurrent environments and provided some useful functionality in the standard library. Out of this functionality, the basic synchronization primitives and the threads themselves are the most useful. Subsequent versions extended and completed these features with relatively minor enhancements.
+
+C++17 brought a major advancement in the form of parallel STL. The performance is, of course, determined by the implementation. The observed performance is quite good as long as the data corpus is sufficiently large, even on hard-to-parallelize algorithms like search and partition. However, if the sequences of data are too short, parallel algorithms actually degrade the performance.
+
+C++20 added coroutine support. You have seen how stackless coroutines work, in theory and on some basic examples. However, it is too early to talk about the performance and best practices for the use of C++20 coroutines.
+
+This chapter concludes our exploration of concurrency. Next, we go on to learn how the use of the C++ language itself influences the performance of our programs.

@@ -1,0 +1,51 @@
+Before C++11, the C++ standard made no mention of concurrency. Of course, in practice, programmers wrote multi-threaded and distributed programs in C++ long before 2011. What made that possible was the fact that the compiler writers have voluntarily adopted additional restrictions and guarantees, usually by way of complying with both the C++ standard (for the language) and another standard, such as POSIX, for concurrency support. 
+
+C++11 has changed that by introducing the C++ memory model. The memory model describes how threads interact through memory. For the first time, the C++ language was on a solid foundation about concurrency. The immediate practical impact, however, was rather muted since the new C++ memory model was quite similar to the memory models already supported by most compiler writers. There were some subtle differences between those models, and the new standard finally guaranteed the portable behavior of the programs that encounter these dark corners. 
+
+Of more immediate practical use were several language features that directly supported multi-threading. First of all, the standard introduced the notion of a thread. There were notably few guarantees about the behavior of threads, but most implementations simply use the system threads to support C++ threads. This is fine at the lowest level of the implementation but insufficient for any but the simplest program. For instance, a naïve attempt to create a new thread for every independent task the program has to perform is almost guaranteed to fail: launching new threads takes time, and very few operating systems can handle millions of threads efficiently. On the other hand, for the programmers who implemented their thread schedulers, the C++ thread interface does not offer sufficient control over thread behavior (most thread attributes are OS-specific).
+
+Next, the standard introduced several synchronization primitives for controlling concurrent accesses to memory. The language provides std::mutex, which is usually implemented using the regular system mutex: on POSIX platforms, this is typically the POSIX mutex. The standard provides timed and recursive variants of the mutex (again, following POSIX). To simplify exception handling, the locking and unlocking of mutexes directly should be avoided in favor of the RAII template std::lock\_guard. 
+
+For locking multiple mutexes safely, without the risk of a deadlock, the standard provides the std::lock() function (while it guarantees no deadlocks, the algorithm it uses is unspecified, and the performance of specific implementations varies widely). The other commonly used synchronization primitive is a condition variable, std::condition\_variable, and the respective waiting and signaling operations. This functionality also follows the corresponding POSIX features quite closely.
+
+Then, there is support for low-level atomic operations: std::atomic, atomic operations such as compare-and-swap, and memory order specifiers. We have covered their behavior and applications in Chapter 5, Threads, Memory, and Concurrency, Chapter 6, Concurrency and Performance, and Chapter 7, Data Structures for Concurrency. 
+
+Finally, the language added support for asynchronous execution: where a function can be invoked asynchronously (possibly on another thread) using std::async. While this might enable concurrent programming, in practice, this feature is almost entirely useless for high-performance applications. Most implementations will either provide very limited parallelism or execute each asynchronous function call on its own thread. Most operating systems have a rather high overhead for creating and joining threads (the only OS I have seen that makes concurrent programming as simple as fire up a thread for every task, millions of them if you need to was AIX, on every other OS I know this is a recipe for chaos). 
+
+Overall, we can say that, when it comes to concurrency, C++11 was a major step forward conceptually but offered modest immediate practical gains. C++14 improvements were focused elsewhere, so nothing of note changed with regard to concurrency. Next, we will see what new developments were brought in C++17.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

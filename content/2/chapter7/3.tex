@@ -448,7 +448,7 @@ The last CAS operation should never fail unless there is a bug in our code: once
 The pop operation is similar, only it first decrements the consumer index c\_ and then, when it is done removing the top element from the stack, decrements p\_ to match c\_:
 
 \begin{lstlisting}[style=styleCXX]
-	// 02b_stack_cas.C
+// 02b_stack_cas.C
 	
 std::optional<T> pop() {
 	counts_t n = n_.load(std::memory_order_relaxed);
