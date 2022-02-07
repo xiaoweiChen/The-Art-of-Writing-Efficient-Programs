@@ -1,0 +1,92 @@
+After the unnecessary computations and inefficient use of memory, the next easiestway to write inefficient code that fails to utilize a large fraction of available computing resources is probably code that does not pipeline well. We have seen the importance of CPU pipelining in Chapter 3, CPU Architecture, Resources, and Performance Implications. We have also learned there that the worst disruptor of pipelining is usually a conditional operation, especially the one that the hardware branch predictor fails to guess. 
+
+Unfortunately, optimizing conditional code for better pipelining is one of the hardest C++ optimizations. It should be undertaken only if the profiler shows poor branch prediction. Note, however, that the number of mispredicted branches does not have to be large to be considered “poor”: a good program will typically have less than 0.1\% of mispredicted branches. The misprediction rate of 1\% is quite large. It is also quite difficult to predict the effect of source code optimizations without examining the compiler output (the machine code).
+
+If the profiler shows a badly predicted conditional operation, the next step is to determine which condition is being mispredicted. We have already seen some examples in Chapter 3, CPU Architecture, Resources, and Performance Implications. For example, this code:
+
+\begin{lstlisting}[style=styleCXX]
+if (a[i] || b[i] || c[i]) { … do something … }
+\end{lstlisting}
+
+may yield one or more badly predicted branches even when the overall result is predictable. This has to do with the definition of the Boolean logic in C++: the operators || and \&\& are short-circuited: the expression is evaluated left to right until the result becomes known. For example, if a[i] is true, the code must not access array elements b[i] and c[i]. Sometimes, this is necessary: the logic of the implementation may be such that these elements don’t exist. But often, the Boolean expressions introduce unnecessary branches for no reason. The preceding if() statement requires 3 conditional operations. On the other hand, this statement:
+
+\begin{lstlisting}[style=styleCXX]
+if (a[i] + b[i] + c[i]) { … do something … }
+\end{lstlisting}
+
+is equivalent to the last one if the values a, b, and c are non-negative but require a single conditional operation. Again, this is not the kind of optimization you should be doing preemptively unless you have measurements that confirm the need for it.
+
+Here is another example. Consider this function:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{05\_branch.C}
+\begin{lstlisting}[style=styleCXX]
+void f2(bool b, unsigned long x, unsigned long& s) {
+	if (b) s += x;
+}
+\end{lstlisting}
+
+It is very inefficient if the value of b is unpredictable. Much better performance is just a simple change away:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{05\_branch.C}
+\begin{lstlisting}[style=styleCXX]
+void f2(bool b, unsigned long x, unsigned long& s) {
+	s += b*x;
+}
+\end{lstlisting}
+
+This improvement can be confirmed with a simple benchmark of the original, conditional, implementation versus the branchless one:
+
+\begin{tcblisting}{commandshell={}}
+BM_conditional   176.304M items/s
+BM_branchless     498.89M items/s
+\end{tcblisting}
+
+As you can see, the branchless implementation is almost 3 times faster.
+
+It is important not to go overboard with this type of optimization. It must always be driven by the measurements, for several reasons:
+
+\begin{itemize}
+\item
+The branch predictors are quite complex, and our intuition about what they can and cannot handle is almost always wrong.
+
+\item
+The compiler optimizations can often change the code significantly, so, without  measuring or examining the machine code, even our expectations of the existence of a branch can be wrong.
+
+\item
+Even if the branch is mispredicted, the performance impact can vary, so it is impossible to be sure without the measurement.
+\end{itemize}
+
+For example, it is almost never useful to manually optimize this very common code:
+
+\begin{lstlisting}[style=styleCXX]
+int f(int x) { return (x > 0) ? x : 0; }
+\end{lstlisting}
+
+It looks like conditional code, and if the sign of x is random, the prediction is impossible. However, it is very likely that the profiler will not show a large number of mispredicted branches here. The reason is that most compilers will not implement this line using a conditional jump. On x86, some compilers will use the CMOVE instruction, which does a conditional move: it moves the value from one of two source registers to the destination, depending on the condition. The conditional nature of this instruction is benign: remember that the problem with conditional code is that the CPU does not know in advance which instruction to execute next. With a conditional move implementation, the sequence of instructions is perfectly linear, and their order is predetermined, so there is nothing to guess. 
+
+Another common example that is unlikely to benefit from a branchless optimization is a conditional function call:
+
+\begin{lstlisting}[style=styleCXX]
+if (condition) f1(… args …) else f2(… args …);
+\end{lstlisting}
+
+A branchless implementation is possible using an array of function pointers:
+
+\begin{lstlisting}[style=styleCXX]
+using func_ptr = int(*)(… params …);
+static const func_ptr f[2] = { &f1, &f2 };
+(*f[condition])(… args …);
+\end{lstlisting}
+
+If the functions were originally inlined, replacing them with an indirect function call is a performance killer. If they weren’t, this change likely does almost nothing: jumping to another function whose address is not known during compilation has an effect very similar to a mispredicted branch, so this code causes the CPU to flush the pipeline either way. 
+
+The bottom line is, optimizing for branch prediction is a very advanced step. The results can be a spectacular improvement or a spectacular failure (or just some wasted time), so it is important to be guided by performance measurements at every step.
+
+We have now learned a lot about many kinds of potential inefficiencies in C++ programs and ways to improve them. We conclude with some overall guidelines for optimizing your code.
+
+
+

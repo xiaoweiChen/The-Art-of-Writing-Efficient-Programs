@@ -1,13 +1,359 @@
+Unnecessary copying of objects is probably C++ inefficiency \#1. The main reason is that it’s easy to do and hard to notice. Consider the following code:
 
+\begin{lstlisting}[style=styleCXX]
+std::vector<int> v = make_v(… some args …);
+do_work(v);
+\end{lstlisting}
+
+How many copies of the vector v are made in this program? The answer depends on the details of the functions make\_v() and do\_work() as well as the compiler optimizations. This tiny example covers several language subtleties that we will now discuss.
 
 \subsubsubsection{9.3.1\hspace{0.2cm}Copying and argument passing}
 
+We are going to start with the second function, do\_work(). What matters here is the declaration: if the function takes the argument by reference, const or not, then no copies are made.
+
+\begin{lstlisting}[style=styleCXX]
+void do_work(std::vector<int>& vr) {
+	… vr is a reference to v …
+}
+\end{lstlisting}
+
+If the function uses pass-by-value, then a copy must be made:
+
+\begin{lstlisting}[style=styleCXX]
+void do_work(std::vector<int> vc) {
+	… vc is a copy of v …
+}
+\end{lstlisting}
+
+Copying a vector is an expensive operation if the vector is large: all the data in the vector must be copied. This is one expensive function call. If the work itself does not require a copy of the vector, then it’s also extremely inefficient. For example, if all we need is to compute the sum (or some other function) of all the elements in the vector, we do not need a copy. While it may seem undesirable, at first glance, that the call itself does not tell us whether the copy is made, it is how it should be. The decision to make the copy belongs to the implementer of the function and can be made only after considering the requirements and the choice of the algorithm. For the previously mentioned problem of accumulating the sum of all elements, the correct decision is clearly to pass the vector by (const) reference as follows:
+
+\begin{lstlisting}[style=styleCXX]
+void do_work(const std::vector<int>& v) {
+	int sum = 0;
+	for (int x: v) sum += x;
+	… use sum … 
+}
+\end{lstlisting}
+
+Using pass-by-value, in this case, is such a blatant inefficiency that it may be considered a bug, but it happens more often than you’d think. In particular, it happens in template code where the author considered only small, lightweight data types, but the code ends up being used more widely than expected.
+
+On the other hand, if we need to create a copy of the arguments as a part of fulfilling the requirements on the function, using parameter passing is as good of a way as any:
+
+\begin{lstlisting}[style=styleCXX]
+	void do_work(std::vector<int> vc) {
+		… vc is a copy of v …
+	}
+\end{lstlisting}
+
+Here we need to apply a so-called clamping loop to the data before processing it further. Assuming we read the clamped values many times, calling std::min() for every access may be less efficient than creating a cached copy of the result. We could make an explicit copy as well, and it may be slightly more efficient, but this kind of optimization should not be left to speculation; it can be definitively answered only by a benchmark.
+
+C++11 introduced move semantics as a partial answer to unnecessary copying. In our case, we observe that if the function argument is an rvalue, we can use it any way we want, including altering it (the caller has no way of accessing the object after the call completes). The usual way to take advantage of the move semantics is to overload the function with an rvalue reference version:
+
+\begin{lstlisting}[style=styleCXX]
+void do_work(std::vector<int>&& v) {
+	… can alter v data … 
+}
+\end{lstlisting}
+
+However, if the object itself is move-enabled, our simple pass-by-value version shines in the new light. Refer to the following code:
+
+\begin{lstlisting}[style=styleCXX]
+void do_work(std::vector<int> v) {
+	… use v destructively … 
+}
+std::vector<int> v1(…);
+do_work(v1);                 // Local copy is made
+do_work(std::vector<int>(…));    // rvalue
+\end{lstlisting}
+
+The first call to do\_work() uses an lvalue argument, so a local copy is made inside the function (the argument is passed by value!). The second call uses an rvalue or an unnamed temporary. Since the vector has a move constructor, the function argument is moved (not copied!) into its parameter, and moving vectors is very fast. Now with a single implementation of the function, without any overloads, we can handle both the rvalue and the lvalue arguments efficiently Now we have seen the two extreme examples. In the first case, a copy of the argument was not needed, and creating one was pure inefficiency. In the second case, making a copy was a reasonable implementation. Not every situation falls into one of these extremes, as we are about to see.
+
 \subsubsubsection{9.3.2\hspace{0.2cm}Copying as an implementation technique}
+
+There is also the middle ground where the chosen implementation needs a copy of the argument, but the implementation itself is not optimal. As an example, consider the following function that needs to print the vector in the sorted order:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_vector\_sort.C}
+\begin{lstlisting}[style=styleCXX]
+void print_sorted(std::vector<int> v) {
+	std::sort(v.begin(), v.end());
+	for (int x: v) std::cout << x << “\n”;
+}
+\end{lstlisting}
+
+For a vector of integers, this is probably the best way. We sort the container itself and print it in order. Since we are not supposed to modify the original container, we need a copy, and, again, there is nothing wrong with exploiting the compiler to make one.
+
+But what if the elements of the vector were not integers but some large objects? In this case, copying the vector takes a lot of memory, and sorting it takes a lot of time spent copying large objects. In this case, a better implementation may be to create and sort a vector of pointers without moving the original objects:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_vector\_sort.C}
+\begin{lstlisting}[style=styleCXX]
+template <typename T>
+void print_sorted(const std::vector<T>& v) {
+	std::vector<const T*> vp; vp.reserve(v.size());
+	for (const T& x: v) vp.push_back(&x);
+	std::sort(vp.begin(), vp.end(), 
+		[](const T* a, const T* b) { return *a < *b;});
+	for (const T* x: vp) std::cout << *x << “\n”;
+}
+\end{lstlisting}
+
+Since we have learned by now to never guess about performance, the intuition needs to be confirmed by a benchmark. Since sorting an already sorted vector does not require any copying, we want a fresh, unsorted vector for every iteration of the benchmark, like the following:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{01\_vector\_sort.C}
+\begin{lstlisting}[style=styleCXX]
+void BM_sort(benchmark::State& state) {
+	const size_t N = state.range(0);
+	std::vector<int> v0(N); for (int& x: v0) x = rand();
+	std::vector<int> v(N);
+	for (auto _ : state) {
+		v = v0;
+		print_sorted(v);
+	}
+	state.SetItemsProcessed(state.iterations()*N);
+}
+\end{lstlisting}
+
+Of course, we should disable the actual printing since we are not interested in benchmarking the I/O. On the other hand, we should benchmark copying the vector without sorting, just so we know what portion of the measured time is spent in setting up the test.
+
+The benchmark confirms that, for integers, it is faster to copy the entire vector and sort a copy:
+
+\hspace*{\fill} \\ %插入空行
+\begin{center}
+\includegraphics[width=0.9\textwidth]{content/3/chapter9/images/1.jpg}\\
+Figure 9.1 – Benchmark of sorting a vector of integers, copying versus pointer indirection
+\end{center}
+
+Note that if the vector is small and all the data fits in the low-level cache, the processing is very fast either way, and there is little speed difference. If the objects are large and expensive to copy, the indirection becomes relatively more efficient:
+
+\hspace*{\fill} \\ %插入空行
+\begin{center}
+\includegraphics[width=0.9\textwidth]{content/3/chapter9/images/2.jpg}\\
+Figure 9.2 – Benchmark of sorting a vector of large objects, copying versus pointer indirection
+\end{center}
+
+There is yet another special case when copying objects is necessary for the implementation; we will consider it next.
 
 \subsubsubsection{9.3.3\hspace{0.2cm}Copying to store data}
 
+In C++, we can encounter another particular case of data copying. It happens most often in class constructors where the object must store a copy of the data, so a long-term copy with a lifetime exceeding that of the constructor call must be created. Consider this example:
+
+\begin{lstlisting}[style=styleCXX]
+class C {
+	std::vector<int> v_;
+	C(std::vector<int> ??? v) { … v_ is a copy of v … }
+};
+\end{lstlisting}
+
+Here the intent is to make a copy. The inefficiency would be to make multiple intermediate copies or make an unnecessary copy. The standard way to accomplish this is to take the object by const reference and make a copy inside the class:
+
+\begin{lstlisting}[style=styleCXX]
+class C {
+	std::vector<int> v_;
+	C(const std::vector<int>& v) : v_(v) { … }
+};
+\end{lstlisting}
+
+If the argument of the constructor is an lvalue, this is as efficient as it can be. However, if the argument is an rvalue (a temporary), we would prefer to move it into the class and make no copies at all. This requires an overload for the constructor:
+
+\begin{lstlisting}[style=styleCXX]
+class C {
+	std::vector<int> v_;
+	C(std::vector<int>&& v) : v_(std::move(v)) { … }
+};
+\end{lstlisting}
+
+The downside is the need to code two constructors, but it gets worse if the constructor takes several arguments, and each one needs to be copied or moved. Following this pattern, we would need 6 constructor overloads to handle 3 parameters.
+
+The alternative is to pass all parameters by value and move from the parameter, check the following code:
+
+\begin{lstlisting}[style=styleCXX]
+class C {
+	std::vector<int> v_;
+	C(std::vector<int> v) : v_(std::move(v)) 
+	{ … do not use v here!!! … }
+};
+\end{lstlisting}
+
+It is very important to remember that the parameter v is now an object in a moved-from state, and it should not be used in the body of the constructor. If the argument is an lvalue, a copy is made to construct the parameter v, then moved into the class. If the argument is an rvalue, it is moved into the parameter v and again moved into the class. This pattern works great if the objects are cheap to move. However, if the objects are expensive to move or have no move constructors at all (so they are copied instead), we end up doing two copies instead of one. 
+
+So far, we have focused on the problem of getting data into functions and objects. But copying can also occur when we need to return the results. The considerations there are completely different and need to be examined separately
+
 \subsubsubsection{9.3.4\hspace{0.2cm}Copying of return values}
+
+Our example at the very beginning of this section included both kinds of copying. In particular, this line:
+
+\begin{lstlisting}[style=styleCXX]
+std::vector<int> v = make_v(… some args …);
+\end{lstlisting}
+
+It implies that the resulting vector v is created from another vector, the one returned by the function make\_v:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_rvo.C}
+\begin{lstlisting}[style=styleCXX]
+std::vector<int> make_v(… some args …) {
+	std::vector<int> vtmp;
+	… add data to vtmp …
+	return vtmp;
+}
+\end{lstlisting}
+
+In theory, more than one copy can be made here: the local variable vtmp is copied into the (unnamed) return value of the function make\_v, which is, in turn, copied into the final result v. In practice, this is not going to happen. First of all, the unnamed temporary return value of make\_v is moved, not copied, into v. But, most likely, even this is not going to happen. If you try this code with your own class instead of std::vector, you will see that neither a copy nor a move constructor is used:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{02\_rvo.C}
+\begin{lstlisting}[style=styleCXX]
+class C {
+	int i_ = 0;
+	public:
+	explicit C(int i) : i_(i) { 
+		std::cout << “C() @” << this << std::endl;
+	}
+	C(const C& c) : i_(c.i_) {
+		std::cout << “C(const C&) @” << this << std::endl;
+	}
+	C(C&& c) : i_(c.i_) {
+		std::cout << “C(C&&) @” << this << std::endl;
+	}
+	~C() { cout << “~C() @” << this << endl; }
+	friend std::ostream& operator<<( std::ostream& out,
+	const C& c) {
+		out << c.i_; return out;
+	}
+};  
+C makeC(int i) { C ctmp(i); return ctmp; }
+int main() {
+	C c = makeC(42);
+	cout << c << endl;
+}
+\end{lstlisting}
+
+This program prints something like the following (on most compilers, a certain level of optimization must be turned on):
+
+\hspace*{\fill} \\ %插入空行
+\begin{center}
+\includegraphics[width=0.9\textwidth]{content/3/chapter9/images/3.jpg}\\
+Figure 9.3 – The output of the program returning an object by value
+\end{center}
+
+As you can see, only one object was constructed and destroyed. This is the result of the compiler optimization. The specific optimization that is used here is known as Return Value Optimization (RVO). The optimization itself is very simple: the compiler recognized that the three objects involved – the local variable ctmp, the unnamed temporary return value, and the final result c – are all of the same type. Furthermore, it is impossible for any code we write to observe any two of these variables at the same time. Therefore, without changing any observable behavior, the compiler can use the same memory location for all three variables. Before calling the function, the compiler needs to allocate the memory where the eventual result c will be constructed. The address of this memory is passed into the function by the compiler, where it is used to construct the local variable ctmp at the same location. As a result, when the function makeC ends, there is nothing to return at all: the result is already where it should be. This is the RVO in a nutshell.
+
+While RVO seems simple, it has several subtleties. 
+
+First, remember that this is an optimization. This means that the compiler usually does not have to do it (if yours doesn’t, you need a better compiler). However, it is a very special kind of optimization. In general, the compiler can do whatever it wants to your program as long as it does not change the observable behavior. The observable behavior includes input and output and accessing volatile memory. This optimization, however, has resulted in an observable change: the expected output of the copy constructor and the matching destructor is nowhere to be seen. Indeed, this is one exception from the otherwise ironclad rule: the compiler is allowed to eliminate calls to copy or move constructors and the corresponding destructors even if these functions have side effects that include observable behavior. This exception is not limited to RVO. The implication is that, in general, you cannot count on copy and move constructors to be called just because you wrote some code that appears to do a copy. This is known as copy elision (or move elision, for move constructors).
+
+Second, remember (again) that this is an optimization. The code must compile before it can be optimized. If your object does not have any copy or move constructors, this code will not compile, and we will never get to the optimization step that is going to remove all calls to these constructors. This is easy to see if we delete all copy and move constructors in our example:
+
+\begin{lstlisting}[style=styleCXX]
+class C {
+	…
+	C(const C& c) = delete;
+	C(C&& c) = delete;
+}; 
+\end{lstlisting}
+
+The compilation will now fail. The exact error message depends on the compiler and the C++ standard level; in C++17, it is going to look something like this:
+
+\hspace*{\fill} \\ %插入空行
+\begin{center}
+\includegraphics[width=0.9\textwidth]{content/3/chapter9/images/4.jpg}\\
+Figure 9.4 – Compilation output of Clang using C++17 or C++20
+\end{center}
+
+There is one special case where our program would compile even with deleted copy and move operations. Let us make a slight change to the makeC function:
+
+\begin{lstlisting}[style=styleCXX]
+C makeC(int i) { return C(i); }
+\end{lstlisting}
+
+Nothing changes in C++11 or C++14; however, in C++17 and above, this code compiles fine. Note the slight difference from the previous version: the returned object used to be an lvalue, it had a name. Now it’s an rvalue, an unnamed temporary. This makes all the difference: while the named RVO (NRVO) is still an optimization, the unnamed RVO is mandatory since C++17 and is no longer considered to be a copy elision. Instead, the standard says that no copy or move is requested in the first place. 
+
+Finally, you may wonder if the function must be inlined in order for the compiler to know where the return value is while it compiles the function itself. With a simple test, you can convince yourself that this is not so: even if the function makeC is in a separate compilation unit, RVO still takes place. The compiler, therefore, must send the address of the result to the function at the call point. You can do something similar yourself if you do not return the result from the function at all but instead pass the reference to the result as an additional argument. Of course, that object has to be constructed first, while the compiler-generated optimization does not need an extra constructor call. 
+
+You may find a recommendation to not rely on RVO but to enforce the move of the return value instead:
+
+\begin{lstlisting}[style=styleCXX]
+C makeC(int i) { C c(i); return std::move(c); }
+\end{lstlisting}
+
+The argument goes that if RVO does not happen, your program will take the performance penalty of the copying operation, while the move operation is cheap anyway. However, this argument is wrong. To understand why, look carefully at the error message in Figure 9.4: the compiler complains that the move constructor is deleted even though ctmp is an lvalue and should be copied. This is not a compiler bug but reflects the behavior required by the standard: in the context where the return-value optimization is possible, but the compiler decides not to do it, the compiler must first try to find a move constructor to return the result. If the move constructor is not found, the second lookup is performed; this time, the compiler is looking for a copy constructor. In both cases, the compiler is really performing overload resolution since there can be many copy or move constructors. Thus, there is no reason to write an explicit move: the compiler will do one for us. But what is the harm, then? The harm is that using the explicit move disables RVO; you have asked for a move, so you are going to get one. While a move may require very little work, RVO is no work at all, and no work is always faster than some work.
+
+What happens if we delete the move constructor but not the copy constructor? The compilation still fails in the case where it was failing with both constructors deleted. This is, again, a subtle point of the language: declaring a deleted member function is not the same as not declaring any. If the compiler performs the overload resolution for a move constructor, it will find one, even if this constructor is deleted. The compilation fails because the overload resolution selected a deleted function as the best (or the only) overload. If you want to force the use of the copy constructor (in the name of science, of course), you have to not declare any move constructors at all. 
+
+By now, you must see the danger of accidentally copying an object and ruining your program’s performance hiding behind every dark corner of your code. What can you do to avoid unintentional copying? We will have some suggestions in a moment, but first, let us return to one approach that we already used briefly: the use of pointers.
 
 \subsubsubsection{9.3.5\hspace{0.2cm}Using pointers to avoid copying}
 
+One way to avoid copying objects when passing them around is to pass pointers instead. This is easiest if we don’t have to manage the object’s lifetime. If a function needs access to an object but does not need to delete it, passing the object by reference or by a raw pointer is the best way (the reference, in this context, is really just a pointer that cannot be null). 
+
+Similarly, we can return an object from a function using a pointer, but this needs more care. First of all, the object must be allocated on the heap. You must never return pointers or references to local variables. Refer to the following code:
+
+\begin{lstlisting}[style=styleCXX]
+C& makeC(int i) { C c(i); return c; } // Never do this!
+\end{lstlisting}
+
+Second, the caller is now responsible for deleting the object, so every caller of your function must know how the object was constructed (operator new is not the only way to construct objects, just the most common one). The best solution here is to return a smart pointer:
+
+\hspace*{\fill} \\ %插入空行
+\noindent
+\textbf{03\_factory.C}
+\begin{lstlisting}[style=styleCXX]
+std::unique_ptr<C> makeC(int i) {
+	return std::make_unique<C>(i);
+}
+\end{lstlisting}
+
+Note that such a factory function should return unique pointers even if the caller may use shared pointers to manage the object’s lifetime: it is easy and cheap to move from the unique pointer to the shared one.
+
+Speaking of shared pointers, they are often used to pass around objects whose lifetime is managed by smart pointers. Unless the intent is to pass the ownership of the object as well, this is again an example of unnecessary and inefficient copying. Copying shared pointers is not cheap. So, what do we do if we have an object managed by a shared pointer and a function that needs to operate on this object without taking ownership of it? We use raw pointers:
+
+\begin{lstlisting}[style=styleCXX]
+void do_work1(C* c);
+void do_work2(const C* c);
+std::shared_ptr<C> p { new C(…) };
+do_work1(&*p);
+do_work2(&*p);
+\end{lstlisting}
+
+The declarations of the functions do\_work1() and do\_work2() tell us about the programmer’s intent: both functions operate the object without deleting it. The first function modifies the object; the second does not. Both functions expect to be called without the object and will handle this special case (otherwise, the arguments would be passed by reference). 
+
+Similarly, you can create containers of raw pointers as long as the lifetime of the objects is managed elsewhere. If you want the container to manage the lifetime of its elements but do not want to store the objects in the container, a container of unique pointers will do the job. 
+
+Now it is time for some general guidelines that will help you avoid unnecessary copying and the inefficiencies it can cause.
+
 \subsubsubsection{9.3.6\hspace{0.2cm}How to avoid unnecessary copying}
+
+Perhaps the most important thing you can do to reduce accidental, unintentional copying is to ensure that all your data types are movable if moving can be implemented cheaper than copying. If you have container libraries or other reusable code, make sure it is move-enabled as well. 
+
+The next suggestion is somewhat hamfisted, but it can save you a lot of debugging time: if you have types that are expensive to copy, make them non-copyable to begin with. Declare the copy and assignment operations as deleted. If the classes support a fast move, provide move operations instead. This will, of course, prevent any copying, intentional or not. Hopefully, intentional copying is rare, and you can implement a special member function like clone() that will create a copy of the object. At least this way, all the copying is explicit and visible in your code. If the class is neither copyable nor movable, you will not be able to use it with STL containers; however, a container of unique pointers is a fine alternative. 
+
+When passing parameters to functions, use references or pointers whenever possible. If the function needs to make a copy of the argument, consider passing by value and moving from the parameter instead. Remember that this works well only for move-enabled types, and see the first guideline.
+
+Everything we said about passing function arguments can be applied to temporary local variables as well (after all, function parameters are basically temporary local variables in the function scope). These should be references unless you need a copy. This does not apply to the built-in types like integers or pointers: they are cheaper to copy than to access indirectly. In template code, you don’t have the luxury of knowing whether the type is large or small, so use references and rely on compiler optimizations to avoid unnecessary indirect access to built-in types.
+
+When returning values from functions, your first preference should be to rely on RVO and copy elision. Only when you find that the compiler does not perform this optimization and that it matters in your particular case should you consider alternatives. These alternatives are: using functions with output arguments and using factory functions that construct the results in dynamically allocated memory and return owning smart pointers such as std::unique\_ptr. 
+
+Finally, review your algorithms and the implementation with an eye out for unnecessary copying: remember that ill-intentioned copying is just as bad for the performance as unintentional copying.
+
+We are done with the first bane of efficiency in C++ programs, the gratuitous copying of objects. The close second is poor memory management.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
