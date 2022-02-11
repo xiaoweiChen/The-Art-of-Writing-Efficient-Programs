@@ -2,17 +2,19 @@
 \zihao{0} 前言
 \end{flushright}
 
-The art of high-performance programming is making a comeback. I started programming in the days when the programmer had to know where every bit of data went (sometimes quite literally – with switches on the front panel). Now, computers have more than enough power for everyday tasks. Sure, there have always been domains where there is never enough computing power. But most programmers could get away with writing inefficient code. This is not a bad thing, by the way: free from performance constraints, the programmer could focus on making the code better in other ways.
+高性能编程的艺术仍在归来图中。我还是编程菜鸟的时候，那时候的开发者必须知道每一个数据位的去向(有时的确要这样——用面板上的开关)。现在，计算机有足够的能力完成日常工作，有些细节就不需要那么在意了。不过，还是有一些领域没有足够的计算能力。其实，大多数开发者可以写出高效的代码，这不是一件坏事:在不受性能限制的前提下，开发者就可以专注于如何使代码更好。
 
-The very first thing this book explains, then, is why more and more programmers are forced to pay attention to performance and efficiency again. This will set the tone for the entire book because it defines the methodology we will be using in subsequent chapters: knowledge about performance must ultimately come from measurements, and every performance-related claim must be supported by data.
+本书首先解释了，为什么越来越多的程序员需要关注性能和效率。这将为整本书定下基调，因为它定义了我们在后续章节中所使用的方法论:关于性能的知识最终必须来自测试，并且每个与性能相关的声明都必须有数据进行支持。
 
-There are five components, five elements that together determine the performance of a program. First, we delve into the details and explore the low-level foundation of all things performance: our computing hardware (no switches – promise, those days are gone). From the individual components – processors and memory – we work our way up to multiprocessor computing systems. Along the way, we learn about the memory model, the cost of data sharing, and even lock-free programming.
+其中，有五个要素决定了程序的性能。
 
-The second component of high-performance programming is an efficient use of the programming language. It is at this point that the book becomes much more C++-specific (other languages have their own favorite inefficiencies). Following closely is the third element, the skill to help the compiler improve the performance of your programs.
+首先，我们深入研究所有性能的底层基础:计算硬件(没有交换机——那些日子已经一去不复返了)。从单个部件——处理器和内存——到多处理器计算系统。在此过程中，我们会了解了内存模型、数据共享的成本，还有无锁编程。
 
-The fourth component is the design. Arguably, it should be the first one: if the design is not done with performance as one of its explicit goals, it is almost impossible to add good performance later as an afterthought. We study designing for performance last, however, since this is a high-level concept and it brings together all the knowledge we will have acquired earlier.
+高性能编程的第二个部分是对编程语言的有效使用。正是在这一点上，本书针对C++(其他语言也有自己喜欢的低效率)进行具体的说明。而后的是第三个元素，即是帮助编译器提高程序性能的技能。
 
-The final, fifth element of high-performance programming is you, the reader. Your knowledge and skill will ultimately determine the result. To help you learn, the book includes many examples that can be used for hands-on exploration and self-study. The learning does not have to stop after you turn over the last page.
+第四个组成部分是设计。如果设计没有将性能作为其明确目标之一，那么几乎不可能在之后再添加良好的性能。然而，因为这是一个高层次的概念，它汇集了我们之前所学到的所有知识，所以我们最后才来了解性能设计。
+
+高性能编程的最后也是第五个要素就是你——正在阅读本书的你。你的知识和技能水平将最终决定结果。为了帮助你学习，这本书包括了许多例子，可以用于动手探索和自学。学习是一项终身的运动，切勿在看完本书后停止。
 
 \hspace*{\fill} \\ %插入空行
 \noindent\textbf{适读人群}
@@ -24,34 +26,34 @@ The final, fifth element of high-performance programming is you, the reader. You
 \hspace*{\fill} \\ %插入空行
 \textbf{本书内容}
 
-\textit{第1章，Introduction to Performance and Concurrency}。talks about the reasons we care about the performance of programs, specifically about the reasons why good performance doesn't just happen. We learn why, in order to achieve the best performance, or, sometimes, even adequate performance, it is important to understand the different factors affecting performance and the reasons for a particular behavior of the program, be it fast or slow execution.
+\textit{第1章，性能和并发性}。讨论了关心程序性能的原因，特别是性能好的应用为什么不会凭空出现。我们了解了为了实现最佳性能，甚至是适当的性能，理解影响性能的不同因素和程序特定行为的原因(无论是快执行还是慢执行)。
 
-\textit{第2章，Performance Measurements}。is all about measurements. Performance is often non-intuitive, and all decisions involving efficiency, from design choices to optimizations, should be guided by reliable data. The chapter describes different types of performance measurements, explains how they differ and when they should be used, and teaches how to properly measure performance in different situations.
+\textit{第2章，性能测试}。本章内容都是是关于性能测试的。性能有时并不直观，所有涉及效率的决策，从设计选择到具体优化策略，都应该以可靠的数据为指导。本章描述了不同类型的性能评估方式，解释了它们的不同之处，以及应该在什么时候使用，并了解如何在不同的情况下正确地评估性能。
 
-\textit{第3章，CPU Architecture, Resources, and Performance Implications}。helps us begin the study of the hardware and how to use it efficiently in order to achieve optimum performance. This chapter is dedicated to learning about CPU resources and capabilities, the optimal ways to use them, the more common reasons for not making the best use of CPU resources, and how to resolve them.。
+\textit{第3章，CPU架构、资源和性能}。这里，我们开始研究硬件，以及如何高效地使用，从而达到最佳性能。本章将了解CPU资源和能力，以及使用方法。通常CPU资源没有得到最佳利用的原因，以及如何解决这些问题。
 
-\textit{第4章，Memory Architecture and Performance}。helps us learn about modern memory architectures, their inherent weaknesses, and the ways to counter or at least hide these weaknesses. For many programs, the performance is entirely dependent on whether the programmer takes advantage of the hardware features designed to improve memory performance, and this chapter teaches the necessary skills to do so.
+\textit{第4章，内存架构与性能}。现在，开始了解现代内存架构，其内在弱点，以及避免或规避这些弱点的方法。对于许多程序来说，性能完全依赖于开发者是否利用硬件特性来提高内存性能，而本章将带各位了解这样的技能。
 
-\textit{第5章，Threads, Memory, and Concurrency}。helps us continue our study of the memory system and its effects on performance, but now we extend our study to the domain of multi-core systems and multithreaded programs. It turns out that the memory, which was already the "long pole" of performance, is even more of a problem when we add concurrency. While the fundamental limits imposed by the hardware cannot be overcome, most programs aren't performing even close to these limits, and there is a lot of room for a skillful programmer to improve the efficiency of their code; this chapter gives the reader the necessary knowledge and tools to do so.
+\textit{第5章，线程、内存和并发}。我们继续学习内存系统，及其对性能的影响，但现在我们将学习扩展到多核系统和多线程领域。事实证明，内存已经是性能的“关键”，当我们增加了并发时，内存管理可能会成为一个大问题。虽然硬件带来的物理限制无法克服，但大多数程序的性能其实还未达到这些限制，而且对于资深的开发者来说，他们的代码效率还有很大的提高空间。所以，本章为读者们提供了必要的知识和工具。
 
-\textit{第6章，Concurrency and Performance}。helps you learn about developing highperformance concurrent algorithms and data structures for thread-safe programs. On the one hand, to take full advantage of concurrency, we must take a high-level view of the problem and the solution strategy: data organization, work partitioning, and sometimes even the definition of what constitutes a solution are the choices that critically affect the performance of the program. On the other hand, as we have seen in the last chapter, performance is greatly impacted by low-level factors such as the arrangement of the data in the cache, and even the best design can be ruined by poor implementation.
+\textit{第6章，并发性和性能}。了解如何为线程安全的程序开发高性能并发算法和数据结构。一方面，为了充分利用并发性，我们必须从高层次的角度看待问题和解决方案策略:数据组织、工作分区，甚至是解决方案的定义都对程序性能产生重大影响。另一方面，性能受到底层因素的极大影响，比如:缓存中数据的分布，即使是最好的设计也可能因糟糕的实现，达不到预期。
 
-\textit{第7章，Data Structures for Concurrency}。explains the nature of data structures in concurrent programs and how the familiar definitions of data structures such as "stack" and "queue" mean something else when the data structure is used in a multithreaded context.
+\textit{第7章，用于并发的数据结构}。解释并发程序中数据结构的本质，以及在多线程上下文中使用数据结构，比如：定义熟悉的数据结构(如“堆栈”和“队列”等)。
 
-\textit{第8章，Concurrency in C++}。describes the features for concurrent programming that were added to the language recently in the C++17 and C++20 standards. While it is too early to talk about the best practices when using these features for optimum performance, we can describe what they do, as well as the current state of compiler support.
+\textit{第8章，C++中的并发}。介绍了C++17和C++20标准中最近添加的并发特性。虽然，现在谈论使用这些特性获得最佳性能的最佳实践还为时过早，但我们可以描述它们的作用，以及编译器当前的支持情况。
 
-\textit{第9章，High-Performance C++}。switches our focus from the optimal use of the hardware resources to the optimal application of a particular programming language. While everything we have learned so far can be applied, usually quite straightforwardly, to any program in any language, this chapter deals with C++ features and idiosyncrasies. The reader will learn which features of the C++ language are likely to cause performance problems and how to avoid them. The chapter will also cover the very important matter of compiler optimizations and how the programmer can help the compiler to generate more efficient code.
+\textit{第9章，高性能C++}。这章，将重点从硬件资源的使用，转移到特定编程语言的应用。虽然，我们学到的所有东西都可以直接应用到任何语言中，但本章将讨论C++的特性。读者将了解C++语言的哪些特性可能会导致性能问题，以及如何避免这些问题。本章还会讨论编译器优化的问题，以及开发者如何帮助编译器生成更高效的代码。
 
-\textit{第10章，Compiler Optimizations in C++}。covers compiler optimizations and how the programmer can help the compiler to generate more efficient code.
+\textit{第10章，C++中的编译器优化}。介绍编译器优化，以及开发者如何帮助编译器生成更高效的代码。
 
-\textit{第11章，Undefined Behavior and Performance}。has a dual focus. On the one hand, it explains the dangers of the kinds of undefined behavior that programmers often ignore when attempting to squeeze the most performance from their code. On the other hand, it explains how we can take advantage of undefined behavior to improve performance and how to properly specify and document such situations. Overall, the chapter offers a somewhat usual but more relevant way to understand the issue of undefined behavior compared to the usual "anything can happen."
+\textit{第11章，未定义的行为和性能}。这里有两个重点。一方面，解释了开发者在试图最大化代码性能时，经常忽略的未定义行为的危险性。另一方面，解释了如何利用未定义的行为来提高性能，以及如何正确地指定和记录这些情况。总的来说，与“任何事情都可能发生”相比，这一章提供了一些常见方式来理解未定义行为的问题。
 
-\textit{第12章，Design for Performance}。reviews all the performance-related factors and features we have learned in this book and explores the subject of how the knowledge and understanding we have gained should influence the design decisions we make when developing a new software system or rearchitecting an existing one.
+\textit{第12章，为性能而设计}。回顾本书中所学到的所有与性能相关的因素和特性，并探讨所获得的知识，了解如何在开发新软件系统或重新架构现有软件系统时所做出的设计决策。
 
 \hspace*{\fill} \\ %插入空行
 \textbf{编译环境}
 
-The book, except the chapters specific to C++ efficiency, does not rely on any esoteric C++ knowledge. All examples are in C++, but the lessons on hardware performance, efficient data structures, and design for performance apply to any programming language. To follow the examples, you will need at least an intermediate knowledge of C++.
+除了特定于C++效率的章节，不依赖于任何深奥的C++知识。所有的例子都是用C++编写(但是有关硬件性能、高效数据结构和性能设计的课程适用于任何编程语言)。要看懂这些示例，您至少需要具备中等程度的C++知识。
 
 \begin{table}[H]
 	\begin{tabular}{|l|l|}
@@ -63,9 +65,9 @@ The book, except the chapters specific to C++ efficiency, does not rely on any e
 	\end{tabular}
 \end{table}
 
-Each chapter mentions the additional software you need to compile and execute the examples, if any. For the most part, any modern C++ compiler can be used with the examples, except for Chapter 8, Concurrency in C++, which requires the latest versions to work through the section on coroutines.
+每一章都会提到编译和执行示例所需的软件(如果有的话)。大多数情况下，任何现代C++编译器都可以与示例一起使用，除了第8章(C++中的并发)，该章要求使用最新版本来完成\textbf{协程}。
 
-\textbf{If you are using the digital version of this book, we advise you to type the code yourself or access the code from the book's GitHub repository (a link is available in the next 	section). Doing so will help you avoid any potential errors related to the copying and 	pasting of code.}
+\textbf{如果你正在使用这本书的数字版本，我们建议自己输入代码或通过GitHub库访问代码(链接在下一节中提供)。这样做将帮助您避免与复制和粘贴代码相关的任何潜在错误}
 
 \hspace*{\fill} \\ %插入空行
 \textbf{下载示例}

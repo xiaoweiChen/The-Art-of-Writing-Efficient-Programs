@@ -202,60 +202,6 @@
 	morestring=[d]',
 }
 
-\lstdefinestyle{styleCMake}{
-	language=CMake,
-	backgroundcolor=\color{blue!3!white}, 
-	basicstyle      =   \zihao{-5}\ttfamily,
-	numberstyle     =   \zihao{-5}\ttfamily,
-	breakatwhitespace = false,
-	breaklines = true,
-	captionpos = b,
-	commentstyle = \color{mygray}\bfseries, 
-	extendedchars =false,             
-	frame=shadowbox, 
-	tabsize=2,
-	framerule=0.5pt,
-	keepspaces=true,
-	keywordstyle=\color{blue}\bfseries, % keyword style
-	otherkeywords={string}, 
-	rulecolor=\color{black},
-	showspaces=false,
-	showstringspaces=false,
-	showtabs=false,
-	columns         =   fixed,
-	stepnumber=1,
-	stringstyle=\color{purple},        % string literal style
-	flexiblecolumns,  
-}
-
-
-\lstdefinestyle{stylePython}{
-	language        =   Python, % 语言选Python
-	backgroundcolor=\color{blue!3!white}, 
-	basicstyle      =   \zihao{-5}\ttfamily,
-	numberstyle     =   \zihao{-5}\ttfamily,
-	keywordstyle    =   \color{blue},
-	keywordstyle    =   [2] \color{teal},
-	stringstyle     =   \color{magenta},
-	commentstyle    =   \color{red}\ttfamily,
-	frame = shadowbox, 
-	breaklines      =   true,   % 自动换行，建议不要写太长的行
-	columns         =   fixed,  % 如果不加这一句，字间距就不固定，很丑，必须加
-	basewidth       =   0.5em,
-	%basicstyle          =   \sffamily,          % 基本代码风格
-	%keywordstyle        =   \bfseries,          % 关键字风格
-	%commentstyle        =   \rmfamily\itshape,  % 注释的风格，斜体
-	%stringstyle         =   \ttfamily,  % 字符串风格
-	flexiblecolumns,                % 别问为什么，加上这个
-	%numbers             =   left,   % 行号的位置在左边
-	showspaces          =   false,  % 是否显示空格，显示了有点乱，所以不现实了
-	numberstyle         =   \zihao{-5}\ttfamily,    % 行号的样式，小五号，tt等宽字体
-	showstringspaces    =   false,
-	captionpos          =   t,      % 这段代码的名字所呈现的位置，t指的是top上面
-	frame               =   lrtb,   % 显示边框
-	tabsize=2,  
-}
-
 \lstdefinestyle{styleCXX}{
 	language = C++,  
 	backgroundcolor=\color{blue!3!white}, 
@@ -287,42 +233,6 @@
 	columns         =   fixed,
 	flexiblecolumns,                   
 }
-
-
-\lstdefinelanguage{JavaScript}{
-	morekeywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, do, else, case, break, const, console, let},
-	morecomment=[s]{/*}{*/},
-	morecomment=[l]//,
-	morestring=[b]",
-	morestring=[b]'
-}
-
-\lstdefinestyle{styleJavaScript}{
-	language=JavaScript,
-	backgroundcolor=\color{blue!3!white}, 
-	basicstyle      =   \zihao{-5}\ttfamily,
-	numberstyle     =   \zihao{-5}\ttfamily,
-	breakatwhitespace = false,
-	breaklines = true,
-	captionpos = b,
-	commentstyle = \color{mygray}\bfseries, 
-	extendedchars =false,             
-	frame=shadowbox, 
-	tabsize=2,
-	framerule=0.5pt,
-	keepspaces=true,
-	keywordstyle=\color{blue}\bfseries, % keyword style
-	otherkeywords={string}, 
-	rulecolor=\color{black},
-	showspaces=false,
-	showstringspaces=false,
-	showtabs=false,
-	columns         =   fixed,
-	stepnumber=1,
-	stringstyle=\color{purple},        % string literal style
-	flexiblecolumns,  
-}
-
 
 \tcbset{
 	commandshell/.style={
@@ -397,7 +307,7 @@
 \\[9pt]
 \normalsize
 An advanced programmer's guide to efficient hardware utilization and compiler optimizations using C++ examples \\ 
-(一本高级程序员指南，使用C++介绍如何高效利用硬件和编译器优化)
+(一本高级编程指南，使用C++介绍如何高效利用硬件和编译器优化)
 \\[10pt]
 \normalsize 
 作者: Fedor G. Pikus
@@ -456,7 +366,7 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \hspace*{\fill} \\ %插入空行
 \noindent\textbf{本书相关}
 \begin{itemize}
-\item Github翻译地址：\\\url{https://github.com/xiaoweiChen/LLVM-Techniques-Tips-and-Best-Practies}
+\item Github翻译地址：\\\url{https://github.com/xiaoweiChen/XXXXXX}
 \end{itemize}
 \newpage
 
@@ -470,16 +380,16 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \setsecnumdepth{section}
 
 \color{white}
-\section*{\zihao{1}第一部分：Performance Fundamentals}
+\section*{\zihao{1}第一部分：性能基础}
 \pagecolor{mygray}
-\addcontentsline{toc}{section}{第一部分：Performance Fundamentals}
+\addcontentsline{toc}{section}{第一部分：性能基础}
 \textbf{\subfile{content/1/Section-1.tex}}
 \newpage
 \color{black}
 \pagecolor{white}
 
-\subsection*{\zihao{2} 第1章\hspace{0.5cm}Introduction to Performance and Concurrency}
-\addcontentsline{toc}{subsection}{第1章\hspace{0.5cm}Introduction to Performance and Concurrency}
+\subsection*{\zihao{2} 第1章\hspace{0.5cm}性能和并发性}
+\addcontentsline{toc}{subsection}{第1章\hspace{0.5cm}性能和并发性}
 \subfile{content/1/chapter1/0.tex}
 
 \subsubsection*{\zihao{3} 1.1.\hspace{0.2cm}Why focus on performance?}
@@ -511,8 +421,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \subfile{content/1/chapter1/7.tex}
 \newpage
 
-\subsection*{\zihao{2} 第2章\hspace{0.5cm}Performance Measurements}
-\addcontentsline{toc}{subsection}{第2章\hspace{0.5cm}Performance Measurements}
+\subsection*{\zihao{2} 第2章\hspace{0.5cm}性能测试}
+\addcontentsline{toc}{subsection}{第2章\hspace{0.5cm}性能测试}
 \subfile{content/1/chapter2/0.tex}
 
 \subsubsection*{\zihao{3} 2.1.\hspace{0.2cm}相关准备}
@@ -544,8 +454,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \subfile{content/1/chapter2/7.tex}
 \newpage
 
-\subsection*{\zihao{2} 第3章\hspace{0.5cm}CPU Architecture, Resources, and Performance}
-\addcontentsline{toc}{subsection}{第3章\hspace{0.5cm}CPU Architecture, Resources, and Performance}
+\subsection*{\zihao{2} 第3章\hspace{0.5cm}CPU架构、资源和性能}
+\addcontentsline{toc}{subsection}{第3章\hspace{0.5cm}CPU架构、资源和性能}
 \subfile{content/1/chapter3/0.tex}
 
 \subsubsection*{\zihao{3} 3.1.\hspace{0.2cm}相关准备}
@@ -589,8 +499,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \subfile{content/1/chapter3/10.tex}
 \newpage
 
-\subsection*{\zihao{2} 第4章\hspace{0.5cm}Memory Architecture and Performance}
-\addcontentsline{toc}{subsection}{第4章\hspace{0.5cm}Memory Architecture and Performance}
+\subsection*{\zihao{2} 第4章\hspace{0.5cm}内存架构与性能}
+\addcontentsline{toc}{subsection}{第4章\hspace{0.5cm}内存架构与性能}
 \subfile{content/1/chapter4/0.tex}
 
 \subsubsection*{\zihao{3} 4.1.\hspace{0.2cm}相关准备}
@@ -626,8 +536,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \subfile{content/1/chapter4/8.tex}
 \newpage
 
-\subsection*{\zihao{2} 第5章\hspace{0.5cm}Threads, Memory, and Concurrency}
-\addcontentsline{toc}{subsection}{第5章\hspace{0.5cm}Threads, Memory, and Concurrency}
+\subsection*{\zihao{2} 第5章\hspace{0.5cm}线程、内存和并发}
+\addcontentsline{toc}{subsection}{第5章\hspace{0.5cm}线程、内存和并发}
 \subfile{content/1/chapter5/0.tex}
 
 \subsubsection*{\zihao{3} 5.1.\hspace{0.2cm}相关准备}
@@ -664,16 +574,16 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \newpage
 
 \color{white}
-\section*{\zihao{1}第二部分：Advanced Concurrency}
+\section*{\zihao{1}第二部分：高级并发}
 \pagecolor{mygray}
-\addcontentsline{toc}{section}{第二部分：Advanced Concurrency}
+\addcontentsline{toc}{section}{第二部分：高级并发}
 \textbf{\subfile{content/2/Section-2.tex}}
 \newpage
 \color{black}
 \pagecolor{white}
 
-\subsection*{\zihao{2} 第6章\hspace{0.5cm}Concurrency and Performance}
-\addcontentsline{toc}{subsection}{第6章\hspace{0.5cm}Concurrency and Performance}
+\subsection*{\zihao{2} 第6章\hspace{0.5cm}并发性和性能}
+\addcontentsline{toc}{subsection}{第6章\hspace{0.5cm}并发性和性能}
 \subfile{content/2/chapter6/0.tex}
 
 \subsubsection*{\zihao{3} 6.1.\hspace{0.2cm}相关准备}
@@ -701,8 +611,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \subfile{content/2/chapter6/6.tex}
 \newpage
 
-\subsection*{\zihao{2} 第7章\hspace{0.5cm}Data Structures for Concurrency}
-\addcontentsline{toc}{subsection}{第7章\hspace{0.5cm}Data Structures for Concurrency}
+\subsection*{\zihao{2} 第7章\hspace{0.5cm}用于并发的数据结构}
+\addcontentsline{toc}{subsection}{第7章\hspace{0.5cm}用于并发的数据结构}
 \subfile{content/2/chapter7/0.tex}
 
 \subsubsection*{\zihao{3} 7.1.\hspace{0.2cm}相关准备}
@@ -734,8 +644,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \subfile{content/2/chapter7/7.tex}
 \newpage
 
-\subsection*{\zihao{2} 第8章\hspace{0.5cm}Concurrency in C++}
-\addcontentsline{toc}{subsection}{第8章\hspace{0.5cm}Concurrency in C++}
+\subsection*{\zihao{2} 第8章\hspace{0.5cm}C++中的并发}
+\addcontentsline{toc}{subsection}{第8章\hspace{0.5cm}C++中的并发}
 \subfile{content/2/chapter8/0.tex}
 
 \subsubsection*{\zihao{3} 8.1.\hspace{0.2cm}相关准备}
@@ -764,16 +674,16 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \newpage
 
 \color{white}
-\section*{\zihao{1}第三部分：Designing and Coding High-Performance Programs}
+\section*{\zihao{1}第三部分：设计和编写高性能程序}
 \pagecolor{mygray}
-\addcontentsline{toc}{section}{第三部分：Designing and Coding High-Performance Programs}
+\addcontentsline{toc}{section}{第三部分：设计和编写高性能程序}
 \textbf{\subfile{content/3/Section-3.tex}}
 \newpage
 \color{black}
 \pagecolor{white}
 
-\subsection*{\zihao{2} 第9章\hspace{0.5cm}High-Performance C++}
-\addcontentsline{toc}{subsection}{第9章\hspace{0.5cm}High-Performance C++}
+\subsection*{\zihao{2} 第9章\hspace{0.5cm}高性能C++}
+\addcontentsline{toc}{subsection}{第9章\hspace{0.5cm}高性能C++}
 \subfile{content/3/chapter9/0.tex}
 
 \subsubsection*{\zihao{3} 9.1.\hspace{0.2cm}相关准备}
@@ -805,8 +715,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \subfile{content/3/chapter9/7.tex}
 \newpage
 
-\subsection*{\zihao{2} 第10章\hspace{0.5cm}Compiler Optimizations in C++}
-\addcontentsline{toc}{subsection}{第10章\hspace{0.5cm}Compiler Optimizations in C++}
+\subsection*{\zihao{2} 第10章\hspace{0.5cm}C++中的编译器优化}
+\addcontentsline{toc}{subsection}{第10章\hspace{0.5cm}C++中的编译器优化}
 \subfile{content/3/chapter10/0.tex}
 
 \subsubsection*{\zihao{3} 10.1.\hspace{0.2cm}相关准备}
@@ -826,8 +736,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \subfile{content/3/chapter10/4.tex}
 \newpage
 
-\subsection*{\zihao{2} 第11章\hspace{0.5cm}Undefined Behavior and Performance}
-\addcontentsline{toc}{subsection}{第11章\hspace{0.5cm}Undefined Behavior and Performance}
+\subsection*{\zihao{2} 第11章\hspace{0.5cm}未定义的行为和性能}
+\addcontentsline{toc}{subsection}{第11章\hspace{0.5cm}未定义的行为和性能}
 \subfile{content/3/chapter11/0.tex}
 
 \subsubsection*{\zihao{3} 11.1.\hspace{0.2cm}相关准备}
@@ -859,8 +769,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \subfile{content/3/chapter11/7.tex}
 \newpage
 
-\subsection*{\zihao{2} 第12章\hspace{0.5cm}Design for Performance}
-\addcontentsline{toc}{subsection}{第12章\hspace{0.5cm}Design for Performance}
+\subsection*{\zihao{2} 第12章\hspace{0.5cm}为性能而设计}
+\addcontentsline{toc}{subsection}{第12章\hspace{0.5cm}为性能而设计}
 \subfile{content/3/chapter12/0.tex}
 
 \subsubsection*{\zihao{3} 12.1.\hspace{0.2cm}相关准备}

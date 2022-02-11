@@ -2,7 +2,7 @@
 
 An advanced programmer's guide to efficient hardware utilization and compiler optimizations using C++ examples
 
-(*一本高级程序员指南，使用C++介绍如何高效利用硬件和编译器优化*)
+(*一本高级编程指南，使用C++介绍如何高效利用硬件和编译器优化*)
 
 * 作者：Fedor G. Pikus
 
