@@ -1,67 +1,66 @@
-We have talked about the performance of programs; we mentioned high-performance software. But what do we mean when we say that? Intuitively, we understand that a high-performance program is faster than a program with poor performance, but it doesn't mean that a faster program always has good performance (both programs may have poor performance). 
+我们已经讨论了程序的性能，还提到了高性能软件。但这是什么意思呢？通常，我们知道高性能的程序比较快，但这并不意味着更快的程序总是有好的性能(两个程序都可能有较差的性能)。
 
-We have also mentioned efficient programs, but is efficiency the same as high performance? While efficiency is related to performance, it is not exactly the same. Efficiency deals with using resources optimally and not wasting them. An efficient program makes good use of the computational hardware.
+我们也提到了高效的程序，但是效率和高性能一样吗？虽然效率与性能有关，但并不一样。效率是指最有效地利用资源，而不是浪费资源。高效的程序会充分的利用计算硬件。
 
-On the one hand, an efficient program does not leave available resources idle: if you have a computation that needs to be done and a processor that is  not doing anything, that processor should be executing the code that is waiting to be executed. The idea goes deeper: processors have many computing resources in them, and an efficient program tries to make use of as many of these resources as possible at the same time. On the other hand, an efficient program does not waste resources doing unnecessary work: it does not perform computations that do not need to be done, does not waste memory to store data that is never going to be used, does not send data over the network if it's not needed, and so on. In short, an efficient program does not leave the available hardware idle and does not do any work that doesn't have to be done.
+一方面，一个高效的程序不会让可用的资源闲置：如果有一个需要完成的计算，而一个处理器什么都不做，那么这个处理器应该正在执行等待执行的代码。再深一步的说：处理器中有许多计算资源，一个高效的程序可以同时利用尽可能多的资源。另一方面，一个高效的程序不会浪费资源去做不必要的工作：不会执行不需要的计算，不会浪费内存去存储永远不使用的数据，在不需要的情况下，不会通过网络发送数据等。简而言之，高效的程序不会让可用的硬件闲置，也不会做任何不必要的工作。
 
-Performance, on the other hand, always relates to some metrics. The most common one is "speed," or how fast the program is. The more rigorous way to define this metric is the throughput, which is the amount of computations the program does in a given time. The inverse metric that is often used for the same purpose is the turnaround time or how much time is needed to compute a particular result. However, this is not the only possible definition of performance.
+另一方面，性能总是与一些指标相关。最常见的是“速度”，或程序运行的有多快。更严格地定义是吞吐量，即程序在给定时间内执行的计算量，或者说是计算特定结果所需的时间。然而，这并不是性能的唯一定义。
 
-\subsubsubsection{1.3.1\hspace{0.2cm}Performance as throughput}
+\subsubsubsection{1.3.1\hspace{0.2cm}性能——吞吐量}
 
-Let's consider four programs that use different implementations to compute the same end result. Here are the run times of all four programs (units are relative; the actual numbers don't matter as we're interested in relative performance):
+考虑四个使用不同实现来计算相同最终结果的程序。下面是所有四个程序的运行时间(单位是相对的。实际数字并不重要，因为我们感兴趣的是相对性能):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter1/images/5.jpg}\\
-Figure 1.5 – Run times of four different implementations of the same algorithm (relative units)
+\includegraphics[width=0.8\textwidth]{content/1/chapter1/images/5.jpg}\\
+图1.5 - 同一算法，四种不同实现的运行时间(相对单位)
 \end{center}
 
-It seems obvious that Program B has the highest performance: it finished before the other three programs, in half the time it took the slowest program to compute the same result. In many situations, this would be all the data we need to choose the best implementation.
+显然，程序B的性能最高:它比其他三个程序完成得早，计算同样结果所需的时间是最慢程序的一半。通常，这将是我们选择最佳实现所需的依据。
 
-But the context of the problem matters, and we neglected to mention that the program is running on a battery-powered device, such as a cell phone, and the power consumption matters as well.
+问题的背景很重要，我们忽略了这个程序是否是在电池供电的设备上运行的，(比如手机)，而且功耗指标也很重要。
 
-\subsubsubsection{1.3.2\hspace{0.2cm}Performance as power consumption}
+\subsubsubsection{1.3.2\hspace{0.2cm}性能——功耗}
 
-Here is the power consumed by all four programs during the course of the computation:
+以下是四个程序在计算过程中所消耗的功率:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter1/images/6.jpg}\\
-Figure 1.6 – Power consumption of four different implementations of the same algorithm (relative units)
+\includegraphics[width=0.8\textwidth]{content/1/chapter1/images/6.jpg}\\
+图1.6 - 同一算法，四种不同实现的功耗(相对单位)
 \end{center}
 
-Despite taking longer to get the result, Program C used less power overall. So, which program has the best performance? 
+虽然需要更长的时间才能得到结果，但是程序C总体上使用的功率更少。那么，哪个程序的性能最好呢?
 
-Again, this is a trick question without knowing the full context. The program not only runs on a mobile device but performs a real-time computation: it is used in audio processing. This should put a premium on getting the results back faster in real time, right? Not exactly.
+同样，这是一个不了解完整背景的陷阱问题。程序不仅在移动设备上运行，而且执行实时计算，比如：用于音频处理。这应该会让结果更快地返回，对吧？不一定哦。
 
-\subsubsubsection{1.3.3\hspace{0.2cm}Performance for real-time applications}
+\subsubsubsection{1.3.3\hspace{0.2cm}性能——实时性}
 
-A real-time program must keep up with the events it is processing at all times. An audio processor must keep up with speech, in particular. If the program can process audio ten times faster than a person can speak, it does us no good, and we may as well turn our attention to power consumption.
+实时程序必须时刻跟上它正在处理的事件，特别对于音频处理器来说，必须跟上语音输入。假设这个程序处理音频的速度比人说话的速度快十倍，对我们来说这够快了，所以不妨把注意力转向功耗。
 
-On the other hand, if the program occasionally falls behind, some sounds or even words will be dropped. This suggests that the real time, or speed, matters up to a point, but it must be delivered in a predictable manner.
+一方面，如果程序偶尔会落后与输入，这样一些声音甚至文字就会消失。这说明实时或速度在一定程度上很重要，但必须以可预知的方式进行交付。
 
-There is, of course, a performance metric for that as well: the latency tail. The latency is the delay, in our case, between the time the data is ready (voice recorded) and the time when the processing is completed. The throughput metric we saw earlier reflects the average time to process the sound: if we speak for one hour into the phone, how long will it take for the audio processor to do all the computations it needs to do? But what really matters in this context is that each little computation for every sound is done on time. 
+当然，对此也有一个性能指标:尾部延迟。延迟是指数据准备好(语音记录)和处理完成之间的延迟。我们前面看到的吞吐量度量反映了处理声音的平均时间：如果我们对着手机说一个小时，那么音频处理器需要多长时间来完成所有计算？这种情况下，真正重要的是每个声音的计算都需要按时完成。
 
-At a low level, the computation speed fluctuates: sometimes, the computation finishes faster, and sometimes it takes longer. As long as the average speed is acceptable, what matters are the rare long delays.
+在较低的层级上，计算速度会波动：有时计算完成得快，有时时间会长。要是平均速度可以接受，那重点就在于是罕见的长延迟上了。
 
-The latency tail metric is computed as a particular percentile of the delay, for example, at the 95th percentile: if t is the 95th percentile latency, then 95\% of all computations take less time than t. The metric itself is the ratio of the 95th percentile time t to the average compute time t0 (it is often expressed as a percentage as well, so a 30\% latency at the 95th percentile means that t is 30\% greater than t0):
+尾部延迟度量是作为延迟的特定百分位数来计算的，例如：如果$ t $有$95^{th}$个百分位的延迟，那么95\%的所有计算花费的时间会比t少。指标本身是$95^{th}$个百分位时间$ t $与平均计算时间$ t_0 $的比率(它也经常表示为百分比，所以$95^{th}$个百分位的30\%延迟意味着$ t $比$ t_0 $大30\%):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter1/images/7.jpg}\\
-Figure 1.7 – 95\% latency of four different implementations of the same algorithm (percents)
+图1.7 - 95\%相同算法的四种不同实现的延迟(百分比)
 \end{center}
 
-We now see that Program B, which computes the results faster than any other implementation, on average, also delivers the most unpredictable run time results, while Program D, which never stood out before, computes like clockwork and takes practically the same time to do a given computation, every time. As we have already observed, program D also has the worst power consumption. This is, unfortunately, not uncommon because the techniques that make the program more power-efficient, on average, are probabilistic in nature: they speed up the computations most of the time, but not every time.
+这个程序B的计算结果比其他任何实现都快，平均下来，它也提供了最不可预测的运行时间结果。而程序D的计算像发条一样精确，每次做一个给定的计算几乎花费相同的时间。我们已经观察到，程序D的功耗也是最差的。这很罕见，因为使程序更节能的技术，本质上是概率性的：在大多数时候会加快计算速度，但也并不是每次都会这样。
 
-So, which program is the best? The answer, of course, depends on the application and even then may be non-obvious.
+那么，哪个程序的性能最好呢？答案肯定取决于程序，但即便如此，区别也可能并不明显。
 
-\subsubsubsection{1.3.4\hspace{0.2cm}Performance as dependent on context}
+\subsubsubsection{1.3.4\hspace{0.2cm}性能——依赖上下文}
 
-If this was simulation software that runs in a large data center and takes days to compute, the throughput would be the king. On a battery-powered device, power consumption is usually the most important. In a more complex environment, such as our real-time audio processor, it is the combination of multiple factors. The average run time matters, of course, but only until it becomes "fast enough." If the speaker cannot notice the delays, then making it even faster has no reward. Latency tail matters: users hate it when a word is dropped from the conversation every now and then. Once the latency is good enough that the call quality is limited by other factors, improving it further gives very little benefit; we would be better off conserving power at this point.
+如果这是在大型数据中心中运行的仿真软件，并且需要花费数天的时间来计算，那么吞吐量指标就是最重要的。对于电池供电的设备，功耗通常是最重要的。在更复杂的环境中，比如实时音频处理器，会是多个指标的组合。当然，平均运行时间很重要，但只有当它“足够快”时才重要。如果说话者没有注意到延迟，处理的更快一点也什么意义。尾部延迟很重要：用户讨厌时不时地漏词。当延迟足够好，通话质量则会受到其他因素的限制，再抓着这个点改善就没什么意义了，这时可以注意下能耗。
 
-We now understand that, unlike efficiency, performance is always defined with respect to specific metrics, that these metrics depend on the application and the problem we're solving, and that for some metrics, there is such a thing as "good enough" when other metrics come to the foreground. The efficiency, which reflects the utilization of the computational resources, is one of the ways to achieve good performance, the most common way, perhaps, but not the only one.
-
+我们现在了解了，与效率不同，性能总是根据特定的指标来定义的，这些指标取决于应用程序和具体使用场景。对于某些指标来说，当其他指标出现时，就会出现“足够好”的情况。效率反映了计算资源的利用情况，是实现良好性能的方法(可能是最常见的方法，但不是唯一的方法)。
 
 
 
