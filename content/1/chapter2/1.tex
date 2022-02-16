@@ -1,16 +1,16 @@
-First of all, you will need a C++ compiler. All examples in this chapter were compiled on a Linux system using GCC or Clang compilers. All major Linux distributions have GCC as a part of their regular install; newer versions may be available in the distribution's repositories. The Clang compiler is available through the LLVM project, \url{http://llvm.org/}, although several Linux distributions also maintain their own repositories. On Windows, Microsoft Visual Studio is the most common compiler, but both GCC and Clang are available as well.
+首先，需要一个C++编译器。本章的示例使用GCC或Clang编译器，在Linux系统上编译的。所有的Linux发行版都会将GCC作为常规安装的一部分，发行版中可能有较新的编译器版本。Clang编译器可以通过LLVM项目\url{http://llvm.org/}获得，尽管一些Linux发行版也维护它们自己的LLVM库。Windows上，Microsoft Visual Studio是最常用的编译器，当然GCC和Clang也可以用。
 
-Second, you will need a program profiling tool. In this chapter, we will use the Linux "perf " profiler. Again, it comes installed (or is available for installation) on most Linux distributions. The documentation can be found here: \url{https://perf.wiki.kernel.org/index.php/Main_Page}.
+其次，需要一个分析工具。本章中，我们将使用Linux的perf性能分析器，其在大多数Linux发行版上都已安装(或可用于安装)。文档的地址:\url{https://perf.wiki.kernel.org/index.php/Main_Page}。
 
-We will also demonstrate the use of another profiler, the CPU profiler from the set of Google Performance tools (GperfTools) found here: \url{https://github.com/gperftools/gperftools} (again, your Linux distribution may have it available for installation through its repositories).
+还会演示另一个分析器的使用，来自于谷歌性能工具集(GperfTools)的CPU分析器，地址为:\url{https://github.com/gperftools/gperftools}(同样，您的Linux发行版，可以通过其源码进行安装)。
 
-There are many other profiling tools available, both free and commercial. They all present fundamentally the same information, but in different ways and with many different analysis options. By following the examples in this chapter, you can learn what to expect of the profiling tool and what are the possible limitations; the specifics of each tool you use will have to be mastered on your own.
+还有是许多其他可用的分析工具，有免费的，也有商业的。它们展示了相同类型的信息，但以不同的方式和许多不同的分析选项呈现。通过本章的示例，可以了解什么是分析工具，以及可能存在的限制。有着良好纪律性的开发者，会对使用的工具细节进行详细的了解。
 
-Finally, we will use a micro-benchmarking tool. In this chapter, we use the Google Benchmark library found at \url{https://github.com/google/benchmark}. You will, most likely, have to download and install it yourself: even if it comes installed with your Linux distribution, it is likely to be outdated. Follow the installation instructions on the web page.
+最后，我们将使用微基准工具。本章中使用了\url{https://github.com/google/benchmark}谷歌基准库，很可能需要自己下载和安装(即使与Linux发行版一起安装，版本也很可能已经过时)，请按照页面上的安装说明进行安装。
 
-With all the necessary tools installed, we are ready to do our first experiment in performance measurements.
+安装了所有必要的工具后，我们准备进行第一次性能测试。
 
-The code for the chapter can be found here: \url{https://github.com/PacktPublishing/The-Art-of-Writing-Efficient-Programs/tree/master/Chapter02}.
+本章代码地址： \url{https://github.com/PacktPublishing/The-Art-of-Writing-Efficient-Programs/tree/master/Chapter02}。
 
 
 

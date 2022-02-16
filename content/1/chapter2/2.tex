@@ -1,10 +1,11 @@
-We will have time to learn about each of the performance analysis tools in more detail in the rest of this chapter, but in this section, we will do a quick end-to-end example and analyze the performance of a simple program. This will show you what the typical performance analysis flow looks like and how different tools are used.
 
-There is also a hidden agenda: by the end of this section, you will come to believe that you should never guess about performance.
+本章的其余部分中，我们将更详细地了解每种性能分析工具。本节中，我们将做一个端到端示例，并分析程序的性能。这将展示如何进行性能分析，以及如何使用不同的性能分析工具。
 
-Any real-world program that you may have to analyze and optimize is likely to be large enough to take many pages in this book, so we will use a simplified example. This program sorts substrings in a very long string: suppose we have a string S, such as "abcdcba" (this is not so long; our actual strings will have millions of characters). We can have a substring starting from any character in this string, for example, the substring S0 starts with the offset 0 and, therefore, has the value "abcdcba". The substring S2 starts with offset 2 and has the value "cdcba", and the substring S5 has the value "ba". If we were to sort these substrings in decreasing order using the regular string comparison, the order of the substrings would be S2, then S5, then S0 (in order of the first characters, 'c', 'b', and 'a', respectively).
+本节结束时，读者们应该会相信“永远不要对性能进行猜测”。
 
-We can use the STL sort algorithm, std::sort, to sort the substrings if we represent them with a character pointer: swapping two substrings now involves just swapping the pointers while the underlying string remains unchanged. Here is our example program:
+实际中需要分析和优化的实际程序很可能大到要用很多页来说明，因此我们将使用一个简化的示例。程序中将完成对子字符串的排序：假设有一个字符串\texttt{S}，比如：“\texttt{abcdcba}”(这里是个简单的例子，实际的字符串将有数百万字符)。可以从该字符串中的任何字符开始创建子字符串，例如：\texttt{S0}的起始偏移量为0，因此其值为“\texttt{abcdcba}”。\texttt{S2}以偏移量2开始，值为“\texttt{cdcba}”，S5为“\texttt{ba}”。我们要用常规的字符串比较来按顺序对这些子字符串进行排序，子字符串的顺序是\texttt{S2}，\texttt{S5}，\texttt{S0}(按照第一个字符\texttt{'c'}、\texttt{'b'}和\texttt{'a'}的顺序)。
+
+如果用字符指针表示子字符串，就可以使用STL排序算法\texttt{std::sort}进行排序：现在交换两个子字符串只需要交换指针，而底层字符串保持不变。下面是示例代码:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -30,7 +31,7 @@ int main() {
 }
 \end{lstlisting}
 
-Note that, in order for this example to compile, we need to include the appropriate header files and write the using declarations for the names we shorten:
+注意，为了编译这个例子，需要包含相应的头文件，并为名字缩短使用\texttt{using}声明:
 
 \begin{lstlisting}[style=styleCXX]
 #include <algorithm>
@@ -51,13 +52,13 @@ using std::unique_ptr;
 using std::vector;
 \end{lstlisting}
 
-In the subsequent examples, we will omit the common header files and the using declarations for common names such as cout or vector.
+后面的例子中，我们将省略公共头文件和公共名称(如\texttt{cout}或\texttt{vector})的\texttt{using}声明。
 
-The example defines a string that is used as the underlying data for the substrings to be sorted and for the vector of substrings (character pointers), but we have not yet shown how the data itself is created. Then, the substrings are sorted using std::sort with a custom comparison function: a lambda expression that calls the comparison function itself, compare(). We use the lambda expression to adapt the interface of the compare() function, which takes two pointers and the maximum string length, to the interface expected by std::sort (just two pointers). This is known as the Adapter Pattern.
+示例定义了一个字符串，该字符串用于要排序的子字符串和子字符串组(字符指针)的底层数据(但这里还没有展示数据本身是如何创建的)。然后，使用\texttt{std::sort}和比较函数对子字符串进行排序:一个调用比较函数compare()的lambda表达式。我们使用lambda表达式将compare()函数的输入(该函数接受两个指针和最大字符串长度)调整为\texttt{std::sort}所期望的输入(只有两个指针)。这就是适配器模式。
 
-In our case, the lambda expression has the second role: in addition to calling the comparison function, it also counts the number of comparison calls. Since we are interested in the performance of the sort, this information may be useful if we want to compare different sorting algorithms (we are not going to do this now, but this is a technique you may find useful in your own performance optimization efforts).
+我们的例子中，lambda表达式的第二个作用：计算比较调用的次数。因为我们对排序的性能很感兴趣，所以如果想比较不同的排序算法，这个信息可能会很有用(我们现在不打算这么做，但是这个技术可能对读者们的性能优化工作很有用)。
 
-The comparison function itself is only declared in this example, but not defined. Its definition is in a separate file and reads as follows:
+这个例子中只声明了比较函数，但没有定义。它的定义在一个单独的文件中，如下所示:
 
 
 \hspace*{\fill} \\ %插入空行
@@ -73,13 +74,13 @@ bool compare(const char* s1, const char* s2, unsigned int l) {
 }
 \end{lstlisting}
 
-It is a straightforward comparison of two strings: it returns true if the first string is greater than the second one and false otherwise. We could have just as easily defined the function in the same file as the code itself and avoided the need for the extra file, but even with this small example, we are trying to reproduce the behavior of a real-world program that will likely call many functions scattered across many different files. Therefore, we have the comparison function in its own file, which we call compare.C in  this chapter, and the rest of the example is in one file, example.C.
+比较两个字符串的简单比较:如果第一个字符串大于第二个字符串，则返回true，否则返回false。我们可以将函数定义在与代码本身相同的文件中，但即是这个小示例，我们也尝试模拟真实程序的行为，该程序可能会使用分布在许多不同文件中的函数。因此，本章的\texttt{compare.C}文件中的实现了比较函数，其余的例子在\texttt{example.C}文件中。
 
-Lastly, we use the C++ high-resolution timers from the chrono library to measure how long it took to sort the substrings.
+最后，我们使用\texttt{chrono}库中的高精度计时器来测量，进行子字符串排序所需的时间。
 
-The only thing that is missing in our example is the actual data for the string. The substring sort is a fairly common task in many real applications, and each has its own way of acquiring the data. In our artificial example, the data will have to be equally artificial. We can, for example, generate a random string. On the other hand, in many practical applications of substring sort, there is one character that occurs in the string much more often than any other.
+在我们的示例中缺少字符串的实际数据。子字符串排序在许多应用程序中是一项常见的任务，并且每个应用程序都有自己的获取数据的方法。我们的例子中，可以使用生成的随机字符串。另一方面，许多子字符串排序的实际应用，会有一个字符在字符串中出现的频率比其他任何字符都要高。
 
-We can simulate this type of data as well by filling the string with a single character and then randomly changing a few of them:
+我们也可以模拟这种类型的数据，用一个字符填充字符串，然后随机改变其中的一些:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -99,45 +100,45 @@ for (unsigned int i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-The size of the string L and the number of substrings N are chosen to have reasonable run times on the machine that was used to run these tests (if you want to repeat the examples, you may have to adjust the numbers up or down depending on the speed of your processor).
+字符串的长度\texttt{L}和子字符串的数量\texttt{N}是适配相应机器上的运行时长，从而用来运行这些测试的(如果想在其他设备上重复运行这个例子，可能需要调整相应的数字，运行速度速度取决于使用的处理器)。
 
-Now our example is ready to be compiled and executed:
+现在我们的例子已经可以编译和运行了:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/1.jpg}\\
-Figure 2.1
+图 2.1
 \end{center}
 
-The results you will get depend on the compiler you use, the computer you run on, and, of course, on the data corpus.
+得到的结果取决于您使用的编译器、运行的计算机。当然，还取决于数据语料库。
 
-Now that we have our first performance measurement, the first question you may ask is, how do we optimize it? This is not the first question you should be asking, though. The real first question should be, do we need to optimize? To answer that, you need to have the targets and goals for performance, as well as the data on the relative performance of the other parts of this program; for example, if the actual string is generated from a simulation that takes ten hours, the one hundred seconds it takes to sort it is hardly worth noticing. Of course, we are still dealing with the artificial example, and we won't get very far in this chapter unless we assume that, yes, we have to improve performance.
+现在我们有了第一个性能测试。你可能会问的第一个问题是，我们如何优化它？这并不是你应该问的第一个问题。第一个问题应该是，我们需要优化吗？要回答这个问题，需要有性能的目标和指标，以及这个项目其他部分的相对性能的数据，例如：如果实际的字符串是由一个耗时10小时的模拟生成的，那么排序所花费的100秒的时间几乎不值一提。当然，我们仍然在处理模拟示例，除非我们必须要提高性能，否则本章不会对优化进行深入的讨论。
 
-Now, are we ready to talk about how to optimize it? Again, not so fast: the question now should be, what do we optimize? Or, more generally, where does the program spend the most time? Even in this simple example, it could be the sort itself or the comparison function. We do not have access to the source code of the sort (unless we want to hack the standard library, anyway), but we could insert the timer calls into the comparison function.
+我们准备好讨论如何优化它了吗？这个问题先等等，现在的问题应该是，\textbf{我们应该优化什么}？或者说，程序在什么地方花费的时间最多？即使在这个例子中，这个耗时热点也可能是排序或比较函数。我们不能访问这种类型的源代码(除非我们想破坏标准库)，但是可以将计时器放入到比较函数中。
 
-Unfortunately, this is unlikely to yield good results: each comparison is pretty fast, timer calls themselves take time, and calling the timer every time the function is called will significantly change the very results we're trying to measure. In a real-world program, such instrumentation with timers is often not practical anyway. You would have to insert timers into hundreds of functions if you didn't know where the time is spent (and how would you know that without any measurements?). This is where the profiler tools come in.
+不过，这不太可能产生好的结果：如果每次运行比较都非常快，因为调用计时器也需要时间，所以每次调用比较函数时，调用计时器的时间将对我们的测试结果有比较大的影响。实际的程序中，这种带有计时器的结构几乎没有。如果不知道时间耗费在哪里，就需要在数百个函数中安插计时器(如果没有任何测试，要如何知道这一点？)。所以，这时就需要性能分析工具来帮助我们来完成一些工作了。
 
-We will learn much more about the profiler tools in the next section. For now, suffice it to say that the following command line will compile and execute the program and collect its runtime profile using the Google profiler from the GperfTools package:
+下一节中了解更多关于分析器的知识。现在，只需了解以下命令行将编译和执行的程序，并使用GperfTools包中的谷歌分析器收集其运行时的相关信息:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/2.jpg}\\
-Figure 2.2
+图 2.2
 \end{center}
 
-The profile data is collected in the file prof.data, as given by the CPUPROFILE environment variable. You may have noticed that the program took longer to run this time. This is an almost unavoidable side effect of performance profiling. We will come back to it in the next section. The relative performance of the different parts of the program should still be correct, assuming the profiler itself is working correctly.
+数据放在\texttt{prof.data}文件中，其路径由\texttt{CPUPROFILE}环境变量指定。细心的读者可能已经注意到，这次程序运行的时间更长了，这是性能分析几乎不可避免的副作用。假设分析器本身工作正常，那么程序不同部分的相对性能仍然是准确的。
 
-The last line of the output tells us that the profiler has collected some data for us, now we need to display it in a readable format. For the data collected by the Google profiler, the user interface tool is google-pprof (often installed as simply pprof), and the simplest invocation of it just lists every function in the program, along with the fraction of the time spent in that function (the second column):
+输出的最后一行说明，分析器已经收集了一些数据，现在我们需要以可读的格式显示这些数据。对于谷歌分析器收集的数据，用户界面工具是\texttt{google-pprof}(通常安装为简单的\texttt{pprof})，最简单的方式是列出程序中的每个函数，以及在该函数中花费时间的百分比(第二列):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/3.jpg}\\
-Figure 2.3
+图 2.3
 \end{center}
 
-The profiler shows that almost all the time is spent in the comparison function compare() and that the sort hardly takes any time at all (the second line is one of the functions called by std::sort and should be considered a part of the time spent in the sort but outside of the comparison). Note that for any practical profiling, we would need more than the 50 samples collected here. The number of samples depends on how long the program runs, and, to get reliable data, you need to accumulate at least a few dozen samples in every function you want to measure. In our case, the result is so glaringly obvious that we can proceed with just the samples we collected.
+分析器显示，几乎所有的时间都花在比较函数\texttt{compare()}上，而排序几乎不花任何时间(第二行是\texttt{std::sort}，应该认为是排序所花时间的一部分)。请注意，对于任何分析，都需要收集50个以上的样本数据。样本数据的数量取决于程序运行的时间，为了获得可靠的数据，需要在每个要测试的函数中积累至少几十个样本数据。就我们的情况而言，其结果比较容易判断，因此我们会按我们收集的数据来做分析。
 
-Since the substring comparison function takes 98\% of the total run time, we have only two ways to improve the performance: we can make this function faster, or we can call it fewer times (many people forget the second possibility and go straight for the first one). The second approach would require the use of a different sort algorithm and is, therefore, outside of the scope of this book. Here we will focus on the first option. Let us again review the code for the comparison function:
+由于子字符串比较函数占用了总运行时间的98\%，我们只有两种方法来提高性能：可以使这个函数更快，或者可以减少使用次数(许多人忘记了第二种可能性，直接使用第一种可能性)。第二种方法需要使用不同的排序算法，不在本书的讨论范围之内。这里我们将重点讨论第一个选项。让我们再来看一下比较函数的代码:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -152,13 +153,13 @@ bool compare(const char* s1, const char* s2, unsigned int l) {
 }
 \end{lstlisting}
 
-This is just a few lines of code, and we should be able to understand and predict everything about its behavior. There is the check for comparing a substring to itself, which is definitely faster than actually doing the comparison character by character, so, unless we are sure that the function is never called with identical values for both pointers, this line stays.
+这只是几行代码，我们应该能够理解和预测代码的所有行为。还有一个比较子字符串和它本身的检查，这肯定比实际逐字符进行比较要快，所以，除非我们确定函数调用时两个指针的值不会相同，否则这一行肯定保持不变。
 
-Then there is a loop (the body of the loop is comparing the characters one at a time), which we have to do because we do not know which character might be different. The loop itself runs until we find a difference or until we compare the maximum possible number of characters. It is easy to see that the latter condition cannot possibly happen: the string is null-terminated, so, even if all characters in both substrings are the same, sooner or later we will reach the end of the shorter substring, compare the null character at its end with a non-null character in the other substring, and the shorter substring will be considered the lesser of the two.
+还有一个循环(循环的主体是一次比较一个字符)，这里必须这样做，因为我们不知道哪个字符可能不同。循环本身会一直运行，直到找到一个差值或比较最大可能的字符数为止。显而易见，后一种情况是不可能发生的:该字符串以空字符结尾，即使两个子字符串中的所有字符都相同，我们迟早会到达较短子字符串的末尾，将其末尾的空字符与另一个子字符串中的非空字符进行比较，从而确定较短的子字符串是两者中较短的字符串。
 
-The only case where we could potentially read past the end of the string is when both substrings start at the same location, but we check for that at the very beginning of the function. This is great: we have found some unnecessary work that we were doing, so we can optimize the code and get rid of one comparison operation per loop iteration. Considering that there aren't many other operations in the loop body, this ought to be significant.
+只有当两个子字符串都从同一个位置开始时，我们才有可能读取字符串末尾以外的内容，所以我们在函数的一开始就进行了检查。这很好！我们发现了一些不必要的工作，因此可以优化代码，并避免每次循环迭代都进行一次比较操作(考虑到循环体中没有很多其他操作，这应该是非常重要的)。
 
-The change in the code is simple enough: we can just remove the comparison (we also do not need to pass the length into the comparison function anymore):
+代码中的改动非常简单：只需删除循环对长度的比较操作(我们也不再需要将长度传递给比较函数):
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -173,17 +174,17 @@ bool compare(const char* s1, const char* s2) {
 }
 \end{lstlisting}
 
-Fewer parameters, fewer operations, less code all around. Let's run the program and see how much run time this optimization saved us:
+更少的参数，更少的操作，更少的代码。让我们运行这个程序，看看这次优化为节省了多少运行时间:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/4.jpg}\\
-Figure 2.4
+图 2.4
 \end{center}
 
-To say that this didn't go according to plan would be a major understatement. The original code took 98 milliseconds to solve the same problem (Figure 2.1). The "optimized" code takes 210 milliseconds, despite doing less work (note that not all compilers exhibit this particular performance anomaly on this example, but we're using a real production compiler; there is no trickery here, this could happen to you too).
+如果说事情没有按计划进行，那就太保守了。原来的代码花了98毫秒来解决相同的问题(图2.1)。“优化后的”代码需要210毫秒，尽管做的工作更少(注意，在这个例子中，并不是所有的编译器都表现出这种特殊的性能异常，但我们使用的是生产过程中使用的编译器。这里没有欺骗，这种情况也可能发生在你身上)。
 
-To wrap up this example, which is actually a much-condensed example from a real-life program, I will tell you that while we were trying to optimize this fragment of code, another programmer was working in a different part of the code and also needed a substring comparison function. When the separately developed pieces of code were put together, only one version of this function was kept, and it happens to be the one we did not write; the other programmer wrote almost the same code:
+总结一下这个例子，它实际上是一个现实程序的浓缩。当我们试图优化这段代码时，另一个开发者正在使用代码的另一部分，并且还需要一个子字符串比较函数。将单独开发的代码片段放在一起，只保留了这个函数的一个版本，而它恰好是我们没有修改的那个；其他开发者的修改几乎同样:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -198,20 +199,20 @@ bool compare(const char* s1, const char* s2) {
 }
 \end{lstlisting}
 
-Examine this code fragment and the one right before it and see if you can spot the difference.
+仔细关闸这段代码和它前面的代码片段，看看是否能发现区别。
 
-The only difference is the type of the loop variable: earlier, we used unsigned int, and we were not wrong: the index starts from 0 and advances; we do not expect any negative numbers. The last code fragment uses int, unnecessarily giving up half of the range of the possible index values.
+唯一的区别是循环变量的类型：之前，我们使用了\texttt{unsigned int}，索引从0开始并向前推进，我们不期望有任何负数。最后一个代码片段使用了\texttt{int}，放弃了可能的索引值范围的一半。
 
-After this code consolidation, we can run our benchmark again, this time with the new comparison function. The result is, again, unexpected:
+对于这个代码的修改，我们可以再次运行我们的基准测试，这次是用新的比较函数。结果还是出人意料:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/5.jpg}\\
-Figure 2.5
+图 2.5
 \end{center}
 
-The latest version takes 74 milliseconds, faster than our original version (98 milliseconds, Fig 2.1) and much faster than the almost identical second version (210 milliseconds, Fig 2.2).
+最新版本耗时74毫秒，比我们最初的版本(98毫秒，图2.1)快，也比几乎相同的第二个版本(210毫秒，图2.2)快得多。
 
-For the explanation of this particular mystery, you will have to wait until the next chapter. The goal of this section was to convince you to never guess about performance: the "obvious" optimization – doing the exact same computation with less code – backfired spectacularly, and the trivial change that should not have mattered at all – using signed integers instead of unsigned in a function where all values are non-negative anyway – turned out to be an effective optimization.
+下一章我们再来解释这个现象的原因。本节的目的是阐明\textbf{永远不要猜测性能}：“显而易见”的优化——用更少的代码做完全相同的计算——引人注目地反向进行，而本不重要的小改变——使用有符号整数而不是无符号的函数，无论如何所有值都是非负的——结果证明是一个有效的优化。
 
-If the performance results can be so counter-intuitive even in this very simple example, then the only way to make good decisions about performance has to be the measurementdriven approach. In the rest of this chapter, we will see some of the most common tools used to collect performance measurements, learn how to use them, and how to interpret their results.
+即使在这个非常简单的例子中，性能结果也可能与直觉相反。因此，对于性能的良好决策的唯一方法必须是指标驱动。本章的其余部分，我们将看到一些最常用的工具，用于收集性能指标，学习如何使用它们，以及如何解释其结果。
