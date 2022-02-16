@@ -7,7 +7,7 @@
 
 如果用字符指针表示子字符串，就可以使用STL排序算法\texttt{std::sort}进行排序：现在交换两个子字符串只需要交换指针，而底层字符串保持不变。下面是示例代码:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{01\_substring\_sort.C}
 \begin{lstlisting}[style=styleCXX]
@@ -61,7 +61,7 @@ using std::vector;
 这个例子中只声明了比较函数，但没有定义。它的定义在一个单独的文件中，如下所示:
 
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{01\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]
@@ -82,7 +82,7 @@ bool compare(const char* s1, const char* s2, unsigned int l) {
 
 我们也可以模拟这种类型的数据，用一个字符填充字符串，然后随机改变其中的一些:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{01\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]
@@ -140,7 +140,7 @@ for (unsigned int i = 0; i < N; ++i) {
 
 由于子字符串比较函数占用了总运行时间的98\%，我们只有两种方法来提高性能：可以使这个函数更快，或者可以减少使用次数(许多人忘记了第二种可能性，直接使用第一种可能性)。第二种方法需要使用不同的排序算法，不在本书的讨论范围之内。这里我们将重点讨论第一个选项。让我们再来看一下比较函数的代码:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{01\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]
@@ -161,7 +161,7 @@ bool compare(const char* s1, const char* s2, unsigned int l) {
 
 代码中的改动非常简单：只需删除循环对长度的比较操作(我们也不再需要将长度传递给比较函数):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{03\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]
@@ -186,7 +186,7 @@ bool compare(const char* s1, const char* s2) {
 
 总结一下这个例子，它实际上是一个现实程序的浓缩。当我们试图优化这段代码时，另一个开发者正在使用代码的另一部分，并且还需要一个子字符串比较函数。将单独开发的代码片段放在一起，只保留了这个函数的一个版本，而它恰好是我们没有修改的那个；其他开发者的修改几乎同样:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{04\_substring\_sort\_a.C}
 \begin{lstlisting}[style=styleCXX]

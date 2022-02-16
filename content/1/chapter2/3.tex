@@ -7,7 +7,7 @@
 
 C++在它的chrono库中有一些工具可以用来收集计时信息。可以测量程序中通过任意两点之间所需的时间:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{example.C}
 \begin{lstlisting}[style=styleCXX]
@@ -30,7 +30,7 @@ cout << "Time: " << delta_t.count() << endl;
 
 为了测试CPU时间，我们必须使用特定于操作系统的系统函数，在Linux和其他posix兼容的系统上，可以使用\texttt{clock\_gettime()}来使用硬件的高精度计时器:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{clocks.C}
 \begin{lstlisting}[style=styleCXX]
@@ -43,13 +43,13 @@ double delta_t = t1.tv_sec – t0.tv_sec +
   1e-9*(t1.tv_nsec – t0.tv_nsec);
 \end{lstlisting}
 
-The function returns the current time in its second argument; tv\_sec is the number of seconds since some point in the past, and tv\_nsec is the number of nanoseconds since the last whole second. The origin of time does not really matter since we always measure time intervals; however, take care to subtract seconds first and only then add nanoseconds, otherwise, you lose significant digits of the result by subtracting two large numbers.
+第二个参数的函数返回当前时间，\texttt{tv\_sec}是过去某一时刻到现在的秒数，\texttt{tv\_nsec}是上一整个秒到现在的纳秒数。时间的起源并不重要，因为我们总是测量时间间隔。这里要先减去秒，然后再加纳秒。
 
-There are several hardware timers we can use in the previous code, one of which is selected by the value of the clock\_id variable. One of these timers is the same system or real-time clock we have used already. Its ID is CLOCK\_REALTIME. The other two timers of interest to us are the two CPU timers: CLOCK\_PROCESS\_CPUTIME\_ID is a timer that measures the CPU time used by the current program, and CLOCK\_THREAD\_CPUTIME\_ID is a similar timer, but it measures only the time used by the calling thread.
+我们可以在前面的代码中使用的几个硬件计时器，其中一个由\texttt{clock\_id}变量的值选择，这些计时器中的计时器与我们已经使用过的系统或实时时钟相同。ID为\texttt{CLOCK\_REALTIME}。我们感兴趣的另外两个计时器是两个CPU计时器:\texttt{CLOCK\_PROCESS\_CPUTIME\_ID}是测量当前程序使用的CPU时间的计时器，而\texttt{CLOCK\_THREAD\_CPUTIME\_ID}是测量调用线程使用的时间的计时器。
 
-When benchmarking the code, it is often helpful to report the measurements from more than one timer. In the simplest case of a single-threaded program that is doing uninterrupted computations, all three timers should return the same result:
+对代码进行基准测试时，从多个计时器的测量结果通常是很有帮助的。一个单线程程序不间断进行计算时，三个计时器应该返回相同的结果:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{clocks.C}
 \begin{lstlisting}[style=styleCXX]
