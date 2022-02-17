@@ -76,15 +76,15 @@ double duration(timespec a, timespec b) {
 }
 \end{lstlisting}
 
-Here the "CPU-intensive work" is some kind of computation, and all three times should be almost identical. You can observe this in a simple experiment with any kind of computation. The values of the times will depend on the speed of the computer, but, that aside, the result should look like this:
+这里的“CPU密集型的工作”是一种计算，所以三个计时器的时间几乎相同。可以用一种计算的方法观察到这一点。时间将取决于计算机的运行速度，结果是这样的:
 
 \begin{tcblisting}{commandshell={}}
 Real time: 0.3717s, CPU time: 0.3716s, Thread time: 0.3716s
 \end{tcblisting}
 
-If the reported CPU time does not match the real time, it is likely that the machine is overloaded (many other processes are competing for the CPU resources), or the program is running out of memory (if the program uses more memory than the physical memory on the machine, it will have to use the much slower disk swap, and the CPUs can't do any work while the program is waiting for the memory to be paged in from disk).
+如果CPU时间与实际时间不匹配，则很可能是机器过载(许多其他进程正在争夺CPU资源)，或程序耗尽内存(如果程序使用的内存超过机器上的物理内存，它将不得不使用慢得多的磁盘交换，当程序等待从磁盘调入内存时，CPU无法执行任何工作)。
 
-On the other hand, if the program does not compute much but instead, waits on user input, or receives the data from the network, or does some other work that does not take many CPU resources, we will see a very different result. The simplest way to observe this behavior is by calling the sleep() function instead of the computation we used earlier:
+另一方面，如果没有太多的计算，而是等待用户输入，或者从网络接收数据，亦或做一些其他不占用太多CPU资源的工作，我们将看到不同的结果。观察这种行为的最简单方法是调用\texttt{sleep()}函数:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -107,15 +107,15 @@ On the other hand, if the program does not compute much but instead, waits on us
 }
 \end{lstlisting}
 
-Now we will, hopefully, see that a sleeping program uses very little CPU:
+可以看到休眠程序几乎不怎么使用CPU:
 
 \begin{tcblisting}{commandshell={}}
 Real time: 1.000s, CPU time: 3.23e-05s, Thread time: 3.32e-05s
 \end{tcblisting}
 
-The same should be true for a program that is blocked on a socket or a file or is waiting for a user action.
+对于传输套接字或读取文件阻塞的程序，或者正在等待用户操作的程序，也是这样几乎不怎么使用CPU。
 
-So far, we have not seen any difference between the two CPU timers, and you will not see any unless your program uses threads. We can make our compute-heavy program do the same work but use a separate thread for it:
+目前为止，还没有看到两个CPU计时器之间的任何区别(除非程序使用线程，否则您不会看到任何区别)。我们可以让这个需要大量计算的程序完成同样的工作，但为其开辟一个单独的线程进行计算:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -143,15 +143,15 @@ So far, we have not seen any difference between the two CPU timers, and you will
 }
 \end{lstlisting}
 
-The total amount of computations remains the same, and there is still only one thread doing the work, so we do not expect any changes to the real time or the process-wide CPU time. However, the thread that is calling the timers is now idle; all it does is wait on the future returned by std::async until the work is done. This waiting is very similar to the sleep() function in the previous example, and we can see it in the results:
+总的计算量保持不变，并且还是只有一个线程在执行这项工作，因此我们不期望对实时性或整个进程的CPU时间有任何改进。不过，调用计时器的线程现在是空闲的，它所做的就是等待\texttt{std::async}返回\texttt{future}，直到工作完成。这种等待与前面例子中的\texttt{sleep()}非常类似:
 
 \begin{tcblisting}{commandshell={}}
 Real time: 0.3774s, CPU time: 0.377s, Thread time: 7.77e-05s
 \end{tcblisting}
 
-Now the real time and the process-wide CPU time look like those from the "heavy computing" example, but the thread-specific CPU time is low, like in the "sleeping" example. That is because the overall program is doing heavy computing, but the thread that calls the timers is indeed mostly sleeping.
+现在，实时和进程的CPU时间与“繁重计算”示例中的CPU时间相似，但线程特定的CPU时间较低，就像“休眠”示例中的CPU时间一样。因为程序都在做大量的计算，但是使用计时器的线程，大部分时间都在休眠。
 
-Most of the time, if we are going to use threads for computing, the goal is to do more computations faster, so we will use several threads and spread the work between them. Let us modify the preceding example to compute also on the main thread:
+大多数情况下，如果打算使用线程进行计算，我们的目标是更快地进行更多的计算，因此会使用几个线程，并将不同的工作分配给它们。我们修改一下前面的例子，让其也在主线程上能进行计算:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -180,19 +180,19 @@ Most of the time, if we are going to use threads for computing, the goal is to d
 }
 \end{lstlisting}
 
-Now both threads are doing computations, so the CPU time used by the program passes at a double rate compared to the real time:
+两个线程都在进行计算，因此程序的CPU时间是实际时间的两倍:
 
 \begin{tcblisting}{commandshell={}}
 Real time: 0.5327s, CPU time: 1.01s, Thread time: 0.5092s
 \end{tcblisting}
 
-This is pretty good: we have done 1 second worth of computations in only 0.53 seconds of real time. Ideally, this would have been 0.5 seconds, but in reality, there is some overhead for launching threads and waiting for them. Also, one of the two threads might have taken slightly longer to do the work, then the other thread was idle some of the time.
+这还不错：我们在0.53秒的实时时间内完成了1秒的计算。理想情况下，这应该是0.5秒，但在现实中，启动线程和等待线程会有一定的开销。另外，两个线程中的一个可能会花费稍长的时间来完成工作，而另一个线程在某些时候空闲。
 
-Benchmarking a program is a powerful way to collect performance data. Simply by observing the time it takes to execute a function or handle an event, we can learn a lot about the performance of the code. For compute-intensive code, we can see whether the program is indeed doing computations non-stop or is waiting on something. For multi-threaded programs, we can measure how effective the concurrency is and what the overhead is. But we are not just limited to collecting execution times: we can also report any counts and values we deem relevant: how many times a function was called, how long the average string we sort is, anything we need to help us interpret the measurements.
+对程序进行基准测试是一种收集性能数据的方法。通过观察执行一个函数，或处理一个事件所花费的时间，我们可以对代码的性能了解很多。在计算密集型的代码中，可以了解程序是否真的在不间断地进行计算，或者正在等待什么。对于多线程程序，可以测量并发的有效性和开销。不仅限于收集执行时间:还可以输出我们认为相关的任何计数和值:调用一个函数的次数、排序的平均字符串的长度等，以便我们进行分析程序的各项指标。
 
-However, this flexibility comes at a price: with benchmarking, we can answer almost any question about the performance of the program that we want to ask. But we have to ask the question first: we report only what we decided to measure. If we want to know how long a certain function takes, we have to add the timers to it; if they aren't there, we will learn nothing until we rewrite the code and rerun the benchmark. On the other hand, it would not do to sprinkle timers everywhere in the code: these function calls are fairly expensive, so using too many can both slow down your program and distort the performance measurements. With experience and good coding discipline, you can learn to instrument the code you write in advance, so at least its major sections can be benchmarked easily.
+然而，这种灵活性是有代价的:使用基准测试，可以了解任何关于程序性能的问题。不过，必须先问一个问题:这里只报告了测量数据。如果想知道某个函数需要多长时间，就必须给它添加计时器。问题是，在代码中到处撒计时器是不行的:这些函数的调用代价相当昂贵，所以使用太多会减慢程序的速度，并严重影响性能测试。具有充足的经验和良好的编码规则，可以提前编写一些代码，这样可以针对其主要部分进行基准测试了。
 
-But what should you do if you have no idea where to start? What if you have inherited a code base that was not instrumented for any benchmarking? Or, maybe, you isolated your performance bottleneck to a large section of code, but there are no more timers  inside of it? One approach is to continue instrumenting the code until you have enough data to analyze the problem. But this brute-force approach is slow, so you will want some guidance on where to focus your efforts. This is where profiling comes in: it lets you collect performance data for a program that wasn't instrumented, by hand, for easy benchmarking. We will learn about profiling in the next section.
+如果你不知道从哪里开始，应该怎么做？如果接手了一个没有进行任何基准测试的代码库，该怎么办？或者，性能瓶颈隔在一大坨代码中，但其中没有更多的计时器，应该怎么办？一种方法是继续测试代码，直到有足够的数据来分析问题。不过，这种暴力的方法很慢，所以需要一些关于性能数据分析的引导。这就是\textbf{分析工具}的作用所在:它可以自动收集程序的性能数据，不是手工检测，以便进行简单的基准测试。我们将在下一节中学习如何使用性能分析工具。
 
 
 
