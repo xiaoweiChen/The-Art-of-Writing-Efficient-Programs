@@ -1,95 +1,95 @@
 
-The next set of performance analysis tools that we are going to learn about is the profiling tools, or profilers. We have already seen a profiler in use: in the last section, we used it to identify the function that was taking the majority of the computation time. This is exactly what profilers are used for, to find "hot" functions and code fragments, that is, the lines of code where the program spends the most time.
+接下来，将要了解的下一组是性能分析工具。我们已经了解了性能分析器的使用，可以确定占用大量计算时间的函数。这正是其用途所在，它可以用来查找“热点”函数和代码片段，也就是程序花费最多时间的代码段。
 
-There are many different profiling tools available, both commercial and open source. In this section, we are going to examine two profilers that are popular on Linux systems. The goal is not to make you an expert on a particular tool but to give you an idea of what to expect from the profiler you choose to use and how to interpret its results.
+有许多不同的商业和开源分析工具可供使用。本节中，我们将研究两个在Linux系统上主流的性能分析器。这里不是训练针对某个特定工具的专家，而仅是了解选择使用的性能分析器可以提供什么，以及如何对其结果进行解析。
 
-First, let us point out that there are several different types of profilers:
+首先，有几种不同类型的性能分析器:
 
 \begin{itemize}
-\item Some profilers execute the code under an interpreter or a virtual machine and observe where it spends the time. The main downside of these profilers is that they make the program run much slower than the code compiled directly to machine instructions, at least for languages like C++ that are so compiled and do not normally run under a virtual machine.
+\item 一些分析器在解释器或虚拟机下执行，并观察各个代码段所花费的时间。这些分析器的主要缺点是，程序运行的速度比直接编译到机器指令的代码慢，至少对于像C++这样的编译语言来说，并且通常不会在虚拟机下运行的。
 
-\item Other profilers require that the code is instrumented with special instructions during compilation or linking. These instructions provide additional information to the profiler, for example, so that they can notify the data collection engine when a function is called or a loop begins and ends. These profilers are faster than the ones of the previous type but still slower than the native execution. They also require a special compilation of the code and rely on the assumption that the instrumented code has the same performance as the original code, at least relatively, if not absolutely.
+\item 还有一些分析器，要求在编译或链接期间用特殊的指令插入代码中。这些指令为分析器提供了相应的信息，例如：当函数被调用或循环开始和结束时，可以告知数据收集引擎。这些分析器比前一种类型的分析器快，但仍然比本机执行慢。并且，需要对代码进行特殊编译，并依赖于某种假设:插装的代码与原始代码的性能差异不大(如果不是绝对的，至少是相对的)。
 
-\item Most modern profilers use the hardware event counters that are present on all modern CPUs. These are special hardware registers that can be used to track certain hardware events. An example of a hardware event is executing an instruction. You can see how this can be useful for profiling: the processor will do the work of counting instructions for us without any additional instrumentation or any overhead. All we need to do is to read the values of the counter registers.
+\item 大多数现代分析器使用现代CPU上的硬件计数器。这些是硬件寄存器，可以用来跟踪某些硬件事件。硬件事件就是执行指令。可以看到这对分析非常有效：处理器将做计数指令的工作，而不需要其他工具或任何开销。我们需要做的就是读取计数寄存器的值而已。
 
 \end{itemize}
 
-Unfortunately, useful profiling is a bit more complicated than simply counting instructions. We need to know how much time was spent in each function and even in each line of code. This can be done if the profiler reads the instruction count before and after executing each function (or each loop, each line of code, and so on). This is why some profilers use a hybrid approach: they instrument the code to mark the points of interest but use the hardware performance counters for the actual measurements.
+或者，用简单地计算指令要复杂一点的方法。我们需要知道在每个函数中，甚至在每一行代码执行所花费的时间。如果分析器在执行每个函数(或每个循环、每一行代码，等等)之前和之后读取指令计数，就可以做到这一点。这就是为什么有分析器使用多种计数方案：使用特定的指令标记感兴趣的代码段，但使用硬件性能计数器来进行实际测量。
 
-Other profilers rely on time-based sampling: they interrupt the program at a certain interval, say, once per 10 milliseconds, and record the values of the performance counters as well as the current location of the program (the instruction that is about to be executed). If, say, 90\% of all samples were taken during a call to the compare() function, we can assume that the program spends 90\% of the time doing string comparisons. The accuracy of this approach depends on the number of samples taken and the interval between the samples.
+有些分析器依赖于时间采样：其以一定的间隔中断程序，例如：每10毫秒中断一次，并记录性能计数器的值，以及程序的当前位置(即将执行的指令)。如果90\%的样本在调用\texttt{compare()}函数的过程中获得的，则可以假设程序花了90\%的时间进行字符串比较。这种方法的准确性取决于采样数和采样率。
 
-The more often we sample the execution of the program, the more data we collect, but the greater the overhead is as well. Hardware-based profilers can, in some cases, have no adverse effect on the runtime of the program at all if the sampling is done not too often.
+对程序执行的采样越频繁，收集的数据就越多，但开销也会越大。某些情况下，在采样不太频繁的情况下，可以使用硬件分析器，这就对程序的运行时间没有任何影响。
 
-\subsubsubsection{2.4.1\hspace{0.2cm}The perf profiler}
+\subsubsubsection{2.4.1\hspace{0.2cm}perf分析器}
 
-The first profiler tool we are going to learn in this section is the Linux perf profiler. This is one of the most popular profilers on Linux simply because it comes installed with most distributions. This profiler uses hardware performance counters and time-based sampling; it does not require any instrumentation of the code. 
+本节中的第一个分析器工具是Linux性能分析器。这是Linux上最流行的分析器之一，大多数发行版都有安装了，其是基于硬件性能计数器和基于时间采样的分析器。
 
-The simplest way to run this profiler is to collect the counter values for the entire program; this is done using the perf stat command:
+运行这个分析器最简单的方法是收集整个程序的计数器值，可以通过\texttt{perf stat}命令完成:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/6.jpg}\\
-Figure 2.6
+图 2.6
 \end{center}
 
-As you can see in Figure 2.6, the compilation does not require any special options or tools. The program is executed by the profiler, and the stat option tells the profiler to display the counts accumulated in the hardware performance counters during the entire run of the program. In this case, our program ran for 158 milliseconds (consistent with the time printed by the program itself) and executed over 1.3 billion instructions. There are several other counters shown, such as "page-faults" and "branches." What are these counters, and what other counters can we see?
+从图2.6中可以看到，编译不需要任何特殊选项或工具。程序由分析器执行，\texttt{stat}选项告诉分析器显示在程序运行期间，硬件性能计数器中累积的计数值。本例中，程序运行了158毫秒(与程序本身打印的时间一致)，并执行了13亿多条指令。还显示了其他几个计数器，如“页面错误”和“分支”。这些计数器是什么，还有哪些计数器？
 
-As it turns out, modern CPUs can collect statistics on many different types of events, but only a few types at a time; in the preceding example, eight counters were reported, so we can assume that this CPU has eight independent counters. However, each of these counters can be assigned to count one of many event types. The profiler itself can list all the events that are known to it and can be counted:
+事实证明，现代CPU可以收集不同类型事件的统计信息，但一次只能收集几种类型的事件。前面的例子中，报告了8个计数器，因此可以假设这个CPU有8个独立的计数器。以前，每个计数器都会分配到一个事件类型中。分析器本身可以列出所有已知的事件，并可以计数:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/7.jpg}\\
-Figure 2.7
+图 2.7
 \end{center}
 
-The list in Figure 2.7 is incomplete (the printout continues for many more lines), and the exact counters available vary from one CPU to another (and, if you use a virtual machine, on the type and configuration of the hypervisor). The results collected by our profiling run in Figure 2.6 are simply the default set of counters, but we can select other counters for profiling:
+图2.7中的列表是不完整的(打印输出会有很多行)，可用的计数器因CPU而异(如果使用虚拟机，则在管理程序的类型和配置上有所不同)。图2.6中的结果只是默认配置的计数器收集的，我们还可以选择其他的计数器进行配置:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/8.jpg}\\
-Figure 2.8
+图 2.8
 \end{center}
 
-In Figure 2.8, we measure CPU cycles and instructions, as well as branches, branch misses, cache references, and cache misses. A detailed explanation of these counters and the events they monitor will be presented in the next chapter.
+图2.8中，我们可以测量CPU周期和指令，以及分支、分支缺失、缓存引用和缓存缺失。下一章将详细解释这些计数器和其相应的监视事件。
 
-Briefly, the cycle time is the inverse of the CPU frequency, so a 3GHz CPU can run 3 billion cycles per second. By the way, most CPUs can run at variable speeds, which complicates the measurements. Thus, for accurate profiling and benchmarking, it is recommended to disable the power saving mode and other features that can cause the CPU clock to vary. The instruction counter measures the number of processor instructions that were executed; as you can see, the CPU executes, on average, almost four instructions per cycle.
+简单地说，周期时间是CPU频率的倒数，所以一个3GHz的CPU每秒可以运行30亿个周期。大多数CPU的频率是可变的，这使得测量变得更复杂了。因此，为了精确的分析和进行基准测试，建议禁用省电模式和其他会让CPU时钟变化的功能。指令计数器测量处理器执行指令的数量，CPU平均每周期可以执行四条指令。
 
-The "branches" are the conditional instructions: every if statement and every for loop with a condition generates at least one of these instructions. Branch misses will be explained in detail in the next chapter; for now, we can just say that it is an expensive and undesirable event, from the performance point of view.
+“分支”是条件指令:每个带有条件的\texttt{if}语句和每个\texttt{for}循环都会生成多条这样的指令。分支缺失在下一章进行解释，现在从性能的角度来看，我们只能说这是一个性能开销大，而且不受欢迎的事件。
 
-The "cache references" count how many times the CPU needed to fetch something from memory. Most of the time, "something" is a piece of data, such as a character in the string. Depending on the state of the processor and memory, this fetch can be very fast or very slow; the latter is counted as a "cache miss" ("slow" is a relative concept; relative to the processor speed of 3 GHz, 1 microsecond is a very long time). The memory hierarchy will be explained in a later chapter; again, a cache miss is an expensive event. 
+“缓存引用”计算CPU需要从内存中读取的次数。大多数时候是一段数据，比如：字符串中的一个字符。根据处理器和内存的状态，这个取回可以非常快，也可以非常慢。慢的话会认为是“缓存丢失”(“慢”是一个相对概念：相对于3ghz的处理器速度，1微秒是一个很长的时间)。内存层次结构将在后面的章节进行解释。而且，缓存丢失也是一个性能开销特别大的事件。
 
-Armed with an understanding of how the CPUs and the memory work, you will be able to use such measurements to gauge the overall efficiency of your program and determine what kinds of factors are limiting its performance.
+理解了CPU和内存的工作方式后，就能够使用这些度量来衡量程序的总体效率，并确定哪些因素限制了程序的性能。
 
-So far, we have seen only whole-program measurements. The measurements in Figure 2.8 may tell us what is holding back the performance of our code: for example, if we accept for now that "cache misses" are bad for performance, we can deduce that the main problem in this code is its inefficient memory access (one out of ten memory accesses is slow). However, this type of data does not tell us which parts of the code are responsible for poor performance. For that, we need to collect the data not just before and after but also during the program execution. Let us see how to do that with perf.
+到目前为止，我们只看到了整个项目的测量结果。图2.8中告诉我们哪些事件拖累了代码的性能，例如：如果我们现在接受“缓存丢失”对性能不利的观点，可以推断出这段代码的主要问题是低效的内存访问(十分之一的内存访问是缓慢的)。然而，这种类型的数据并没有告诉我们，代码具体是哪部分导致了较差的性能。为此，不仅需要在程序执行之前和之后收集数据，还需要在程序执行期间收集数据。让我们看看如何用\texttt{perf}来收集这些信息。
 
-\subsubsubsection{2.4.2\hspace{0.2cm}Detailed profiling with perf}
+\subsubsubsection{2.4.2\hspace{0.2cm}使用perf进行详细分析}
 
-The perf profiler combines the hardware counters with time interval-based sampling to record the profile of the running program. For each sample, it records the position of the program counter (the address of the instruction to be executed) and the values of the performance counters that we are monitoring. After the run, the data is analyzed; the functions and code lines with the most samples are responsible for the majority of the execution time.
+\texttt{perf}分析器将硬件计数器与基于时间采样结合起来，记录正在运行的程序的性能情况。对于每个示例，记录程序计数器的位置(要执行的指令的地址)和需要监视的性能计数器。运行后，对数据进行分析，包含大多数的函数和代码行的执行时间。
 
-The data collection run of the profiler is no more difficult than the overall measurement run. Note that, at run time, the instruction addresses are collected; to convert these to the line numbers in the original source code, the program must be compiled with debug information. If you are used to the two compilation modes, "optimized" and "debug non-optimized," this combination of compiler options may come as a surprise: both debug and optimization are enabled. The reason for the latter is that we need to profile the same code that will run in production, otherwise, the data is mostly meaningless. With this in mind, we can compile our code for profiling and run the profiler using the perf record command:
+分析器的数据收集运行并不比整体测量运行更困难。注意，在运行时，回收集指令地址，从而转换为原始源代码中的行号，程序必须使用调试信息进行编译。若已经习惯了“优化”和“非优化”这两种编译模式，这种编译器选项的组合可能会让您惊讶：调试和优化都启用。启用后者的原因是，我们需要配置将在生产环境中运行的相同代码；否则，数据没什么无意义。考虑到这一点，我们可以编译代码来分析，并使用\texttt{perf record}命令运行分析器:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/9.jpg}\\
-Figure 2.9
+图 2.9
 \end{center}
 
-Just like perf stat, we could have specified a counter or a set of counters to monitor but, this time, we accept the default counter. We haven't specified how often the samples are taken; again, there is a default for that, but we could also specify it explicitly: for example, perf record -c 1000 records 1000 samples per second.
+与\texttt{perf stat}类似，可以指定计数器或一组计数器。但是这次，我们使用默认计数器。我们没有具体说明采样的频率，使用默认值。采样频率可以显示的进行指定，例如：\texttt{perf record -c 1000}即记录每秒1000个样本。
 
 The program runs, produces its regular output, as well as the messages from the profiler. The last one tells us that the profiling samples have been captured in the file named perf.data (again, this is the default that can be changed). To visualize the data from this file, we need to use the profile analysis tool, which is also a part of the same perftools suite, specifically, the perf report command. Running this command will launch this screen:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/10.jpg}\\
-Figure 2.10
+图 2.10
 \end{center}
 
 This is the profiling summary, a breakdown of the execution time by function. From here, we can drill down into any function and see which lines contributed the most to the execution time:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/11.jpg}\\
-Figure 2.11
+图 2.11
 \end{center}
 
 The numbers on the left in Figure 2.11 are the percentages of the execution time spent at each line. So, what exactly does the "line" tell us? Figure 2.11 illustrates one of the more frequent difficulties in analyzing such profiles. It shows both the source code and the assembly instructions produced from it; the execution time counters are, naturally, associated with every hardware instruction (that is what the CPU executes, so that's the only thing it can count). The correspondence between the compiled code and the source is established by the profiler using the debugging information embedded by the compiler. Unfortunately, this correspondence is not exact, and the reason for this is optimization. The compiler performs a wide range of optimizations, all of which end up rearranging the code and changing the way the computations are done. You can see the results even in this very simple example: why does the source code line
@@ -109,10 +109,10 @@ for (unsigned int i1 = 0, i2 = 0; i1 < l; ++i1, ++i2) {
 
 To get the most out of the profile, it helps to understand at least the basics of the assembly language of the platform we're working on (X86 CPUs, in our case). The profiler also has some helpful tools that facilitate the analysis. For example, by placing the cursor on the jne (jump if not equal) instruction, we can see where the jump would take us, as well as the condition associated with the jump:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/12.jpg}\\
-Figure 2.12
+图 2.12
 \end{center}
 
 This looks like a jump back to repeat the last few lines of code, so the cmp (compare) instruction above the jump must be the comparison of the loop, i1 < l. Together, the jump and the comparison account for 18\% of the execution time, so our earlier attention to the seemingly unnecessary comparison operation appears justified.
@@ -123,34 +123,34 @@ The perf profiler has many more options and capabilities for analyzing, filterin
 
 The Google CPU profiler also uses hardware performance counters. It also requires link-time instrumentation of the code (but no compile-time instrumentation). To prepare the code for profiling, you have to link it with the profiler library:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/13.jpg}\\
-Figure 2.13
+图 2.13
 \end{center}
 
 In Figure 2.13, the library is specified by the command-line option –lprofiler. Unlike perf, this profiler does not need any special tools to invoke the program; the necessary code is already linked into the executable. The instrumented executable does not automatically start profiling itself. We have to activate the profiling by setting the environment variable CPUPROFILE to the filename of the file where we want to store the results. Other options are also controlled through the environment variables instead of command-line options, for example, the variable CPUPROFILE\_FREQUENCY sets the number of samples per second:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/14.jpg}\\
-Figure 2.14
+图 2.14
 \end{center}
 
 Again, we see the output from the program itself and from the profiler, and we get the profile data file that we must analyze. The profiler has both the interactive and the batch mode; the interactive mode is a simple text user interface:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/15.jpg}\\
-Figure 2.15
+图 2.15
 \end{center}
 
 Simply running google-pprof (often installed as just pprof) with the names of the executable and the profile as arguments brings up the command prompt. From here, we can, for example, get the summary of all functions annotated with percentages of the execution time. We can further analyze the program performance at the source code level:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/16.jpg}\\
-Figure 2.16
+图 2.16
 \end{center}
 
 As you can see, this profiler takes a slightly different approach and does not immediately dump us, neck-deep, into machine code (although annotated assembly can also be produced). This apparent simplicity is somewhat deceptive, though: the caveats we described earlier still apply, the optimizing compiler still does its transformations on the code.
@@ -219,10 +219,10 @@ Now we are ready to produce a call graph that will show us how the cost of the c
 
 We compile the code and run the profiler exactly as we did it earlier (for simplicity, we put each function in its own source file):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/17.jpg}\\
-Figure 2.17
+图 2.17
 \end{center}
 
 The profiler can show the call graph in several different formats (Postscript, GIF, PDF, and so on). For example, to generate the PDF output, we would run this command:
@@ -233,10 +233,10 @@ google-pprof --pdf ./example prof.data > prof.pdf
 
 The information we're interested in right now is at the bottom of the call graph: 
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/18.jpg}\\
-Figure 2.18
+图 2.18
 \end{center}
 
 As you can see in Figure 2.18, the compare() function, which accounts for 58.6\% of the total execution time, has two callers. Of the two, the compare1() function makes slightly more calls than the compare2() function; the former accounts for 27.6\% of the execution time (or 59.8\% if you include the time spent in its share of calls to compare()) and the latter is responsible for 13.8\% of the time by itself, or 40.2\% in total.
@@ -273,10 +273,10 @@ Now the compiler can, and probably will, generate the machine code for the compa
 
 Let us see how the profiler tools we used earlier deal with the inlined code. Running the Google profiler for annotated source lines produces this report:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/19.jpg}\\
-Figure 2.19
+图 2.19
 \end{center}
 
 As you can see, the profiler knows that the compare() function was inlined but still shows its original name. The lines in the source code correspond to the location where the code for the function is written, not where it is called, for example, line 23 is this line:
@@ -287,18 +287,18 @@ if (s1[i1] != s2[i2]) return s1[i1] > s2[i2];
 
 The perf profiler, on the other hand, does not show inline functions as easily:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/20.jpg}\\
-Figure 2.20
+图 2.20
 \end{center}
 
 Here we can see that the time appears to be spent in the sort code and the main program itself. Examining the annotated source, however, shows us that the code that was generated from the compare() function's source is still responsible for the absolute majority of the execution time:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/21.jpg}\\
-Figure 2.21
+图 2.21
 \end{center}
 
 There is, unfortunately, no easy way to undo the effects of the optimizations on the performance profiles. Inlining, code reordering, and other transformations turn detailed performance analysis into a skill that develops with practice. Perforce, some practical suggestions for the effective use of profiling are now in order.
