@@ -1,19 +1,19 @@
 
 上一节的末尾，我们找出了程序在什么地方花费了大部分的执行时间。在使用“明显的”和“简单的”优化后，出现了事与愿违的情况，使程序运行速度变慢，我们也感到惊讶。现在很清楚，我们必须更详细地研究性能关键函数。
 
-We already have the tools for that: the overall program is exercising this code, and we have ways to measure its performance. But we're not really interested in the rest of the program anymore, at least not until we solve the performance issues we already identified. 
+我们已经有了这样的工具:整个程序都在执行这段代码，并且有方法来测量性能。至少在我们解决了已经确定的性能问题之前是这样，我们对程序的其余部分不再感兴趣。
 
-Working with a large program to optimize just a few lines of code has the following two major drawbacks:
+使用大型程序来优化几行代码有以下两个缺点:
 
-First of all, even though the few lines are identified as performance-critical, it doesn't mean the rest of the program takes no time at all (in our demo example, it does, but recall that this example is supposed to represent the entire large program you're working on). You may be waiting for hours before the large program gets to the interesting point, either because the entire job is that long or because the performance-critical function is called only under certain conditions, like a particular request coming over the net.
+最重要的是，尽管这几行代码是性能关键的部分，但这并不意味着程序的其余部分完全不需要时间(在我们的示例中，确实需要。但是请记住，这个示例表示正在处理的整个大型程序)。可能要等上几个小时，程序才能到达有趣的地方，要么是因为整个任务都那么长，要么是因为性能关键函数只在特定条件下调用，比如：源于网络的特定请求。
 
-Second, working with a large program just takes more time: the compile and link times are longer, your work may be interacting with code changes made by other programmers, even editing takes longer because all the extra code is distracting. The bottom line, at this point, is we are interested in just one function, so we would like to be able to call this function and measure the results. This is where micro-benchmarking comes in.
+此外，处理大型程序需要更多的时间：编译和链接时间更长。实际工作可能与其他开发者所做的代码有交互，甚至编辑也需要更长时间，所以其他代码会令人分心。在这一点上，我们只对函数的基线感兴趣，所以希望能够调用这个函数，并测量结果。这就是微型基准测试的作用所在。
 
-\subsubsubsection{2.5.1\hspace{0.2cm}Basics of micro-benchmarking}
+\subsubsubsection{2.5.1\hspace{0.2cm}微基准测试的基础概念}
 
-In a nutshell, micro-benchmarking is just a way to do what we just said we want to do: run a small chunk of code and measure its performance. In our case, it's just one function, but it could be a more complex code fragment, too. What's important is that this code fragment could be invoked easily with the right starting conditions: for a function, it's just the arguments, but for a larger fragment, a more complex internal state may have to be recreated.
+简言之，微基准测试只是实现刚才描述目标的一种方式：运行一小块代码，并测量其性能。在我们的例子中，其只是一个函数，但也可能是一个更杂的代码段。重要的是，这段代码段可以在正确的初始条件下调用：对于函数，它只是参数，但对于更大的代码段，可能需要重新创建更复杂的内部状态。
 
-In our case, we know exactly what arguments we need to call the string comparison function with – we constructed the arguments ourselves. The second thing we need is to measure the execution time; we have already seen the timers that can be used for this purpose. With this in mind, we can write a very simple benchmark that calls several variants of our string comparison function and reports the results:
+我们的例子中，确切地知道需要用什么参数来调用字符串比较函数——我们构造了参数。需要做的第二件事是测量执行时间，我们已经了解了用于此目的的计时器。考虑到这一点，我们可以编写一个非常简单的基准测试，调用字符串比较函数的几个变量，并报告结果:
 
 \begin{lstlisting}[style=styleCXX]
 bool compare1(const char* s1, const char* s2) {
@@ -50,9 +50,9 @@ int main() {
 }
 \end{lstlisting}
 
-In this program, we test only two of the comparison functions, both without the end of loop condition, one with an int index and the other with an unsigned int index. Also, we will not be repeating the \#include and using statements in the subsequent listings. The input data is just a long string filled with the same character from start to end, so the substring comparison will run all the way to the end of the string. We can, of course, benchmark on any data we need, but let's start with the simplest case.
+这个程序中，我们只测试两个比较函数，它们都没有循环结束条件，一个用\texttt{int}型索引，另一个用\texttt{unsigned int}型索引。另外，我们将不会在后面的代码清单中重复\texttt{\#include}和\texttt{using}语句。输入数据只是一个长字符串，从头到尾填充了相同的字符，所以子字符串的比较将一直进行到字符串的末尾。当然，可以根据需要的任何数据进行基准测试，我们先从最简单的情况开始。
 
-The program looks like it will do exactly what we need… at least until we run it:
+这个程序看起来会做我们需要的事情:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
@@ -60,7 +60,7 @@ The program looks like it will do exactly what we need… at least until we run 
 图 2.22
 \end{center}
 
-Zero time, either way. What went wrong? Perhaps, the execution time for a single function call is simply too fast to be measured? This is not a bad guess, and we can address this problem easily: if one call is too short, we just need to make more calls:
+不管怎样，都是0耗时。到底是哪里出错了呢？也许，单个函数调用的执行时间太快而无法测量？这是一个不错的想法，我们可以很容易地解决这个问题:如果一个调用的时间太短，只需要多调用几次:
 
 \begin{lstlisting}[style=styleCXX]
 int main() {
@@ -84,7 +84,7 @@ int main() {
 }
 \end{lstlisting}
 
-We can increase the number of iterations NI until we get some results, right? Not so fast:
+我们可以增加迭代次数\texttt{NI}直到得到结果，对吧？不可能那么快的：
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
@@ -92,7 +92,7 @@ We can increase the number of iterations NI until we get some results, right? No
 图 2.23
 \end{center}
 
-Too fast, actually, but why? Let us step through the program in the debugger and see what it actually did:
+确实太快了，但为什么呢？让我们在调试器中逐步检查这个程序，看看它实际上做了什么:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
@@ -100,23 +100,25 @@ Too fast, actually, but why? Let us step through the program in the debugger and
 图 2.24
 \end{center}
 
-We set the breakpoint in main, so the program is paused as soon as it launches, then we execute the program line by line… except, that's not all the lines we have written! Where is the rest of the code? We can guess that the compiler is to blame, but why? We need to learn more about compiler optimizations.
+我们在\texttt{main}函数中设置了断点，所以程序一启动就会暂停，然后我们一行一行地执行程序……不过，这并不是我们写的所有的代码行!剩下的代码在哪里？我们可以猜测这是编译器的原因，但是为什么呢？我们需要了解更多关于编译器优化的知识。
 
-\subsubsubsection{2.5.2\hspace{0.2cm}Micro-benchmarking and compiler optimizations}
+\subsubsubsection{2.5.2\hspace{0.2cm}微基准测试和编译器优化}
 
-To understand this mystery of the missing code, we have to take a fresh look at what the missing code actually does. It creates some strings, calls the comparison functions, and … there is no "and." Nothing else happens. Other than watching the code scroll by in the debugger, how would you know, just by running this program, if this code was executed? You cannot. The compiler has arrived at the same conclusion, way ahead of us. Since the programmer cannot tell the difference between executing and not executing a part of the code, the compiler has optimized it out. But wait, you say, the programmer can tell the difference: it takes much less time to do nothing than to do something. And here we come to a very important concept from the C++ standard that is critical to the understanding of compiler optimizations: the observable behavior.
+要理解神秘的缺失代码，我们必须看下这里做了什么。其创建一些字符串，调用比较函数，并且……没有了？！没有别的事情发生。除了在调试器中滚动观察代码外，如何通过运行这个程序来知道代码是否执行了呢？没有其他办法。早在我们之前，编译器就得出了同样的结论。开发者无法区分执行和不执行部分代码的区别，编译器已经对其进行了优化。但是，开发者可以分辨出区别：什么都不做比做某事花费的时间要少得多。这里，我们可以从C++标准中得到一个非常重要的概念它对理解编译器优化至关重要：可观察行为。
 
-The standard says that the compiler can make whatever changes it wants to the program as long as the effect of these changes does not alter the observable behavior. The standard is also very specific about what constitutes the observable behavior:
+标准表示，编译器可以对程序进行任何更改，只要这些更改不会改变可观察对象的行为即可。标准对于什么构成了可观察行为也非常具体:
 
 \begin{enumerate}
-\item Accesses (reads and writes) to volatile objects occur strictly according to the semantics of the expressions in which they occur. In particular, they are not reordered with respect to other volatile accesses on the same thread.
-\item At program termination, data written to files is exactly as if the program was executed as written.
-\item Prompting text that is sent to interactive devices will be shown before the program waits for input. More generally, input and output operations cannot be omitted or rearranged.
+\item 对不稳定(volatile)对象的访问(读和写)需要严格按照发生它们的表达式的语义进行。特别是，对于同一线程上其他不稳定对象的访问，编译器不能重排。
+
+\item 程序终止时，写入文件的数据与写入程序执行时的数据一样。
+
+\item 发送到交互设备的提示文本，将在程序等待输入之前显示出来。简单地说，输入和输出操作不能省略或重排。
 \end{enumerate}
 
-There are a few exceptions to the preceding rules, none of which apply to our program. The compiler must follow the as-if rule: the optimized program should show the same observable behavior as if it was executed exactly as written, line for line. Now note what is not included in the preceding list: running the program under debugger does not constitute observable behavior. Neither does execution time, otherwise, no program could be optimized to make it faster.
+上述规则有几个例外，但没有一个适用于我们的程序。编译器必须遵循假设规则:经过优化的程序应该显示与所写完全一样的可观察行为，一行一行地执行。请注意，因为调试器下运行程序并不构成可观察行为，所以调试器中会有代码缺失。它的执行时间很长，不执行看起来也无所谓，所以编译器为了优化程序，就略过了执行。
 
-With this new understanding, let us take another look at the benchmark code: the results of the string comparison do not affect the observable behavior in any way, so the entire computation can be done or omitted at the compiler's discretion. This observation also gives us a way to fix this problem: we have to make sure that the result of the computation affects the observable behavior. One way to do it is to take advantage of the volatile semantics described previously:
+在新理解下，让我们再来看看基准代码:字符串比较的结果不会以任何方式影响可观察行为，因此整个计算可以由编译器自行决定。我们的观察也找到了解决这个问题的方法，必须确保计算的结果影响可观察行为。一种方法是利用前面描述的volatile语义:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -144,7 +146,7 @@ int main() {
 }
 \end{lstlisting}
 
-Now the result of every call to the comparison functions is written into a volatile variable, and, according to the standard, these values must be correct and written in the right order. The compiler now has no choice but to call our comparison functions and get the results. The way these results are computed can still be optimized as long as the result itself does not change. This is exactly what we want: we want the compiler to generate the best code for the comparison functions, hopefully, the same code it generates in the real program. We just don't want it to drop these functions altogether. Running this benchmark shows that we have finally achieved our goal, the code is definitely running:
+对比较函数的每次调用的结果都需要写入一个volatile变量中，并且根据标准，这些值必须正确，且以正确的顺序写入。编译器现在别无选择，只能调用比较函数并获得结果。只要结果本身不变，计算这些结果的方法仍然可以优化。这正是我们想要的:我们希望编译器为比较函数生成最好的代码，最好是在实际程序中生成的代码，但不想让它完全放弃这些功能。运行这个基准测试表明我们终于实现了我们的目标，代码肯定会运行:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
@@ -152,9 +154,9 @@ Now the result of every call to the comparison functions is written into a volat
 图 2.25
 \end{center}
 
-The first value is the runtime of the compare1() function, which uses int indices, and it is indeed slightly faster than the unsigned int version (but don't put too much faith into these results just yet).
+第一个值是\texttt{compare1()}函数的运行时，该函数使用\texttt{int}型索引，它确实比\texttt{unsigned int}版本略快一些(暂时不要太相信这些结果)。
 
-The second option for entangling our computations with some observable behavior is to simply print out the results. However, this can get a bit tricky. Consider the straightforward attempt:
+将我们的计算与某些可观察行为纠缠在一起的第二个选择是，将结果打印出来，这可能会有点棘手。考虑一下简单的修改:
 
 \begin{lstlisting}[style=styleCXX]
 int main() {
@@ -179,7 +181,7 @@ int main() {
 }
 \end{lstlisting}
 
-Note that the variable sink is no longer volatile, but instead, we write out its final value. This does not work as well as you might expect:
+注意，变量\texttt{sink}不再是volatile类型。相反，我们输出了它的最终值。不过，这并不像想象的那样有效:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
@@ -187,17 +189,17 @@ Note that the variable sink is no longer volatile, but instead, we write out its
 图 2.26
 \end{center}
 
-The execution time of the function compare2() is in the same ballpark as before, but compare1() appears to be much faster now. Of course, by now, we know enough to understand that this "improvement" is illusory: the compiler simply figured out that the result of the first call is overwritten by the second call and, therefore, does not affect the observable behavior.
+函数\texttt{compare2()}的执行时间与以前大致相同，但\texttt{compare1()}快太多了。目前为止，我们已经足够了解这种“改进”是虚假的：编译器发现第二个调用覆盖了第一个调用的结果，因此不会影响可观察行为。
 
-This brings up an interesting question: why didn't the compiler figure out that the second iteration of the loop gives the same result as the first one and optimized away every call to the comparison functions except the first one, for each function? It could have, if the optimizer were advanced enough, and then we would have to do more to get around it: generally, compiling the functions as separate compilation units is enough to prevent any such optimizations, although some compilers are capable of whole-program optimizations, so you may have to turn them off when running micro-benchmarks.
+这就带来了一个有趣的问题：为什么编译器没有发现循环的第二次迭代与第一次的结果相同，并优化掉除了第一次以外的所有对比较函数的调用，对于每个函数都会这样么？如果优化器足够高级，那么它可以做到，然后我们将不得不做更多的工作来绕过它：通常，将函数编译为单独的编译单元就足以防止任何此类优化，尽管有些编译器能够进行整个程序的优化，所以在运行微基准测试时，可能要关闭这些特性。
 
-Note also that our two benchmark runs have produced somewhat different values even for the execution time of the function that wasn't optimized away. If you run the program again, you will get yet another value, also somewhere in the same range, but slightly different. This isn't good enough: we need more than just ballpark figures. We could run the benchmark several times, figure out how many repetitions we need, and compute the average time, but we don't have to do it manually. We don't have to write code to do this either, because such code has already been written and is available as one of several microbenchmarking tools. We are going to learn about one such tool now.
+请注意，我们的两个基准测试运行产生了一些不同的值，甚至对于没有优化的函数的执行时间也是如此。如果再次运行这个程序，可能会得到另一个值，也在相同的范围内，但略有不同。这还不够，我们需要的不仅仅是大概的数字。我们可以多次运行基准测试，计算需要重复多少次，并计算平均时间，但无需手工操作。不必编写代码来完成此任务，因为已经有这样的代码了，并且可以作为微基准测试工具使用。我们现在就来学习一种这样的工具。
 
-\subsubsubsection{2.5.3\hspace{0.2cm}Google Benchmark}
+\subsubsubsection{2.5.3\hspace{0.2cm}谷歌基准测试工具}
 
-Writing a micro-benchmark involves a lot of boilerplate code, mostly for measuring time and accumulating results. Furthermore, this code is critical for the accuracy of the measurements. There are several good-quality micro-benchmark libraries available. In this book, we use the Google Benchmark library. The instructions for downloading and installing the library can be found in the Technical requirements section. In this section, we will describe how to use the library and interpret the results.
+编写一个微型基准测试需要大量的样板代码，主要用于度量时间和累加结果。此外，该代码对测量的准确性至关重要。有几个高质量的微基准库可用。本书中，我们使用谷歌基准库，下载和安装该库的说明可以在\textbf{相关准备}部分找到。本节中，我们将描述如何使用库，并解释结果。
 
-To use the Google Benchmark library, we have to write a small program that will prepare the inputs and execute the code we want to benchmark. This is a basic Google Benchmark program for measuring the performance of one of our string comparison functions:
+使用谷歌基准库，我们必须编写一个小程序来准备输入并执行我们想要基准测试的代码。这是一个基本的谷歌基准程序，用于测试字符串比较函数的性能:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -227,25 +229,25 @@ BENCHMARK(BM_loop_int)->Arg(1<<20);
 BENCHMARK_MAIN();
 \end{lstlisting}
 
-Every Google benchmark program must include the header for the library, benchmark/benchmark.h, plus, of course, any other headers needed to compile the code we want to measure (they are omitted in the preceding listing). The program itself consists of a number of benchmark "fixtures," each one is just a function with a specific signature: it takes one parameter, benchmark::State, by reference, and returns nothing. The parameter is an object provided by the Google Benchmark library to interface with the library itself. 
+每个谷歌基准测试程序都必须包括库的头文件\texttt{benchmark/benchmark.h}，还要包括编译我们想要测量的代码所需的任何其他头文件(它们在前面的代码清单中)。程序本身由许多基准测试“固件”组成，每一个都只是一个具有特定签名的函数：它接受一个引用参数\texttt{benchmark::State}，无返回值。该参数是谷歌基准库提供的一个对象，可以让外部开发者与基准库进行对接。
 
-We need one fixture for each code fragment, such as a function that we want to benchmark. The first thing we do in each benchmark fixture is to set up the data we need to use as inputs for the code we want to run. More generally, we can say that we need to recreate the initial state of this code to represent what it would be in the real program. In our case, the input is the string, so we need to allocate and initialize the string. We can hardcode the size of the string into the benchmark, but there is also a way to pass arguments into a benchmark fixture. Our fixture uses one argument, the string length, which is an integer accessed as state.range(0). It is possible to pass arguments of other types, please refer to the documentation of the Google Benchmark library for details.
+对于每个代码片段，我们需要一个固件，比如：我们想要进行基准测试的函数。在每个基准测试固件中，要做的第一件事是设置需要用作要运行的代码输入的数据。通常，需要重新创建这个代码的初始状态，以表示它在实际程序中的状态。在我们的例子中，输入是字符串，所以需要分配和初始化字符串。可以将字符串的大小硬编码到基准测试中，但也有一种方法可以将参数传递到基准测试固件中。固件使用参数字符串长度，作为\texttt{state.range(0)}的值。当然，也可以传递其他类型的参数，详细信息请参考谷歌基准库的文档。
 
-The entire setup is free in the sense of the benchmark measurements: we do not measure the time it takes to prepare the data. The code whose execution time is measured goes into the body of the benchmarking loop, for (auto \_ : state) { … }. In the older examples, you can find this loop written as while (state.KeepRunning()) { … }, which does the same thing but slightly less efficiently. The library measures the time it takes to do each iteration and decides how many iterations it wants to do to accumulate enough measurements to reduce the random noise that is inevitable in measuring the run time of a small fragment of code. Only the run time of the code inside the benchmarking loop is measured.
+基准测试的意义上，整个设置是随意的，因为不用测试准备数据所需的时间。测量执行时间的代码在基准测试循环的主体中，\texttt{for (auto \_: state){…}}。较老的例子中，可以发现这个循环会写成\texttt{while (state.KeepRunning()){…}}，可以做着同样的事情，但效率略低。基准库来测试每次迭代所花费的时间，并决定要进行多少次迭代来累积足够的数据，以减少在度量一小段代码的运行时间时不可避免的随机噪声(只测试基准循环中代码的运行时间)。
 
-The loop exits when the measurement is accurate enough (or a certain time limit is reached). After the loop, we usually have some code to clean up the data that was initialized earlier, although in our case, this cleanup is handled by the destructor of the std::unique\_ptr object. We can also make calls on the state object to affect what results are reported by the benchmark. The library always reports the average time it takes to run one iteration of the loop, but sometimes it is more convenient to express the program speed in some other way. For our string comparison, one option is to report the number of characters per second processed by the code. We can do it by calling state. SetItemsProcessed() with the number of characters we processed during the entire run, N characters per iteration (or 2*N if you want to count both substrings; items can count whatever you define as a unit of processing).
+当测量足够精确(或达到一定的时间限制)时，循环退出。对于循环，通常需要一些代码来清理前面初始化的数据，在我们的例子中，这个清理由\texttt{std::unique\_ptr}对象的析构函数进行。我们还可以调用\texttt{State}对象来输出基准测试报告的结果。基准库总是报告运行循环的一次迭代所花费的平均时间，但有时用其他方式表示程序的速度会更方便。我们的字符串比较，一个选项是报告代码每秒处理的字符数。我们可以通过调用\texttt{state}来实现。\texttt{SetItemsProcessed()}包含整个运行期间处理的字符数，每次迭代\texttt{N}个字符(或者如果想要同时计算两个子字符串，则为\texttt{2*N};项目可以计算已定义为处理单元的任何内容)。
 
-Nothing is going to happen just because we defined a benchmark fixture, we need to register it with the library. This is done using the BENCHMARK macro; the argument of the macro is the name of the function. By the way, there is nothing special about that name, it can be any valid C++ identifier; that ours begins with BM\_ is merely a naming convention we follow in this book. The BENCHMARK macro is also where you will specify any arguments you want to pass to the benchmark fixture. The arguments and other options affecting the benchmark are passed using the overloaded arrow operator, for example:
+不会因为定义了一个基准固件而发生任何事情，我们需要将它注册到库中。这里使用\texttt{BENCHMARK}宏完成，宏的参数是函数名。顺便说一下，这个名字没有什么特别，它可以是任何C++标识符；我们的以\texttt{BM\_}开头，只是遵循本书的命名惯例。\texttt{BENCHMARK}宏也是指定要传递给基准测试固件参数的地方，参数和其他基准的选项使用重载的箭头操作符传递:
 
 \begin{lstlisting}[style=styleCXX]
 BENCHMARK(BM_loop_int)->Arg(1<<20);
 \end{lstlisting}
 
-This line registers the benchmark fixture BM\_loop\_int with one argument, 1<<20, that can be retrieved inside the fixture by calling state.range(0). We will see more examples of different arguments throughout this book, and even more can be found in the library documentation.
+这行代码用参数\texttt{1<<20}注册基准就固件\texttt{BM\_loop\_int}，这个参数可以通过调用\texttt{state.range(0)}在固件中检索。本书中，我们将看到更多不同参数的例子，可以在库文档中找到更多这样的例子。
 
-You will also notice that there is no main() in the preceding code listing; instead, there is another macro, BENCHMARK\_MAIN(). The main() is not written by us but provided by the Google Benchmark library, and it does all the necessary work of setting up the benchmarking environment, registering the benchmarks, and executing them.
+还会注意到，前面的代码清单中没有\texttt{main()}。不过，有另一个宏\texttt{BENCHMARK\_MAIN()}，这里\texttt{main()}不由我们来写，而是由谷歌基准库提供，它负责设置基准测试环境、注册基准并执行基准。
 
-Let us return for a moment to the code we want to measure and examine it more closely:
+回到我们的测量，并更仔细地观察代码:
 
 \begin{lstlisting}[style=styleCXX]
 for (auto _ : state) {
@@ -253,9 +255,9 @@ for (auto _ : state) {
 }
 \end{lstlisting}
 
-The benchmark::DoNotOptimize(…) wrapper function plays a role similar to the volatile sink we have used before: it ensures that the compiler does not optimize away the entire call to compare\_int(). Note that it does not actually turn off any optimizations; in particular, the code inside the parentheses is optimized as usual, which is what we want. All it does is tells the compiler that the result of the expression, in our case, the return value of the comparison function, should be considered "used" as if it was printed out and cannot be simply discarded.
+\texttt{benchmark::DoNotOptimize(…)}包装器的作用类似于我们之前使用的\texttt{volatile}型sink：可以确保编译器不会优化掉对\texttt{compare\_int()}的调用。注意，它实际上并没有关闭任何优化，括号内的代码会进行优化，这是我们想要的。它确实是告诉编译器表达式的结果，在我们的例子中，比较函数的返回值应该认为是“使用”，不能简单地丢弃。
 
-We are now ready to compile and run our first micro-benchmark:
+现在，我们已经准备好编译，并运行第一个微基准测试了:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
@@ -263,9 +265,9 @@ We are now ready to compile and run our first micro-benchmark:
 图 2.27
 \end{center}
 
-The compile line now has to list the path to the Google Benchmark include files and the library; several additional libraries are needed by the Google Benchmark library libbenchmark.a. Once invoked, the benchmark program prints some information about the system we are running on, then it executes every fixture that was registered, with all their arguments. We get one line of output for every benchmark fixture and a set of arguments; the report includes the average real time and the average CPU time of a single execution of the body of the benchmark loop, how many times the loop was executed, and any other statistics we have attached to the report (in our case, the number of characters per second processed by the comparison, over 2G characters per second). How much do these numbers vary from run to run? The benchmark library can calculate that for us if we enable the statistics collection with the right command-line arguments.
+编译时必须列出到谷歌基准的头文件和库路径，而谷歌基准库libbenchmark.a还依赖其他几个库。调用时，基准测试程序就会打印一些关于正在运行的系统的信息，然后执行每个已注册的固件及其参数。每个基准固件会有一行输出和一组参数，报告包括基准循环体的一次执行的平均实时时间和平均CPU时间、执行循环的次数，以及其他添加到报告中的统计信息(在我们的例子中，是通过比较每秒处理的字符数，超过2G字符/秒)。每次运行这些数据会有变化吗？如果使用正确的命令行参数启用统计信息收集，那么基准库可以为我们计算出这些数据，然后就可以进行比较了。
 
-For example, to repeat the benchmark ten times and report the results, we would run the benchmark like so:
+要重复基准测试10次并报告结果，可以这样:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
@@ -273,21 +275,21 @@ For example, to repeat the benchmark ten times and report the results, we would 
 图 2.28
 \end{center}
 
-It looks like the measurements are pretty accurate; the standard deviation is quite small. Now we can benchmark the different variants of the substring comparison function against each other and figure out which one is the fastest. But before we do that, I have to let you in on a big secret.
+看来测量结果相当准确，标准差很小。我们可以相互比较子字符串比较函数的不同实现，并找出哪个是最快的。在这之前，我得告诉你一个大秘密。
 
-\subsubsubsection{2.5.4\hspace{0.2cm}Micro-benchmarks are lies}
+\subsubsubsection{2.5.4\hspace{0.2cm}微型基准测试不说实话}
 
-You will discover it soon enough as you start running more and more micro-benchmarks. At first, the results make sense, you're making good optimizations, and everything looks great. Then you make some small change and get a very different result. You go back to investigate, and now the same tests you already ran give very different numbers. Eventually, you come up with two almost identical tests that show completely opposite results, and you realize that you just can't trust micro-benchmarks. It will destroy your faith in micro-benchmarks, and the only thing I can do about it is to destroy it now, in a controlled manner, while we can still salvage something from the wreckage.
+当运行越来越多的微基准测试后，会很快会发现原因。首先，结果是有意义的，做了很好的优化，一切看起来都很好。然后做一些小的改变，就会得到非常不同的结果。回去再进行检查，现在测试给出了非常不同的数字。最后，会得到两个几乎相同的测试，但结果完全相反，这是会意识到不能再信任微基准测试了。这会摧毁对微观基准的信任，而我唯一能做的就是摧毁它，以一种可控的方式，这样我们还能从废墟中抢捞出一些有用的东西。
 
-The fundamental problem with micro-benchmarks and any other detailed performance measurements is that they strongly depend on the context. As you read through the rest of the book, you will understand more and more that the performance behavior of modern computers is very complex. The results do not just depend on what the code is doing, but also on what the rest of the system is doing at the same time, on what it was doing earlier, and on the path the execution took through the code before it got to the point of interest. None of these things are replicated in a micro-benchmark.
+微基准测试和其他性能指标的基本问题是，它们很大程度上依赖于上下文。随着阅读本书的其余部分，将越来越了解现代计算机的性能行为是复杂的。结果不仅取决于代码正在做什么，还取决于系统其余部分同时在做什么，取决于它之前在做什么，以及在代码到达感兴趣的点之前执行的路径。这些东西在微观基准测试中，都不会进行复制。
 
-Instead, the benchmark has its own context. The authors of the benchmarking libraries are not ignorant of this problem, and they try to counter it the best they can. For example, unseen to you, the Google Benchmark library does a burn-in on every test: the first few iterations may have very different performance characteristics from the rest of the run, so the library ignores the initial measurements until the results "settle." But this also defines a particular context, probably different from the real program where every call to the function is repeated only once (on the other hand, sometimes we do end up calling the same function with the same arguments many times throughout the run of the program, so that could be a different context).
+相反，基准有自己的上下文。基准测试库的作者并不是没有意识到这个问题，他们尽可能地去解决这个问题。谷歌基准库在每个测试上都进行了长期测试：最初的几个迭代可能具有与运行的其余部分非常不同的性能特征，因此库会忽略最初的测量值，直到结果“稳定下来”。但这也定义了一个特定的上下文，可能与实际的程序不同。在实际的程序中，对函数的每次调用只重复一次(另一方面，有时我们会在整个程序运行过程中多次使用相同的参数调用同一个函数，所以这可能是一个不同的上下文)。
 
-There is nothing you can do to faithfully reproduce the real environment of a large program in every detail before running the benchmark. But some details are more important than others. In particular, the greatest source of contextual differences, by far, is the compiler, or, more specifically, the optimizations it does on a real program versus the micro-benchmark. We have already seen how the compiler stubbornly tries to figure out that the entire micro-benchmark is basically a very slow way of doing nothing useful (or at least nothing observable), and replace it with a much faster way of doing the same. The DoNotOptimize wrapper we used earlier gets us around some of the problems caused by the compiler optimizations.
+运行基准测试之前，无法在每个细节上忠实地再现大型程序的真实环境，但是有些细节很重要。目前为止，上下文差异的最大来源是编译器，或是编译器对实际程序和微基准的优化。我们已经了解了编译器试图指出，微基准测试上是一个非常慢的方法，没有做任何有用的(或至少没有可观察的)，然后用更快的方法来替换它。之前使用的\textit{DoNotOptimize}包装器解决了一些由编译器优化引起的问题。
 
-However, there is still the possibility that the compiler may, for example, figure out that every call to the function returns the same result. Also, because the function definition is in the same file as the call site, the compiler can inline the entire function and use any information it can gather about the arguments to optimize the function code. Such optimizations would not be available in the general case when the function is called from another compilation unit. 
+例如，编译器仍然有可能发现对函数的每次调用都返回相同的结果。此外，由于函数定义与调用点在同一个文件中，编译器可以内联整个函数，并使用可以收集到的信息来优化函数。通常情况下，当从另一个编译单元调用函数时，这种优化不可用。
 
-To represent the real situation more accurately in our micro-benchmark, we can move the comparison function into its own file and compile it separately. Now we have one file (compilation unit) with just the benchmark fixtures:
+为了在我们的微基准测试中更准确地还原真实情况，我们可以将比较函数移动到它自己的文件中，并编译它。我们有一个文件(编译单元)，只有基准测试固件:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -320,7 +322,7 @@ BENCHMARK(BM_loop_uint)->Arg(1<<20);
 BENCHMARK(BM_loop_uint_l)->Arg(1<<20);
 \end{lstlisting}
 
-We can compile the files separately and link them together (any full-program optimizations must be turned off). Now we have a reasonable expectation that the compiler is not generating some special reduced version of the substring comparison because of what it figured out about the arguments we use in our benchmark. With this simple precaution alone, the results are much more consistent with what we observed when we profiled the entire program:
+可以单独编译文件，并将它们链接在一起(必须关闭所有的程序优化)。现在，我们有了一个合理的预期，即编译器不会生成子字符串比较的某个特殊简化版本，因为它计算出了基准测试中使用的参数。通过这个简单的预防措施，结果就与我们在分析整个项目时所观察到的更加一致:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
@@ -328,19 +330,19 @@ We can compile the files separately and link them together (any full-program opt
 图 2.29
 \end{center}
 
-The initial version of the code used the unsigned int index and a boundary condition in the loop (the last line); simply dropping that boundary condition check as entirely unnecessary results in a surprising performance degradation (the middle line); finally, changing the index to a signed int recovers the lost performance and even improves it (the first line).
+代码的初始版本使用了\texttt{unsigned int}索引作为循环中的边界条件(最后一行)，只要边界条件检查有完全不必要的检查就会导致惊人的性能下降(中间一行)。最后，将索引更改为\texttt{signed int}就可以恢复丢失的性能，甚至可以提高性能(第一行)。
 
-Compiling the code fragments separately is usually enough to avoid any unwanted optimizations. Less commonly, you may find that the compiler does different optimizations to a particular chunk of code depending on what else is in the same file. This could be simply a bug in the compiler, but it can also be a result of some heuristic that is, in the experience of the compiler writers, more often right than not. If you observe that the results depend on some code that is not executed at all, only compiled, this may be the reason. One solution is to use the compilation unit from the real program and just call the function that you want to benchmark. Of course, you will have to satisfy compilation and link dependencies, so here is yet another reason to write modular code and minimize dependencies.
+单独编译代码片段通常足以避免不必要的优化。通常，会发现编译器会根据同一文件中的其他内容对特定的代码块进行不同的优化。这可能只是编译器中的bug，但它也可能是一些启发式的结果，根据编译器编写者的经验，这通常是正确的。你观察到结果取决于一些根本没有执行的代码，只是编译，这可能是原因。解决方案是使用实际程序中的编译单元，调用要基准测试的函数就可以了。当然，必须满足编译和链接依赖项，因此这里还需要编写模块化代码，并最小化依赖项.
 
-The other source of the context is the state of the computer itself. Obviously, if the entire program ran out of memory and is cycling pages in and out of swap, your small memory benchmark will not be representative of the real problem; on the other hand, the problem now is not in the "slow" code, the problem is that too much memory is consumed elsewhere. However, more subtle versions of this context dependency exist and may affect the benchmarks. A tell-tale sign of this situation is usually this: the results depend on the order in which the tests are executed (in the micro-benchmark, it is the order of the BENCHMARK macros). If reordering the tests or running just a subset of tests gives different results, there is some sort of dependency between them. It could be a code dependency, often as straightforward as data accumulation in some global data structure. Or it could be a subtle dependency on the hardware state. Those are much harder to figure out, but you will learn about some situations that lead to such dependencies later in this book.
+其他上下文来源是计算机本身的状态。如果整个程序耗尽了内存，并在交换中循环，那么小内存的基准测试将不能代表真正的问题;另一方面，现在的问题不在“慢”代码中，问题是在其他地方消耗了太多的内存。这种上下文依赖还有更微妙的版本，并且可能会影响基准测试。这种情况的一个迹象是:结果取决于执行测试的顺序(微基准测试中，则为\texttt{BENCHMARK}宏的顺序)。重新排序测试或只运行测试的子集会得到不同的结果，它们之间存在某种依赖关系。可以是代码依赖项，通常与某些全局数据结构中的数据积累一样简单，这可能是对硬件状态的依赖。这些情况很难理解，在本书的后面，将了解一些导致这种依赖的情况。
 
-Finally, there is a major source of context dependency that is entirely in your hands (which does not necessarily make it easy to avoid, but at least possible). It is the dependency on the state of your program. We already had to deal with the most obvious aspect of such dependency: the inputs to the code we want to benchmark. Sometimes, the inputs are known or can be reconstructed. Often, the performance problem happens only for certain kinds of inputs, and we don't know what is so special about them until we analyze the performance of the code with these specific inputs, which is exactly what we were trying to do with the micro-benchmark in the first place. In such cases, it is often the easiest to capture the inputs from the real run of the real program, store them in a file, and use them to recreate the state of the code we're measuring. This input could be as simple as a collection of data or as complex as a sequence of events that need to be recorded and "played back" to an event handler to reproduce the desired behavior.
+最后，有一个上下文依赖的主要来源完全掌握在测试者手中(这未必容易避免，但至少是可以避免的)，它依赖于程序的状态。我们需要处理这种依赖:要对输入进行基准测试。有时，输入是已知的或可以重构的。通常，性能问题只会发生在特定类型的输入上，我们不知道它们有什么特别之处，直到分析了这些特定输入的代码性能(这正是我们试图用微基准测试所要做的事情)。这种情况下，通常最容易从实际程序的实际运行中获取输入，并将它们存储在文件中，使用它们重新创建我们正在测试代码的状态。这个输入可以是简单的数据集合，也可以是复杂的事件序列，这些事件序列需要记录并“回放”到事件处理程序中，以重现相应的行为。
 
-The more complex the state we need to reconstruct is, the harder it is to reproduce the performance behavior of the real program in a partial benchmark. Note that this problem somewhat resembles the problem of writing unit tests: they, too, are much harder to write if the program cannot be broken up into smaller units with a simpler state. Once again, we see the advantages of a well-designed software system: a codebase with good unit test coverage is usually much easier to micro-benchmark, piece by piece.
+我们需要重构的状态越复杂，在部分基准测试中再现真实程序的性能行为就越困难。这个问题有点类似于编写单元测试:如果程序不能以更简单的状态分解成更小的单元，那么编写单元测试也要困难得多。这里，我们看到了设计良好的软件系统的优点:具有良好单元测试覆盖率的代码库通常更容易进行微基准测试。
 
-As you were warned when we started this section, it is meant to partially restore your faith in micro-benchmarks. They can be a useful tool, as we will see many times in this book. They can also lead you astray, sometimes very far. You now understand some of the reasons why and are better prepared to try to recover the useful bits of information from the results, rather than giving up on small-scale benchmarking altogether.
+正如在开始本节时所警告的那样，它的目的是在一定程度上恢复对微基准测试的信心。它们可以是一个有用的工具，正如我们将在本书中多次看到的那样，但它们也会把你引入歧途，有时甚至会走得很远。现在，请理解其中的一些原因，并更好地准备从结果中获取有用的信息，而不是完全放弃微基准测试。
 
-None of the tools we have presented in this chapter is a solution to every problem; they are not meant to be. You can achieve the best results by using these tools to collect information in various ways, so they complement each other.
+我们在本章中介绍的工具没有一个能解决所有问题，它们不是万金油。而我们可以通过使用这些工具，以各种方式收集信息来达到最佳的效果，因此它们之间是相辅相成的。
 
 
 
