@@ -1,5 +1,5 @@
 
-By the end of the previous section, we figured out where our program spends most of its execution time. We were also surprised when our "obvious" and "foolproof " optimization backfired and made the program run slower, not faster. It is clear now that we have to investigate the performance-critical function in more detail.
+上一节的末尾，我们找出了程序在什么地方花费了大部分的执行时间。在使用“明显的”和“简单的”优化后，出现了事与愿违的情况，使程序运行速度变慢，我们也感到惊讶。现在很清楚，我们必须更详细地研究性能关键函数。
 
 We already have the tools for that: the overall program is exercising this code, and we have ways to measure its performance. But we're not really interested in the rest of the program anymore, at least not until we solve the performance issues we already identified. 
 
@@ -54,10 +54,10 @@ In this program, we test only two of the comparison functions, both without the 
 
 The program looks like it will do exactly what we need… at least until we run it:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/22.jpg}\\
-Figure 2.22
+图 2.22
 \end{center}
 
 Zero time, either way. What went wrong? Perhaps, the execution time for a single function call is simply too fast to be measured? This is not a bad guess, and we can address this problem easily: if one call is too short, we just need to make more calls:
@@ -86,18 +86,18 @@ int main() {
 
 We can increase the number of iterations NI until we get some results, right? Not so fast:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/23.jpg}\\
-Figure 2.23
+图 2.23
 \end{center}
 
 Too fast, actually, but why? Let us step through the program in the debugger and see what it actually did:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/24.jpg}\\
-Figure 2.24
+图 2.24
 \end{center}
 
 We set the breakpoint in main, so the program is paused as soon as it launches, then we execute the program line by line… except, that's not all the lines we have written! Where is the rest of the code? We can guess that the compiler is to blame, but why? We need to learn more about compiler optimizations.
@@ -146,10 +146,10 @@ int main() {
 
 Now the result of every call to the comparison functions is written into a volatile variable, and, according to the standard, these values must be correct and written in the right order. The compiler now has no choice but to call our comparison functions and get the results. The way these results are computed can still be optimized as long as the result itself does not change. This is exactly what we want: we want the compiler to generate the best code for the comparison functions, hopefully, the same code it generates in the real program. We just don't want it to drop these functions altogether. Running this benchmark shows that we have finally achieved our goal, the code is definitely running:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/25.jpg}\\
-Figure 2.25
+图 2.25
 \end{center}
 
 The first value is the runtime of the compare1() function, which uses int indices, and it is indeed slightly faster than the unsigned int version (but don't put too much faith into these results just yet).
@@ -181,10 +181,10 @@ int main() {
 
 Note that the variable sink is no longer volatile, but instead, we write out its final value. This does not work as well as you might expect:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/26.jpg}\\
-Figure 2.26
+图 2.26
 \end{center}
 
 The execution time of the function compare2() is in the same ballpark as before, but compare1() appears to be much faster now. Of course, by now, we know enough to understand that this "improvement" is illusory: the compiler simply figured out that the result of the first call is overwritten by the second call and, therefore, does not affect the observable behavior.
@@ -257,20 +257,20 @@ The benchmark::DoNotOptimize(…) wrapper function plays a role similar to the v
 
 We are now ready to compile and run our first micro-benchmark:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/27.jpg}\\
-Figure 2.27
+图 2.27
 \end{center}
 
 The compile line now has to list the path to the Google Benchmark include files and the library; several additional libraries are needed by the Google Benchmark library libbenchmark.a. Once invoked, the benchmark program prints some information about the system we are running on, then it executes every fixture that was registered, with all their arguments. We get one line of output for every benchmark fixture and a set of arguments; the report includes the average real time and the average CPU time of a single execution of the body of the benchmark loop, how many times the loop was executed, and any other statistics we have attached to the report (in our case, the number of characters per second processed by the comparison, over 2G characters per second). How much do these numbers vary from run to run? The benchmark library can calculate that for us if we enable the statistics collection with the right command-line arguments.
 
 For example, to repeat the benchmark ten times and report the results, we would run the benchmark like so:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/28.jpg}\\
-Figure 2.28
+图 2.28
 \end{center}
 
 It looks like the measurements are pretty accurate; the standard deviation is quite small. Now we can benchmark the different variants of the substring comparison function against each other and figure out which one is the fastest. But before we do that, I have to let you in on a big secret.
@@ -322,10 +322,10 @@ BENCHMARK(BM_loop_uint_l)->Arg(1<<20);
 
 We can compile the files separately and link them together (any full-program optimizations must be turned off). Now we have a reasonable expectation that the compiler is not generating some special reduced version of the substring comparison because of what it figured out about the arguments we use in our benchmark. With this simple precaution alone, the results are much more consistent with what we observed when we profiled the entire program:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter2/images/29.jpg}\\
-Figure 2.29
+图 2.29
 \end{center}
 
 The initial version of the code used the unsigned int index and a boundary condition in the loop (the last line); simply dropping that boundary condition check as entirely unnecessary results in a surprising performance degradation (the middle line); finally, changing the index to a signed int recovers the lost performance and even improves it (the first line).
