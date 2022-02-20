@@ -1,5 +1,5 @@
 
-The outcome of the previous section may leave you somewhat daunted: the processor is very complex and, apparently, needs a lot of hand-holding on the part of the programmer to operate at peak efficiency. Let us start small and see how fast a processor can do some basic operations. To that end, we will use the same Google Benchmark tool we have used in the last chapter. Here is a benchmark for the simple addition of two arrays:
+上一节的结果可能会让您感到有些沮丧:处理器非常复杂，显然需要大量的人手才能以最高效率运行。这里，让我们从简单的事情开始，看看处理器做一些基本操作的速度有多快。为此，我们将使用在上一章中使用过的谷歌基准测试工具。下面是两个数组简单相加的基准测试:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -30,61 +30,61 @@ BENCHMARK(BM_add)->Arg(1<<22);
 BENCHMARK_MAIN();
 \end{lstlisting}
 
-In this first example, we show the benchmark in all details, including input generation. While the speed of most operations does not depend on the values of the operands, we are going to use random input values, just so we don't have to worry about it when we do get to the operations that are sensitive to the input values. Also note that, while we store the values in vectors, we don't want to benchmark the speed of the vector indexing: the compiler will almost certainly optimize the expression v1[i] to produce the exact same code as p1[i], but why take chances? We are excluding as many non-essential details as possible until we are left with the most basic problem: we have two arrays of values in memory, and we want to do some computations on each element of these arrays.
+第一个例子，展示了基准的所有细节，包括输入的生成。大多数操作的速度并不依赖于操作数的值，这里使用随机的输入值，这样在处理对输入值敏感的操作时就不用担心了。虽然将值存储在向量中，但我们不想测试向量索引的速度:编译器肯定会优化表达式\texttt{v1[i]}，以生成与\texttt{p1[i]}完全相同的代码，但这里为什么要冒险呢？将尽可能多的不重要的细节排除在外，直到剩下最基本的问题:内存中有两个值数组，我们想对这些数组的每个元素进行一些计算。
 
-On the other hand, we have to be concerned with the possibility of undesired compiler optimizations: the compiler may figure out that the entire program is just a very long way of doing nothing at all (at least as far as the C++ standard is concerned), and come up with a much faster way to do the same by optimizing away big chunks of the code. The compiler directions to not optimize away the result of the computation and to assume that the state of the memory can change between benchmark iterations should prevent such optimizations. It is equally important not to get carried away in the other direction: for example, declaring the variable a1 as volatile will certainly prevent most undesired optimizations. Unfortunately, it will also prevent the compiler from optimizing the loop itself, and this is not what we want: we want to see how efficiently the CPU can do the addition of the two arrays, which implies generating the most efficient code as well. We just don't want the compiler to figure out that the first iteration of the benchmark loop is exactly the same as the second one.
+另一方面，我们必须考虑不需要的编译器优化的可能:编译器可能会发现整个程序只是一个非常长的什么都不做的过程(至少就C++标准而言是这样的)，并通过优化掉大块的代码，给出一个更快的方法来做同样的事情。编译器的方向是不要优化掉计算的结果，并假定内存的状态可以在基准迭代之间更改，这会阻止此类优化。同样，不要在另一个方向上忘乎所以，例如：将变量\texttt{a1}声明为\texttt{volatile}肯定会阻止大多数不应该的优化。反过来，它也会阻止编译器优化循环本身，这不是我们想要的。我们想看到CPU如何高效地处理两个数组，也就是如何生成最高效的代码。我们只是不想让编译器发现基准循环的第一次迭代与第二次迭代完全相同。
 
-Note that this is a somewhat unusual application of the micro-benchmark: usually, we have a fragment of code, and we want to find out how fast it is and how we can make it faster. Here, we are using the micro-benchmark to learn about the performance of the processor by tailoring the code in a way that will give us some insights.
+微基准测试的一个不寻常的应用:有一小段代码，我们想知道它有多快，以及如何使它更快。我们使用微基准来了解处理器的性能，通过对代码进行裁剪，可以带给我们一些启发。
 
-The benchmark should be compiled with optimization turned on. Running this benchmark will produce the result that looks something like this (the exact numbers will depend on your CPU, of course):
+在编译基准测试时，应该打开优化。运行这个基准测试将产生如下的结果(当然确切的数字取决于实际CPU):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/2.jpg}\\
-Figure 3.2
+图 3.2
 \end{center}
 
-So far, we cannot conclude much from this experiment, other than the modern CPUs are fast: they can add two numbers in less than a nanosecond. If you're curious, you can explore other operations at this point: subtraction and multiplication take exactly as much time as addition, while integer division is rather expensive (three to four times slower).
+到目前为止，我们还不能从这个实验中得出什么结论，除了现代CPY速度的确快：它们可以在不到1纳秒的时间内将两个数字相加。如果对此感到好奇，可以探索一下其他运算:减法和乘法所花费的时间与加法相同，而整数除法则相当缓慢(比加法慢三到四倍)。
 
-In order to analyze the performance of our code, we have to look at it the way the processor sees it, and there is a lot more going on here than the simple addition. The two input arrays are stored in memory, but the addition or multiplication operations are executed between values stored in registers (or, possibly, between a register and a memory location, for some operations). This is how the processor sees one iteration of our loop, step by step. At the start of the iteration, the index variable i is in one of the CPU registers, and the two corresponding array elements, v1[i] and v2[i], are in memory:
+为了分析代码的性能，我们必须按照处理器的方式来进行。两个输入数组存储在内存中，但是加法或乘法操作是在存储在寄存器中的值之间执行的(对于某些操作，可能是在寄存器和内存位置之间)。这就是处理器如何一步步地对循环进行迭代。迭代开始时，索引变量\texttt{i}在一个CPU寄存器中，对应的两个数组元素\texttt{v1[i]}和\texttt{v2[i]}在内存中:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter3/images/3.jpg}\\
-Figure 3.3
+\includegraphics[width=0.6\textwidth]{content/1/chapter3/images/3.jpg}\\
+图 3.3
 \end{center}
 
-Before we can do anything, we have to move the input values into the registers. A register has to be allocated for each input, plus one register for the result. In a given loop iteration, the first instruction will load one of the inputs into the register:
+做任何事情之前，必须将输入的值移到寄存器中。必须为每个输入分配一个寄存器，并为结果分配一个寄存器。在给定的循环迭代中，第一个指令将把一个输入加载到寄存器中:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter3/images/4.jpg}\\
-Figure 3.4 – Processor state after the first instruction of the i-th iteration
+\includegraphics[width=0.7\textwidth]{content/1/chapter3/images/4.jpg}\\
+图3.4 - 第i次迭代：第一个指令后的处理器状态
 \end{center}
 
-The read (or load) instruction uses the register containing the index i and the location of the array v1 in memory to access the value v1[i] and copy it into the register. The next instruction similarly loads the second input:
+read(或load)指令使用内存中包含索引\texttt{i}和数组\texttt{v1}位置的寄存器来访问值\texttt{v1[i]}并将其复制到寄存器中。下一条指令类似地加载第二个输入:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter3/images/5.jpg}\\
-Figure 3.5 – Processor state after the second instruction of the i-th iteration
+\includegraphics[width=0.7\textwidth]{content/1/chapter3/images/5.jpg}\\
+图3.5 - 第i次迭代：第2条指令后的处理器状态
 \end{center}
 
-Now we are finally ready to do the operation such as addition or multiplication:
+现在我们终于可以进行加法或乘法等运算了:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter3/images/6.jpg}\\
-Figure 3.6 – Processor state at the end of the i-th loop iteration
+\includegraphics[width=0.7\textwidth]{content/1/chapter3/images/6.jpg}\\
+图3.6 -第i次循环迭代结束时的处理器状态
 \end{center}
 
-This simple line of code produces all these steps after it is converted into hardware instructions (plus the operations necessary to advance to the next iteration of the loop):
+这行简单的代码在转换成硬件指令后，产生了所有这些步骤(加上进入下一次循环迭代所需的操作):
 
 \begin{lstlisting}[style=styleCXX]
 a1 += p1[i] + p2[i];
 \end{lstlisting}
 
-From the efficiency point of view, we want to focus on that last step: our CPU can add or multiply two numbers in under a nanosecond, not bad, but can it do more? A lot of transistors are dedicated to processing and executing instructions, so they have to be good for something more. Let us try to do two operations on the same values instead of just one:
+从效率的角度来看，我们想集中在最后一步:CPU可以在一纳秒内把两个数字相加或相乘，这已经挺不错了，但还能做得更多吗？许多晶体管都致力于处理和执行指令，所以它们能处理更多的东西。让我们尝试对相同的值做两个操作，而不是一个:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -106,15 +106,15 @@ void BM_add_multiply(benchmark::State& state) {
 }
 \end{lstlisting}
 
-If an addition takes one nanosecond and a multiplication takes one nanosecond, how long would both take? The benchmark gives us the answer:
+如果加法和乘法都需要1纳秒，那么两者都需要多长时间？基准测试给了我们答案:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/7.jpg}\\
-Figure 3.7 – Benchmarks for a single instruction and two instructions
+图3.7 - 一条指令和两条指令的基准测试
 \end{center}
 
-Surprisingly, one plus one equals one here. We can add even more instructions to one iteration:
+令人惊讶的是，这里一加一，居然等于一。我们可以在一次迭代中添加更多的指令:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; i < N; ++i) {
@@ -125,23 +125,23 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-The time per iteration is still the same (slight differences are within the accuracy of the benchmark measurement):
+每次迭代的时间仍然相同(在基准测量的精度范围内略有差异):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/8.jpg}\\
-Figure 3.8 – Benchmarks for loops with up to four instructions per iteration
+图3.8 - 每次迭代最多有四条指令的循环的基准测试结果
 \end{center}
 
-It appears that our view of the processor as executing one instruction at a time needs to be revised:
+我们认为处理器每次只执行一条指令的观点需要修正了:
 
 \hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/9.jpg}\\
-Figure 3.9 – Processor executing multiple operations in a single step
+图3.9 - 处理器在一个步骤中执行多个操作
 \end{center}
 
-As long as the operands are already in the registers, the processor can execute several operations at once. This is known as Instruction-Level Parallelism (ILP). Of course, there is a limit to how many operations can be executed: the processor has only so many execution units capable of doing integer computations. Still, it is instructive to try to push the CPU to its limits by adding more and more instructions to one iteration:
+只要操作数已经在寄存器中，处理器就可以同时执行多个操作，这就是所谓的指令级并行(ILP)。当然，可以执行多少操作是有限制的:处理器只有这么多执行单元，能够执行整数计算。尽管如此，通过在一次迭代中添加越来越多的指令，尝试将CPU推向其极限是有指导意义的:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; i < N; ++i) {
@@ -154,21 +154,21 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-The exact number of instructions a processor can execute depends on the CPU and the instructions, of course, but the previous loop shows a noticeable slowdown compared to the single multiplication, at least on the machine I am using:
+当然，处理器可以执行的指令的确切数量取决于CPU和指令，但与单个乘法运算相比，前面的循环显示了明显的速度下降，至少在我使用的机器上是这样:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/10.jpg}\\
-Figure 3.10 – Benchmark of eight instructions per iteration
+图3.10 - 每迭代8条指令的基准测试结果
 \end{center}
 
-Now you can appreciate just how inefficient, in terms of the hardware utilization, our original code was: the CPU, apparently, can execute between five and seven different operations per iteration, so our single multiplication wasn't taxing even a quarter of its capabilities. In truth, the modern processors are even more impressively capable: in addition to the integer computation units we have been experimenting with, they have separate floating-point hardware that can execute instructions on double or float values, and the vector processing units that execute MMX, SSE, AVX, and other specialized instructions, all at the same time!
+就硬件利用率而言，可以看到我们最初的代码是多么低效：CPU显然可以在每次迭代中执行5到7个不同的操作，因此单个乘法甚至不需要使用它能力的四分之一。事实上，现代处理器的能力更令人吃惊：除了我们一直在试验的整数计算单元外，还有单独的浮点硬件，可以在双精度或浮点值上执行指令，以及同时执行MMX、SSE、AVX和其他专门指令的向量处理单元!
 
-\subsubsubsection{3.3.1\hspace{0.2cm}Visualizing instruction-level parallelism}
+\subsubsubsection{3.3.1\hspace{0.2cm}可视化的指令级并行}
 
-So far, our conclusions about the CPU's ability to execute multiple instructions in parallel were based on strong but indirect evidence. It would be good to get a direct confirmation that this is indeed what's going on. We can get such confirmation from the Machine Code Analyzer (MCA), which is a part of the LLVM toolchain. The analyzer takes assembly code as the input and reports a lot of information on how the instructions are executed, what the delays and the bottlenecks are, and so on. We are not going to learn all the capabilities of this advanced tool here (refer to the project home page, \url{https://llvm.org/docs/CommandGuide/llvm-mca.html}, for details). However, we can use it now to see how the CPU executes our operations.
+目前为止，我们关于CPU并行执行多条指令能力的结论基于间接证据。如果能直接确认这就是事实，那就太好了。我们可以从\textbf{机器码分析器(MCA)}得到这样的确认，它是LLVM工具链的一部分。分析器将汇编代码作为输入，并获得关于指令如何执行、延迟和瓶颈是什么等信息。我们不打算在这里学习这个高级工具的所有功能(详细信息请参阅项目主页，\url{https://llvm.org/docs/CommandGuide/llvm-mca.html})。现在，可以使用它来查看CPU如何执行我们的操作。
 
-The first step is to annotate the code with the analyzer markup to select which part of the code to analyze:
+第一步是用分析器标记注释代码，选择要分析的代码段:
 
 \begin{lstlisting}[style=styleCXX]
 #define MCA_START __asm volatile("# LLVM-MCA-BEGIN");
@@ -181,27 +181,27 @@ MCA_END
 }
 \end{lstlisting}
 
-You don't have to use \#define for the analyzer markup, but I find it easier to remember these commands than the exact assembly syntax (you can save the \#define lines in a header file and include it as needed). Why did we mark for analysis just the body of the loop and not the whole loop? The analyzer actually assumes that the selected code fragment runs in a loop and repeats it for some number of iterations (ten by default). You can try to mark the entire loop for analysis, but, depending on the compiler optimizations, this may confuse the analyzer (it's a powerful tool, but not easy to use or, at the time of writing this, particularly robust).
+不必为分析器标记使用\texttt{\#define}，但记住这些命令比记住精确的汇编语法要容易(可以保存\texttt{\#define}在头文件中，并在需要时包含)。为什么我们只标记循环的主体，而不是整个循环呢？分析器实际上假设所选的代码片段在一个循环中运行，并将其重复若干次迭代(默认情况下为10次)。可以尝试为分析标记整个循环，但是，根据编译器的优化，这可能会使分析器感到困惑(这是一个强大的工具，但不容易使用)。
 
-We can run the analyzer now:
+现在运行分析器:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/11.jpg}\\
-Figure 3.11
+图 3.11
 \end{center}
 
-Note that we do not compile the code into an executable but rather generate assembly output (-S) in Intel syntax. The output is piped into the analyzer; of the many ways the analyzer can report the results, we selected the timeline output. The timeline view shows each instruction as it moves through the execution process. Let us analyze two code fragments, one with a single operation (addition or multiplication) and the other one with both operations. Here is the timeline for the iteration with just one multiplication (we have removed all the lines in the middle of the timeline):
+我们不是把代码编译成可执行文件，而是用Intel语法生成程序集输出(\texttt{-S})。输出输送到分析器，在分析器可以报告结果的许多方式中，我们选择了时间轴输出。时间轴视图显示每条指令在执行过程中的移动。我们分析两个代码片段，一个使用单个操作(加法或乘法)，另一个使用两个操作。以下是迭代的时间线，只有一次乘法(我们已经删除了时间线中间的所有行):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/12.jpg}\\
-Figure 3.12
+图 3.12
 \end{center}
 
-The horizontal axis is the time in cycles. The analyzer simulated running the selected code fragment for ten iterations; each instruction is identified by its sequential number in the code and the iteration index, so the first instruction of the first iteration has the index [0,0], and the last instruction has the index [9,2]. This last instruction is also the third instruction of the tenth iteration (there are only three instructions per iteration). The entire sequence took 55 cycles, according to the timeline.
+横轴是时的周期，该分析模拟运行选定的代码片段十次迭代，每条指令都由其在代码中的序号和迭代索引来标识，因此第一次迭代的第一条指令的索引为[0,0]，最后一条指令的索引为[9,2]。最后一条指令也是第十次迭代的第三条指令(每次迭代只有三条指令)。根据时间轴，整个过程需要55个周期。
 
-Now let us add another operation that uses the same values p1[i] and p2[i] that we already read from memory:
+从内存中读取\texttt{p1[i]}和\texttt{p2[i]}，对其进行另一种操作:
 
 \begin{lstlisting}[style=styleCXX]
 #define MCA_START __asm volatile("# LLVM-MCA-BEGIN");
@@ -215,17 +215,17 @@ MCA_END
 }
 \end{lstlisting}
 
-Let us look at the timeline for the code with two operations per iteration, one addition and one multiplication:
+让我们看看每个迭代有两个操作的代码的时间线，一个加法和一个乘法:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/13.jpg}\\
-Figure 3.13
+图 3.13
 \end{center}
 
-There are a lot more instructions executed now, six instructions per iteration (the last instruction has the index [9,5]). However, the duration of the timeline has increased by just one cycle: In Figure 3.12, the timeline ended on cycle 54, whereas in Figure 3.13, it ends on cycle 55. As we have suspected, the processor managed to execute twice as many instructions in the same length of time.
+现在执行的指令更多了，每次迭代有6条指令(最后一条指令有索引[9,5])。时间轴的持续时间只增加了一个周期:图3.12中，时间轴结束于第54周期，而在图3.13中，它结束于第55周期。正如我们所怀疑的那样，处理器在同样长的时间内执行了两倍的指令。
 
-You may have also noticed that for all our benchmarks so far, we have increased the number of operations done on the same input values (add them, subtract them, multiply them, and so on). We have concluded that these extra operations are free as far as the runtime is concerned (up to a point). This is an important general lesson to learn: once you have some values in registers, adding a computation on the same values probably won't cost you any performance unless your program was already extremely efficient and was stressing the hardware to the limit. Unfortunately, the experiment and the conclusions are of limited practical value. How often does it happen that all your computations are done just on a handful of inputs at a time, the next iteration uses its own inputs, and you can find some more useful computations you can do on the same inputs? Not quite never, but rarely. Any attempt to extend our simple demonstration of the CPU's computational power is going to run into one or more complications. The first one is the data dependency: the sequential iterations of the loop are usually not independent; instead, each iteration needs some data from the previous iterations. We will explore this situation in the next section.
+可能还注意到，对于目前为止的所有基准测试，我们都增加了对相同输入值执行的操作的数量(添加、减去、乘以等等)。我们已经得出结论，就运行时而言，这些额外的操作是免费的(在一定程度上)。这是需要理解的重要的经验：当在寄存器中有了一些值，在相同的值上加法计算可能不会降低任何性能，除非程序已经非常高效，并且将硬件的压力压到了极限。遗憾的是，实验和结论的实用价值有限。所有计算在同一时间只执行少量输入，下一次迭代使用自己的输入，并且可以在相同的输入上找到一些更有用的计算，这种情况发生的频率有多高呢？也不是没有，但很少。扩展我们对CPU计算能力的简单演示将会遇到一个或多个难题，首先就是数据依赖:循环的顺序迭代通常不独立，可能每个迭代都需要一些来自前面迭代的数据。下一节将探讨这种情况。
 
 
 
