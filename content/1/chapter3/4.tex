@@ -1,4 +1,4 @@
-Our analysis of the CPU capabilities so far has shown that the processor can execute multiple operations at once as long as the operands are already in the registers: we can evaluate a fairly complex expression that depends on just two values in exactly as much time as it takes to add these values. The depends on just two values qualifier is, unfortunately, a very serious restriction. We now consider a more realistic code example, and we don't have to make many changes to our code:
+我们对CPU能力的分析表明，只要操作数已经在寄存器中，处理器就可以同时执行多个操作。我们可以计算一个相当复杂的表达式，它只依赖于两个值，所需的时间与将这些值相加所需的时间一样多。不幸的是，依赖于两个值的限定是非常严重的限制。现在考虑一个更现实的代码示例:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; i < N; ++i) {
@@ -6,7 +6,7 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-Recall that the old code had the same loop with a simpler body: a1 += (p1[i] + p2[i]);. Also, p1[i] is just an alias for the vector element v1[i], same for p2 and v2. Why is this code more complex? We have already seen that the processor can do addition, subtraction, and multiplication in a single cycle, and the expression still depends on just two values, v1[i] and v2[i]. However, this expression cannot be evaluated in one cycle. To clarify this, we introduce two temporary variables that are really just names for the intermediate results during expression evaluation:
+所有代码都有相同的循环，只是主体更简单:\texttt{a1 += (p1[i] + p2[i]);}。同样，\texttt{p1[i]}只是向量元素\texttt{v1[i]}的别名，\texttt{p2}和\texttt{v2}也是如此。这个代码更复杂吗？处理器可以在一个周期内完成加法、减法和乘法运算，而表达式只依赖于两个值:\texttt{v1[i]}和\texttt{v2[i]}。但是，这个表达式不能在一个循环中求值。为了明确这一点，我们引入了两个临时变量，只是表达式求值过程中的中间结果:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; i < N; ++i) {
@@ -16,53 +16,53 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-The results of the addition and the subtraction, s[i] and d[i], can be evaluated at the same time, as we saw earlier. However, the last line cannot be executed until we have the values of s[i] and d[i]. It doesn't matter how many additions and multiplications the CPU can do at once: you cannot compute the result of an operation whose inputs are unknown; therefore, the CPU has to wait for the inputs to the multiplication to become ready. The i-th iteration has to be executed in two steps: first, we have to add and subtract (we can do both at once), and second, we have to multiply the results. The iteration now takes two cycles instead of one because the second step of the computation depends on the data produced by the first step:
+如前所述，加减的结果\texttt{s[i]}和\texttt{d[i]}可以同时计算。最后一行不能执行，除非已知\texttt{s[i]}和\texttt{d[i]}的值。无论CPU一次可以做多少加法和乘法，但无法计算输入未知的操作的结果。而这里，CPU必须等待乘法的输入准备就绪。第i次迭代需要分两步执行:首先，必须加减(我们可以同时进行)；其次，必须将结果相乘。迭代现在需要两个周期而不是一个周期，因为计算的第二步依赖于第一步产生的\textbf{数据}:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter3/images/14.jpg}\\
-Figure 3.14 – Data dependency in loop evaluation
+\includegraphics[width=0.8\textwidth]{content/1/chapter3/images/14.jpg}\\
+图3.14 - 循环计算中的数据依赖
 \end{center}
 
-Even though the CPU has the resources to do all three operations at once, we cannot take advantage of this capability because of the data dependency inherent in our computations. This, of course, severely limits how efficiently we can use our processor. Data dependencies are very common in programs, but fortunately, the hardware designers came up with an effective antidote. Consider Figure 3.14 carefully. We have the multiplication hardware unit standing by idly while we compute the values of s[i] and d[i]. We cannot start computing their product any earlier, but there is something else we can do: we can multiply the values s[i-1] and d[i-1] from the previous iteration at the same time. Now the two iterations of the loop are interleaved in time:
+尽管CPU有资源可以同时执行这三种操作，但由于计算中的数据依赖，无法利用这种能力。当然，这严重限制了我们使用处理器的效率。依赖关系在程序中很常见，幸运的是，硬件设计者想出了一个有效的解决方案。仔细地看图3.14，当计算\texttt{s[i]}和\texttt{d[i]}的值时，让乘法硬件单元闲置。不能在更早的时候开始计算乘积，但是可以同时将之前迭代的值\texttt{s[i-1]}和\texttt{d[i-1]}相乘。现在循环的两个迭代在时间上进行交错:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter3/images/15.jpg}\\
-Figure 3.15 – Pipelining: the rows correspond to the successive iterations; all operations in the same row are executed simultaneously
+\includegraphics[width=0.8\textwidth]{content/1/chapter3/images/15.jpg}\\
+图3.15 -流水线:行对应于连续的迭代，同一行中的所有操作将同时执行
 \end{center}
 
-This transformation of the code is known as pipelining: a complex expression is broken up into stages and executed in a pipeline where stage 2 of the previous expression runs at the same time as stage 1 of the next one (a more complex expression would have more stages and require a deeper pipeline). If we are correct in our expectations, the CPU will be able to compute our two-stage add-subtract-multiply expression just as fast as single multiplication as long as we have many iterations: the first iteration is going to take two cycles (add/subtract first, then multiply), there is no getting around that. Similarly, the last iteration will end with a single multiplication, and there is nothing else we can do at the same time. However, all the iterations in between will be executing three operations simultaneously. We already know that our CPU can add, subtract, and multiply at the same time. The fact that the multiplication belongs to a different iteration of the loop matters not at all.
+这种代码转换被称为\textbf{流水线}:一个复杂的表达式被分解成多个阶段，并在流水线中执行。流水线中，前一个表达式的第2阶段和下一个表达式的第1阶段同时运行(一个更复杂的表达式将有更多的阶段，需要更深层的流水线)。只要有多次迭代，CPU就能像单次乘法那样快速地计算两阶段加减乘除的表达式:第一次迭代需要两个周期(先加减，再加减)，这是无法避免的。类似地，最后一次迭代将以一次乘法结束，同时不能做其他事情，在此期间的所有迭代都将同时执行三个操作。我们已经知道CPU可以同时进行加、减、乘运算，乘法属于循环的不同迭代。
 
-We can confirm our expectations with a direct benchmark, where we compare the time it takes to do one multiplication per loop iteration with the time it takes to do our two-step iteration:
+可以用一个简单的基准测试来确认我们的期望。在这个测试中，我们将每次循环迭代做一次乘法所花费的时间，与我们的两步迭代所花费的时间进行比较:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/16.jpg}\\
-Figure 3.16
+图 3.16
 \end{center}
 
-As expected, both loops run at essentially the same speed. We can conclude that the pipelining has completely negated the performance penalty caused by the data dependency. Note that the pipelining does not eliminate the data dependency; each loop iteration still has to be executed in two stages, with the second stage depending on the results of the first one. However, by interleaving the computations from different stages, the pipelining does eliminate the inefficiency that would be otherwise caused by this dependency (at least in the ideal case, which is what we have so far). An even more direct confirmation can be seen in the results of the Machine Code Analyzer. Again, the timeline view is the most instructive:
+正如预期，两个循环在本质上以相同的速度运行。我们可以得出结论，流水线已经完全消除了由数据依赖引起的性能损失。注意，流水线并没有消除数据依赖，每个循环迭代仍然必须在两个阶段执行，第二阶段取决于第一个阶段的结果。通过将不同阶段的计算交叉起来，流水线确实消除了这种依赖所致的低效率(至少在理想情况下是这样的，这也是我们目前所拥有的)。更直接的确认方式，可以从机器码分析器的结果中看到。同样，时间轴视图是最直观的:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/17.jpg}\\
-Figure 3.17 – A timeline view of the pipelined add-subtract-multiply loop (top) vs. a loop with a single multiplication (bottom)
+图3.17 - 流水线的加减乘循环(上)和单乘法循环(下)的时间轴视图
 \end{center}
 
-As you can see, it takes 56 cycles to execute ten iterations of either loop. The key step in the timeline is when an instruction is executed: e marks the beginning of the execution, and E is when the execution ends. The effect of the pipelining is clearly visible in the timeline: the first iteration of the loop starts to execute on the second cycle with the instruction [0,0]; the last instruction of the first iteration is done executing on cycle 18 (the horizontal axis is the cycle number). The second iteration begins executing on cycle 4, that is, there is a significant overlap of the two iterations. This is the pipelining in action, and you can see how it improves the efficiency of our program: at almost every cycle, the CPU is executing instructions from multiple iterations using its many computation units. It takes just as many cycles to execute a simple loop as it does to execute the more complex one, so the extra machine operations take no additional time.
+如您所见，执行任一循环的10次迭代都需要56个周期。时间轴中的关键步骤是执行一条指令:\texttt{e}表示执行的开始，\texttt{E}表示执行的结束。流水线的效果在时间轴上清晰可见:循环的第一次迭代开始在第二个循环上执行，指令为[0,0]，第一次迭代的最后一条指令是在第18个周期上执行的(横轴是周期数)。第二次迭代开始在第4个周期执行，两个迭代之间有明显的重叠。这就是运行中的流水线，可以看到它是如何提高程序效率的:几乎每个周期，CPU都在使用它的计算单元执行来自多次迭代的指令。执行一个简单循环所需的周期与执行更复杂循环所需的周期相同，因此额外的机器操作不需要额外的时间。
 
-This chapter is not intended to be a manual for the Machine Code Analyzer: to understand better the timeline and other information it produces, you should study its documentation. There is, however, one issue that we must point out. Every iteration of our loop does not just have the same C++ code, it has exactly the same machine code as well. This makes sense: the pipelining is done by the hardware, not the compiler; the compiler simply generates the code for one iteration and the operations needed to advance to the next iteration (or exit the loop upon completion). The processor executes multiple instructions in parallel; we can see that in the timeline. But something does not make sense upon close examination: for example, consider the instruction [0,4] in Figure 3.17. It is executed during cycles 6 through 12, and it uses registers CPU rax and rsi. Now look at the instruction [1,2] that is executed during cycles 8 and 9: it also uses the same registers, it actually writes into the register rsi, which is still being used by other instructions at the same time. This cannot be: while the CPU can do multiple operations simultaneously using its many independent computing units, it cannot store two different values in the same register at the same time. This contradiction was actually present, although well-hidden, all the way back in Figure 3.15: assuming that the compiler generates only one copy of the code for all iterations, the register we are going to use to store the value of s[i] is exactly the same as the one we need to read the value of s[i-1], and both actions happen at the same time.
+本章不打算成为机器码分析器的手册，为了更好地理解时间轴和其他信息，读者们可以自己研究一下它的文档。然而，有一个问题我们必须指出，循环的每次迭代不仅执行相同的C++代码，也有完全相同的机器码。因为流水线由硬件完成，而不是编译器，编译器只为迭代生成代码，以及跳转到下一个迭代所需的操作(或完成后退出循环)。处理器并行执行多条指令，可以在时间轴上看到。经过仔细观察，有些东西是没有意义的，例如：图3.17中的指令[0,4]，它在第6和12个周期期间执行，使用CPU的\texttt{rax}和\texttt{rsi}寄存器。在循环第8和9个周期期间执行的指令[1,2]:也使用相同的寄存器，写进寄存器\texttt{rsi}，而寄存器\texttt{rsi}这时仍同时被其他指令使用。这是不可能出现的情况：虽然CPU可以使用多个独立的计算单元同时进行多个操作，但不能同时在同一个寄存器中存储两个不同的值。这个矛盾实际上是存在的，尽管隐藏得很好，在图3.15中:假设编译器在所有迭代中只生成一个代码副本，用来存储\texttt{s[i]}的寄存器与需要读取的\texttt{s[i-1]}使用相同寄存器，并且这两个操作是同时发生的。
 
-It is important to understand that we are not running out of registers: the CPU has many more registers than we have seen named so far. The problem is that the code for one iteration looks exactly like the code for the next iteration, including the register names, but at each iteration, different values must be stored in the registers. It seems like the pipelining we have assumed and observed should not, in fact, be possible: the next iteration must wait for the previous iteration to stop using the registers it needs. This is not what really happens, and the solution to this apparent contradiction is the hardware technique called register renaming. The register names you see in the program, such as rsi, are not the real register names, they are mapped by the CPU to the actual physical registers. The same name, rsi, can be mapped to different registers that all have the same size and functionality.
+要理解没有耗尽寄存器很重要：CPU的寄存器比目前看到的要多很多。问题是，每次迭代的代码完全相同，包括寄存器名称，但是在每次迭代时，必须在寄存器中存储不同的值。看起来我们的假设和流水线上的实际上情况应该不可能发生，例如：下一个迭代必须等待上一个迭代停止，使用它所需要的寄存器。但真实情况并非这样，解决这个矛盾的方法使用\textbf{寄存器重命名}的硬件技术。在程序中看到的寄存器名，例如\texttt{rsi}，其实不是真正的寄存器名。可以由CPU映射到实际物理寄存器上，所以同名\texttt{rsi}可以映射到具有相同大小和功能的不同寄存器上。
 
-When the processor executes the code in a pipeline, the instructions from the first iteration that refer to rsi will, in fact, use an internal register that we shall call rsi1 (this is not its real name, but the actual hardware names of registers are not something you would ever encounter unless you are designing a processor). The second iteration also has instructions that refer to rsi but needs to store a different value there, so the processor will use another register, rsi2. Unless the first iteration no longer needs the value stored in rsi, the third iteration will have to use yet another register, and so on. This register renaming is done by the hardware and is very different from the register assignment done by the compiler (in particular, it is entirely invisible to any tool that analyzes the object code, such as LLVM-MCA or a profiler). The end effect is that multiple iterations of the loop are now executed as a linear sequence of code as if s[i] and s[i+1] really did refer to different registers.
+当处理器在流水线中执行代码时，第一次迭代中指向\texttt{rsi}的指令实际上会使用一个内部寄存器，我们将其称为\texttt{rsi1}(这不是它的真实名称，但寄存器的实际硬件名称永远看不到，除非你是处理器设计师)。第二次迭代也有指向\texttt{rsi}的指令，但需要在那里存储一个不同的值，因此处理器将使用另一个寄存器\texttt{rsi2}。除非第一次迭代不再需要存储在\texttt{rsi}中的值，否则第三次迭代将不得不使用另一个寄存器，以此类推。注册重命名是由硬件完成的，与编译器完成的注册分配非常不同(特别是，对分析代码工具不可见，如：LLVM-MCA或分析器)。最后，循环的多次迭代就可以作为一个线性代码序列执行，就好像\texttt{s[i]}和\texttt{s[i+1]}使用了不同的寄存器一样。
 
-Converting a loop into linear code is known as loop unrolling; it is a popular compiler optimization technique, but this time, it is done in hardware and is essential to be able to deal with data dependencies efficiently. The compiler's point of view is closer to the way the source code is written: a single iteration, a group of machine instructions, executed over and over by jumping back to the beginning of the code fragment for the iteration. The processor's point of view is more like what you see in the timeline, a linear sequence of instructions where each iteration has its own copy of the code and can use different registers. 
+将循环转换成线性代码称为\textbf{循环展开}，这是一种流行的编译器优化技术。但这一次是在硬件中完成的，对于能够有效地处理数据依赖关系至关重要。编译器的角度更接近于源代码的编写方式:一次迭代，一组机器指令，通过跳转到迭代的代码片段的开头反复执行。处理器的角度更像是在时间轴上看到的，一个线性指令序列，每次迭代都有自己的代码副本，并且可以使用不同的寄存器。
 
-We can make another important observation: the order in which the CPU executes our code is actually not the same order in which the instructions are written. This is called out-of-order execution, and it has important consequences for multi-threaded programs.
+我们还可以观察到另一个重要的现象:CPU执行代码的顺序实际上与指令写入的顺序并不相同。这称为乱序执行，它对多线程程序的影响有重大。
 
-We have seen how the processor avoids the restrictions on the efficiency of execution that would be imposed by data dependencies: the antidote to the data dependency is the pipelining. However, the story does not end there, and the beautifully complex scheme we have devised so far to execute our very simple loop is missing something important: the loop must end at some point. In the next section, we will see how much that complicates things and what the solution is.
+我们已经了解了处理器如何避免数据依赖对执行效率的限制，其解决数据依赖的方法是流水线。然而，故事并没有在这里结束。目前为止，我们设计的用于执行简单循环的方案缺貌似少了一些重要的东西：循环必须在某个点结束。下一节，我们将看到事情会变得多么复杂，而解决方案又是什么。
 
 
 

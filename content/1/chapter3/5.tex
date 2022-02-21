@@ -1,40 +1,40 @@
-Here is our understanding of the efficient use of a processor so far: first, the CPU can do multiple operations at once, such as add and multiply at the same time. Not taking advantage of this capability is like leaving free computing power on the table. Second, the factor that limits our ability to maximize efficiency is how fast we can produce the data to feed into these operations. Specifically, we are constrained by the data dependencies: if one operation computed the value that the next operation uses as an input, the two operations must be executed sequentially. The workaround to this dependency is pipelining: when executing loops or long sequences of code, the processor will interleave separate computations such as loop iterations, as long as they have at least some operations that can be executed independently. 
+现在，我们对处理器高效使用的理解是:首先，CPU可以同时做多个操作，比如：同时做加法和乘法。不利用这种能力就是暴殄天物。此外，限制实现效率最大化能力的因素是，能够以多快的速度生成数据，以提供给这些操作。受到数据依赖关系的约束：如果一个操作计算了下一个操作用作输入的值，那么这两个操作必须顺序执行。处理这种依赖关系的方法是流水线操作:当执行循环或长的代码序列时，处理器将交叉计算，如循环迭代，只要它们有可以独立执行的操作。
 
-However, pipelining has an important precondition as well. Pipelining plans ahead: in order to interleave code from several loop iterations, we must know what code will be executed. Compare this with what we learned in the last section: in order to execute instructions in parallel, we must know in advance what the input values are. Now, in order to run the instructions through the pipeline, we must know what the instructions are. Why wouldn't we know? Because the code we run often depends on the data we have: every time we encounter the if(condition) statement, we will execute either the true branch or the false branch, but we won't know which until we evaluate the condition. Just like data dependency was the bane of instruction-level parallelism, the conditional execution, or branches, are the bane of pipelining.
+流水线也使用的前提条件。流水线的\textbf{提前计划}:为了从循环迭代中交叉执行代码，必须知道将执行什么代码。将这与上一节中了解到的进行比较:为了并行执行指令，必须预先知道输入值是什么。现在，为了在流水线中运行指令，必须知道指令是什么。我们知道吗？因为运行的代码通常依赖于数据，每次遇到\texttt{if(条件)}语句时，要么执行\texttt{true}分支，要么执行\texttt{false}分支，但是在确定\textit{条件}之前我们并不知道会执行到哪个分支。像数据依赖是指令级并行的障碍一样，条件执行或分支也是流水线的障碍。
 
-With pipelining disrupted, we can expect a significant reduction in the efficiency of our program. It should be very easy to modify our earlier benchmark to observe this deleterious effect of conditionals. For example, instead of writing:
+随着流水线的中断，我们可以预期程序的效率会显著降低。我们可以很容易地修改之前的基准测试来观察条件的这种有害影响，例如不要写这样的代码:
 
 \begin{lstlisting}[style=styleCXX]
 a1 += p1[i] + p2[i];
 \end{lstlisting}
 
-We could write:
+可以这样写:
 
 \begin{lstlisting}[style=styleCXX]
 a1 += (p1[i]>p2[i]) ? p1[i] : p2[i];
 \end{lstlisting}
 
-Now we have reintroduced the data dependency as a code dependency:
+现在我们将数据依赖重新引入到代码中了:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter3/images/18.jpg}\\
-Figure 3.18 – Effect of a branch instruction on the pipeline
+\includegraphics[width=0.6\textwidth]{content/1/chapter3/images/18.jpg}\\
+图3.18 - 转移指令对流水线的影响
 \end{center}
 
-There is no obvious way to convert this code into a linear stream of instructions to execute, and the conditional jump cannot be avoided.
+没有好方法将这段代码转换为要执行的线性指令流，并且需要处理不能避免条件跳转。
 
-The reality is somewhat more complex: a benchmark such as we have just suggested may or may not show significant degradation in performance. The reason is that many processors have some sort of conditional move or even conditional add instructions, and the compiler may decide to use them. If this happens, our code becomes entirely sequential with no jumps or branches and can be pipelined perfectly:
+实际情况要复杂一些:我们的基准测试可能会出现性能的显著下降，也可能不会。原因是许多处理器都有某种\textbf{条件移动}，甚至是\textbf{条件添加}指令，编译器可能决定使用它们。如果发生这种情况，我们的代码就会变得完全有序，没有跳转或分支，并且可以完美地流水线化:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/19.jpg}\\
-Figure 3.19 – Conditional code pipelined with cmove
+图3.19 - cmove将分支流水线化
 \end{center}
 
-The x86 CPUs have a conditional move instruction, cmove (although not all compilers will use it to implement the ?: operator in the previous figure). The processors with AVX or AVX2 instruction sets have a powerful set of masked addition and multiplication instructions that can be used to implement some conditional code as well. That is why, when benchmarking and optimizing the code with branches, it is very important to examine the generated object code and confirm that the code indeed contains branches and that they are indeed affecting the performance. There are also profiler tools that can be used for this purpose, and we will see one such tool in a moment.
+x86的CPU有一个条件移动指令\texttt{cmove}(虽然不是所有编译器都使用它来实现\texttt{?:}操作符)。具有AVX或AVX2指令集的处理器具有一组强大的掩码加法和乘法指令，这些指令也可以用于实现一些条件代码。这就是为什么在用分支对代码进行基准测试和优化时，检查生成的目标代码并确认代码中确实包含分支，以及确定它们是否影响了性能。还有一些分析器工具可以用于此目的，我们稍后介绍。
 
-While branches and conditionals happen everywhere in most real-life programs, they can disappear when the program is reduced to just a few lines for a benchmark. One reason is that that the compiler may decide to use one of the conditional instructions we have mentioned earlier. Another reason that is common in poorly constructed benchmarks is that the compiler may be able to figure out, at compile-time, what the condition evaluates to. For example, most compilers will completely optimize away any code like if (true) or if (false): there is no trace of this statement in the generated code, and any code that is never going to be executed is also eliminated. To observe the deleterious effect of the branches on the loop pipelining, we have to construct a test where the compiler cannot predict the outcome of the condition check. In your real-life benchmarks, you may have a data set extracted from your real program. For this next demonstration, we will use random values:
+虽然分支和条件在大多数现实程序中无处不在，但当程序减少到只有几行代码时，它们就会消失，原因是编译器可能使用前面提到的条件指令。构造糟糕的基准测试中的另一个原因是，编译器能够在编译时计算出条件的值，例如：大多数编译器将完全优化代码，比如：\texttt{if (true)}或\texttt{if (false)}生成的代码中就没有这个语句的痕迹，任何永远不会执行的代码也会消除。要了解分支对循环流水线的有害影响，我们必须构造一个编译器无法预测条件检查结果的测试，可以从实际使用的程序中提取了一个数据集。下一个演示，我们将使用随机值:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -67,16 +67,16 @@ for (auto _ : state) {
 
 Again, we have two input vectors v1 and v2, plus a control vector c1 that has random values of zero and one (avoid using vector<bool> here, it is not an array of bytes but a packed array of bits, so accessing it is considerably more expensive, and we are not interested in benchmarking bit manipulation instructions at this time). The compiler cannot predict whether the next random number is odd or even, thus, no optimizations are possible. Also, we have examined the generated machine code and confirmed that our compiler (Clang-11 on x86) implements this loop using a simple conditional jump. To have a baseline, we will compare the performance of this loop with one that does unconditional addition and multiplication on each iteration: a1 += p1[i]*p2[i]. This simpler loop does both an addition and a multiplication on each iteration; however, thanks to the pipelining, we get the addition free: it is executed simultaneously with the multiplication from the next iteration. The conditional branch, on the other hand, is anything but free:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/20.jpg}\\
-Figure 3.20
+图 3.20
 \end{center}
 
 As you can see, the conditional code is about five times slower than the sequential one. This confirms our prediction that when the next instruction depends on the result of the previous one, the code cannot be effectively pipelined.
 
 
-\subsubsubsection{3.5.1\hspace{0.2cm}Branch prediction}
+\subsubsubsection{3.5.1\hspace{0.2cm}分支预测}
 
 However, an astute reader may point out that the picture we have just described cannot possibly be complete, or even true: let us go back, for a moment, to the apparently linear code such as the loop we have used extensively in the last section:
 
