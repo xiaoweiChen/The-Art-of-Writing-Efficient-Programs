@@ -65,7 +65,7 @@ for (auto _ : state) {
 }
 \end{lstlisting}
 
-Again, we have two input vectors v1 and v2, plus a control vector c1 that has random values of zero and one (avoid using vector<bool> here, it is not an array of bytes but a packed array of bits, so accessing it is considerably more expensive, and we are not interested in benchmarking bit manipulation instructions at this time). The compiler cannot predict whether the next random number is odd or even, thus, no optimizations are possible. Also, we have examined the generated machine code and confirmed that our compiler (Clang-11 on x86) implements this loop using a simple conditional jump. To have a baseline, we will compare the performance of this loop with one that does unconditional addition and multiplication on each iteration: a1 += p1[i]*p2[i]. This simpler loop does both an addition and a multiplication on each iteration; however, thanks to the pipelining, we get the addition free: it is executed simultaneously with the multiplication from the next iteration. The conditional branch, on the other hand, is anything but free:
+同样，我们有两个输入向量\texttt{v1}和\texttt{v2}，以及一个随机值为0和1的控制向量\texttt{c1}(在这里请避免使用\texttt{vector<bool>}，它不是字节数组，而是一个打包的位数组，因此访问它的开销会很高，而且我们现在对位操作指令的基准测试不感兴趣)。编译器无法预测下一个随机数是奇数还是偶数，因此不可能进行优化。此外，我们检查了生成的机器码，并确认我们的编译器(x86上的Clang-11)使用一个简单的条件跳转实现了这个循环。为了有一个基线测试，我们将这个循环的性能与在每次迭代中进行无条件加法和乘法的循环进行比较:\texttt{a1 += p1[i]*p2[i]}。这个简单的循环在每次迭代中都做加法和乘法，由于流水线的存在，我们可以自由地进行加法运算:它与下一次迭代的乘法运算同时执行。另一方面，条件分支不能自由的执行:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
@@ -73,110 +73,110 @@ Again, we have two input vectors v1 and v2, plus a control vector c1 that has ra
 图 3.20
 \end{center}
 
-As you can see, the conditional code is about five times slower than the sequential one. This confirms our prediction that when the next instruction depends on the result of the previous one, the code cannot be effectively pipelined.
+可以看到，条件代码大约比顺序代码慢5倍。证实了我们的预测，当下一条指令依赖于上一条指令的结果时，代码不能有效地流水化。
 
 
 \subsubsubsection{3.5.1\hspace{0.2cm}分支预测}
 
-However, an astute reader may point out that the picture we have just described cannot possibly be complete, or even true: let us go back, for a moment, to the apparently linear code such as the loop we have used extensively in the last section:
+聪明的读者可能会指出，我们刚才描述的图像可能不完整，甚至不是真实的:让我们回到线性代码，例如：我们在上一节中使用的循环代码:
 
 \begin{lstlisting}[style=styleCXX]
-	for (size_t i = 0; i < N; ++i) {
-		a1 += v1[i] + v2[i]; // s[i] = v1[i] + v2[i]
-	}
+for (size_t i = 0; i < N; ++i) {
+	a1 += v1[i] + v2[i]; // s[i] = v1[i] + v2[i]
+}
 \end{lstlisting}
 
-Here is what the body of this loop looks like from the processor's point of view:
+处理器视角的循环体:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter3/images/21.jpg}\\
-Figure 3.21 – Loop executed in a pipeline of width w
+\includegraphics[width=0.8\textwidth]{content/1/chapter3/images/21.jpg}\\
+图3.21 - 宽度为w的流水线中执行的循环
 \end{center}
 
-In Figure 3.21, we have shown three interleaved iterations, but there could be even more, the total width of the pipeline is w, and ideally, w is large enough that at every cycle, the CPU is executing exactly as many instructions as it can execute simultaneously (such peak efficiency is rarely possible in practice). Note, however, that it may be impossible to access v[i+2] at the same time as we compute the sum p1[i] + p2[i]: there is no guarantee that the loop has two more iterations to go, and, if it doesn't, the element v[i+2] does not exist and accessing it results in undefined behavior. There is a hidden conditional in the previous code: at every iteration, we must check if i is less than N, and only then can we execute the instructions of the i-th iteration. 
+图3.21中，展示了三次交叉迭代，但可能有更多，流水线的总宽度是w，理想情况下，w足够大。每个周期中，CPU执行指令的数量都可以同时执行(这样的峰值效率在实际中很少)。但是，请注意，在计算\texttt{p1[i] + p2[i]}的和的同时，可能不可能访问\texttt{v[i+2]}，因为不能保证循环有更多的两次迭代，所以\texttt{v[i+2]}可能不存在，贸然访问会导致未定义行为。前面代码中有一个隐藏条件:在每次迭代中，我们必须检查i是否小于N，只有这样才能执行第i次迭代的指令。
 
-Therefore, our comparison in Figure 3.20 is a lie: we did not compare pipelined sequential execution versus an unpredictable conditional one. Both benchmarks are, in fact, examples of conditional code, they both have branches.
+因此，我们在图3.20中的比较是错误的:我们没有将流水线的顺序执行与不可预测的条件执行进行比较。实际上，这两个基准测试都有分支。
 
-The full truth is somewhere in between. To understand it, we have to learn about the antidote to the conditional execution, which poisons the pipelining and is itself the antidote to the data dependency. The way to save the pipelining in the presence of branches is to attempt to convert the conditional code to the sequential one. Such conversion could be done if we knew in advance which path the branch is going to take: we would simply eliminate the branch and proceed to the next instruction to be executed. Of course, there would be no need even to write such code if we knew in advance what the condition is. Still, consider the loop termination condition. Assuming the loop is executed many times, it is a good bet that the condition i < N evaluates to true (we would lose this bet only one out of N times).
+真正的真相介于两者之间。为了理解它，我们必须学习条件执行的解决方案，分支戕害了流水线，并且其本身就是数据依赖的解决方案。分支存在时保存流水线的方法是尝试将条件代码转换为顺序代码，如果事先知道分支要走哪条路，就可以进行转换:只需消除分支，然后继续执行下一条指令。当然，如果事先知道情况如何，就没有必要写这样的代码了。这里，考虑一下循环终止的条件。假设循环执行了很多次，可能条件\texttt{i < N}的计算结果为\texttt{true}(只有\texttt{1 / N}的几率会输掉这个赌局)。
 
-The processor makes the same bet using the technique known as branch prediction. It analyzes the history of every branch in the code and assumes that the behavior will not change in the future. For the end of the loop condition, the processor will quickly learn that most of the time, it has to proceed to the next iteration. Therefore, the right thing to do is to pipeline the next iteration as if we are sure it's going to happen. Of course, we have to defer the actual writing of the results into memory until we evaluate the condition and confirm that the iteration does happen; the processor has a certain number of write buffers to hold such unconfirmed results in limbo before committing them to memory.
+处理器使用\textbf{分支预测}技术进行同样的押注。分析代码中每一个分支的历史，并假定该行为在未来不会改变。循环结束后，处理器很快就会知道，大多数情况下，必须进行下一个迭代。因此，正确的做法是对下一次迭代进行流水线化，就像我们确信它会发生一样。当然，我们必须将实际的结果写入内存，直到我们计算条件并确认迭代确实发生。处理器有一定数量的写缓冲区来保存这些未确认的结果，然后再将它们提交到内存中。
 
-The pipeline for the loop with just an addition, therefore, does look exactly as shown in Figure 3.21. The only catch is that, when starting to execute iteration i+2 before the i-th iteration is complete, the processor is making a bet based on its prediction of whether the conditional branch will be taken or not. Such execution of the code before we know for sure that this code really exists is known as speculative execution. If the bet is won, we already have the results by the time we figure out that we needed the computation, and all is well. If the processor loses the bet, it has to discard some of the computations to avoid producing incorrect results: for example, writing into memory overwrites what was there before and cannot be undone on most hardware platforms, while computing the result and storing it in a register is entirely reversible, except for the time we wasted, of course.
+因此，只添加了一个元素的循环流水，看起来与图3.21所示完全一致。唯一的问题是，当在第\texttt{i}次迭代完成之前开始执行迭代\texttt{i+2}时，处理器根据是否采用条件分支预测来下注的。这种确定代码存在之前的执行称为\textbf{投机执行}。赌赢了，我们知道需要计算的时候，就可以获取结果，一切都很好。如果输了，必须放弃一些计算，以避免产生错误的结果，例如：写入内存新内容，覆盖之前的内容，在大多数硬件平台上无法撤消，而计算结果和将其存储在寄存器中的过程是完全可逆的。当然，这会浪费我们的时间。
 
-We now have a more complete picture of how the pipelining really works: in order to find more instructions to execute in parallel, the processor looks at the code for the next iterations of the loop and starts to execute it simultaneously with the current iteration. If the code includes a conditional branch, which makes it impossible to know for sure which instruction will be executed, the processor makes an educated guess based on the past outcomes of checking the same condition and proceeds to execute the code speculatively. If the prediction proves to be correct, the pipelining can be as good as it was for the unconditional code. If the prediction is wrong, the processor has to discard the result of every instruction that should not have been evaluated, fetch the instructions that it previously assumed wouldn't be needed, and evaluate them instead. This event is called a pipeline flush, and it is an expensive occurrence indeed.
+现在我们对流水线的工作原理有了更全面的了解:为了找到更多的指令并行执行，处理器要检查循环的下一个迭代的代码，并开始与当前迭代同时执行。该代码包含一个条件分支，使我们无法确切地知道将执行哪条指令，处理器根据过去检查相同条件的结果进行有根据的猜测，并继续推测执行该代码。若这个预测证明正确，则流水线操作可以和无条件代码一样好。若预测错误，处理器必须丢弃不应求值的指令结果，获取之前认为不需要的指令，并进行计算。这个事件称为\textbf{刷新流水}，是一个开销很大的事件。
 
-Now we have a better understanding of our previous benchmark in Figure 3.20: both loops have a condition for checking the end of the loop. However, it is predicted almost perfectly. The pipeline flush occurs only once at the end of the loop. The conditional benchmark also has a branch that is based on a random number: if(b1[i]) where b1[i] is true 50\% of the time, randomly. The processor is powerless to predict the outcome, and the pipeline is disrupted half the time (or worse, if we manage to confuse the CPU into actually making wrong predictions).
+现在对图3.20中的基准测试有了更好的理解:两个循环都有检查循环结束的条件。然而，预测几乎是完美的，刷新流水只在循环的末端发生一次。条件基准测试也有基于随机数的分支:\texttt{if(b1[i])}，其中\texttt{b1[i]}有50\%的概率为真。处理器无法预测结果，并且一半的时间流水中断了(或者更糟，如果我们设法欺骗了CPU，使会做出了错误的预测)。
 
-We should be able to verify our understanding with a direct experiment: all we need is to change the random condition to something that is always true. The only catch is that we have to do it in a way that the compiler cannot figure it out. One common way is to change the initialization of the condition vector as follows:
+我们能够用实验来验证我们的理解:只需要把随机条件改变成总是正确。唯一的问题是，我们必须以编译器无法理解的方式来处理。通常的方法是将条件向量进行初始化:
 
 \begin{lstlisting}[style=styleCXX]
 c1[i] = rand() >= 0;
 \end{lstlisting}
 
-The compiler doesn't know that the function rand() always returns non-negative random numbers and will not eliminate the condition. The branch predictor circuit of the CPU will quickly learn that the condition if(b1[i]) always evaluates to true and will execute the corresponding code speculatively. We can compare the performance of the well-predicted branch with that of the unpredictable one:
+编译器不知道函数\texttt{rand()}总是返回非负的随机数，并且不会消除这种情况。CPU的分支预测器电路很快就会知道，如果\texttt{if(b1[i])}的值总是为真，那么就会推测地执行相应的代码。我们可以比较良好预测分支和不准确预测分支的性能:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/22.jpg}\\
-Figure 3.22
+图 3.22
 \end{center}
 
-Here we can see that the cost of the well-predicted branch is minimal and that it is much faster than exactly the same code with a branch that is predicted poorly.
+我们可以看到，良好预测分支的成本最低。
 
-\subsubsubsection{3.5.2\hspace{0.2cm}Profiling for branch mispredictions}
+\subsubsubsection{3.5.2\hspace{0.2cm}错误预测分支的分析}
 
-Now that you have seen how badly a single mispredicted branch can impact the performance of the code, you may wonder, how would you ever find such code so you can optimize it? Sure, the function containing this code will take longer than you might expect, but how do you know whether it's because of the badly predicted branches or due to some other inefficiency? By now, you should know enough to avoid making guesses about performance in general; however, speculating about the effectiveness of the branch predictor is particularly futile. Fortunately, most profilers can profile not just execution time but also various factors determining the efficiency, including the branch prediction failures.
+已经看到错误预测分支会对代码的性能产生多么严重的影响，现在可能想知道，将如何找到这样的代码来优化？当然，包含这段代码的函数所花费的时间比预期的要长，但是如何知道这是由于预测错误的分支，还是由于其他原因才效率低下的呢？现在，您应该知道足够的知识，避免对性能进行猜测，且猜测分支预测器的有效性挺没趣的。通常，大多数分析器不仅可以分析执行时间，还可以分析决定效率的各种因素，包括分支预测失败。
 
-In this chapter, we will once again use the perf profiler. As the first step, we can run this profiler to collect the overall performance metrics of the entire benchmark program:
+在本章中，我们将再次使用perf分析器。第一步，运行这个分析器来收集整个基准程序的总体性能指标:
 
 \begin{tcblisting}{commandshell={}}
 $ perf stat ./benchmark
 \end{tcblisting}
 
-Here are the perf results for the program running only the BM\_branch\_not\_predicted benchmark (other benchmarks are commented out for this test):
+下面是只运行\texttt{BM\_branch\_not\_predicted}基准测试的性能结果(其他基准测试注释掉了):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/23.jpg}\\
-Figure 3.23 – Profile of a benchmark with a poorly predicted branch
+图3.23 - 预测分支失败的基准测试概要
 \end{center}
 
-As you can see, 11\% of all branches were mispredicted (the last line of the report). Note that this number is cumulative for all branches, including the perfectly predictable end of the loop condition, so 11\% total is quite bad. We should compare it with our other benchmark, BM\_branch\_predicted, which is identical to this one except the condition is always true:
+如您所见，11\%的所有分支被预测错误(报告的最后一行)。请注意，这个数字是所有分支的累加，包括完全可预测的循环结束条件，因此11\%是相当糟糕的。我们应该将它与其他基准\texttt{BM\_branch\_predicted}进行比较，\texttt{BM\_branch\_predicted}和这个基准测试完全相同，只是条件总是为真:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/24.jpg}\\
-Figure 3.24 – Profile of a benchmark with a well-predicted branch
+图3.24 - 具有预测良好分支的基准测试概要
 \end{center}
 
-This time, less than 0.1\% of all branches were not predicted correctly.
+这一次，不到0.1\%的分支没有正确预测。
 
-The overall performance report is very useful, do not ignore its potential: it can be used to highlight or dismiss some possible causes of poor performance quickly. In our case, we can immediately conclude that our program suffers from one or more mispredicted branches. Now we just need to find which one, and the profiler can help with that as well. Just like in the previous chapter, where we have used the profiler to find out where in the code does our program spends the most time, we can generate a detailed line-by-line profile of branch predictions. We just need to specify the right performance counter to the profiler:
+整体表现报告非常有用，它可以用来强调或消除一些可能导致不良表现的原因。在我们的案例中，可以立即得出结论，程序有一个或多个错误预测的分支。现在我们只需要找到是哪一个，分析器也可以帮助我们。上一章中，我们使用分析器找出程序花费时间最多的地方，可以生成分支预测的详细的逐行概要。我们只需要为分析器指定正确的性能计数器即可:
 
 \begin{tcblisting}{commandshell={}}
 $ perf record -e branches,branch-misses ./benchmark
 \end{tcblisting}
 
-In our case, we can copy the name of the counter from the output of perf stat, because it happens to be one of the counters it measures by default, but the complete list can be obtained by running perf --list.
+我们的例子中，可以从\texttt{perf stat}的输出复制计数器的名称，因为它恰好是默认测量的计数器之一，但完整的列表可以通过运行\texttt{perf -\,-list}获得。
 
-The profiler runs the program and collects the metrics. We can view them by generating a profile report:
+分析器运行程序并收集指标，可以通过生成一个概要报告来查看它们:
 
 \begin{tcblisting}{commandshell={}}
 $ perf report
 \end{tcblisting}
 
-The report analyzer is interactive and lets us navigate to the branch mispredictions counter for each function:
+报表分析器是交互式的，可以导航到每个函数的分支错误预测计数器:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/25.jpg}\\
-Figure 3.25 – Detailed profile report for mispredicted branches
+图3.25 - 错误预测分支的详细报告
 \end{center}
 
-Over 99\% of all mispredicted branches occur in just one function. Since the function is small, finding the responsible conditional operation should not be hard. In a larger function, we would have to look at the line-by-line profile.
+超过99\%的错误预测分支发生在一个函数中。因为函数很小，所以查找相应的条件运算应该不难。在更大的函数中，我们必须逐行查看概要信息。
 
-The branch prediction hardware of a modern processor is fairly sophisticated. For example, if a function is called from two different places and, when called from the first place, a condition usually evaluates to true, while, when called from the second place, the same condition evaluates to false, the predictor will learn that pattern and predict the branch correctly based on the origin of the function call. Similarly, the predictor can detect fairly complex patterns in the data. For example, we can initialize our random condition variables so that the values always alternate, the first one is random, but the next one is the opposite of the first one, and so on:
+现代处理器的分支预测硬件相当复杂，例如：函数从两个不同的位置调用，当从第一个位置调用时，条件的计算结果为true，而当从第二个位置调用时，相同的条件的计算结果为false，预测器会了解该模式，并根据函数调用的起源正确地预测分支。类似地，预测器可以在数据中检测出相当复杂的模式，例如：可以初始化我们的随机条件变量，使值总是不可预测的，第一个是随机的，但是下一个是与第一个相反的，以此类推:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; i < N; ++i) {
@@ -185,15 +185,15 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-The profiler confirms that the branch prediction rate for this data is excellent:
+分析器确认该数据的分支预测率非常好:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/26.jpg}\\
-Figure 3.26 – Branch prediction rate for a "true-false" pattern
+图3.26 - “真-假”模式的分支预测率
 \end{center}
 
-We are almost ready to apply our knowledge of how to use the processor efficiently. But first, I must admit that we have overlooked a major potential problem. 
+我们已经准备好如何高效使用处理器了，但必须承认，这里忽略了一个很重要的问题。
 
 
 
