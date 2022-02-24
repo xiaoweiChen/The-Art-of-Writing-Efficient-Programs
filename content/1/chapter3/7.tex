@@ -1,6 +1,6 @@
-When it comes to a program with many conditional statements, usually if() statements, the effectiveness of the branch prediction often determines the overall performance. If the branch is predicted accurately, it has almost no cost. If the branch is mispredicted half the time, it can be as expensive as ten or more regular arithmetic instructions.
+对于有许多条件语句(通常是\texttt{if()}语句)的程序，分支预测的有效性通常决定了整体性能。如果准确地预测分支，那么在分支上基本上没有任何开销。要是分支预测有一半是错误的，可能会比常规算术指令慢十倍或更多。
 
-It is very important to understand that the hardware branch prediction is based on the conditional instructions executed by the processor. As such, the processor's understanding of what a condition is can be different from our understanding. The following example helps to drive this point home, with force:
+硬件分支预测是基于处理器执行的条件指令。因此，处理器对条件的理解可能与我们不同。下面的例子有助于我们理解这一点:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -33,26 +33,25 @@ for (auto _ : state) {
 }
 \end{lstlisting}
 
-Of interest here is the condition if (b1[i] || b2[i]): by construction, it always evaluates to true, so we can expect the perfect prediction rate from the processor. Of course, I would not be showing this example to you if it was as simple as that. What is, logically, a single condition to us is, to the CPU, two separate conditional branches: half the time, the overall result is true because of the first branch, and the other half the time, it is the second branch that makes it true. The overall result is always true, but it is impossible to predict which of the branches makes it so. The result is quite unfortunate:
+这里有趣的是\texttt{if (b1[i] || b2[i])}条件：计算总为\texttt{true}，因此可以期待处理器的完美预测。当然，事情没这么简单。从逻辑上，我们看起来这一个单独的条件，但对从CPU角度来说，是两个独立的条件分支：一半的情况下，由于第一个分支，总体结果正确；另一半情况下，使它正确的是第二个分支。总的结果是正确的，但不可能预测哪个分支是正确的。
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/27.jpg}\\
-Figure 3.27 – Branch prediction profile of a "fake" branch
+图3.27 - “假”分支的分支预测
 \end{center}
 
-The profiler shows the branch prediction rate that is just as poor as that of a truly random branch. The performance benchmark confirms our expectations:
+分析器显示与真正随机分支一样差的分支预测率。性能基准测试结果更证实了我们的猜想:
 
-
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/28.jpg}\\
-Figure 3.28
+图 3.28
 \end{center}
 
-The performance of the fake branch (that isn't really a branch at all) is just as bad as that of a truly random, unpredictable branch, and is far worse than that of a well-predicted branch.
+\textit{假}分支(不是真正的分支)的性能与真正随机的、不可预测的分支一样糟糕。
 
-In a real program, you should not encounter such unnecessary conditional statements. What is very common, however, is a complex conditional expression that almost always evaluates to the same value but for different reasons. For example, we may have a condition that is very rarely false:
+实际程序中，不应该出现这种不必要的条件语句。然而，非常常见的是复杂的条件表达式，其计算结果几乎总是相同。例如，可能有一个条件很少为\texttt{false}:
 
 \begin{lstlisting}[style=styleCXX]
 if ((c1 && c2) || c3) {
@@ -62,9 +61,9 @@ if ((c1 && c2) || c3) {
 }
 \end{lstlisting}
 
-However, nearly half the time, c3 is true. When c3 is false, c1 and c2 are usually both true. The overall condition should be easily predictable, and the true branch is taken. However, from the processor's point of view, it is not a single condition but three separate conditional jumps: if c1 is true, then c2 must be checked. If c2 is also true, then the execution jumps to the first instruction of the true branch. If one of c1 or c2 is false, then c3 is checked, and, if it's true, the execution again jumps to the true branch.
+几乎一半的情况\texttt{c3}都是\texttt{true}。当\texttt{c3}为\texttt{false}时，\texttt{c1}和\texttt{c2}通常都为\texttt{true}。总条件应该容易预测，并且采用真分支。从处理器的角度来看，它不是一个单独的条件，而是三个单独的条件跳跃:如果\texttt{c1}为\texttt{true}，那么必须检查\texttt{c2}。如果\texttt{c2}也为\texttt{true}，则执行跳转到真分支的第一个指令。如果\texttt{c1}或\texttt{c2}中的一个为\texttt{false}，则检查\texttt{c3}；如果为\texttt{true}，则执行再次跳转到\texttt{true}分支。
 
-The reason this evaluation must be done step by step and in that specific order is that the C++ standard (and the C standard before it) dictates that the logical operations such as \&\& and || are short-circuited: as soon as the result of the entire expression is known, the evaluation of the rest of the expression should stop. This is particularly important when the conditions have side effects:
+这个求值必须按特定顺序完成的原因是，C++标准(以及在此之前的C标准)规定，像\&\&和||这样的逻辑操作可以短路:当整个表达式的结果已知，对表达式其余部分的计算就应该停止。这在条件语句具有有副作用时尤为重要:
 
 \begin{lstlisting}[style=styleCXX]
 if (f1() || f2()) {
@@ -74,20 +73,20 @@ if (f1() || f2()) {
 }
 \end{lstlisting}
 
-Now the function f2() will be called only if f1() returns false. In the previous example, the conditions were simply boolean variables c1, c2, and c3. The compiler could have detected that there are no side effects and that evaluating the entire expression to the end will not change the observable behavior. Some compilers do this optimization; if our fake branch benchmark were compiled with such a compiler, it would have shown the performance of a well-predicted branch. Most compilers, unfortunately, do not recognize this as a potential problem (and, in fact, there is no way for the compiler to know that the entire expression usually evaluates to true, even if its parts do not). So, this is an optimization that the programmer must usually do manually.
+只有当\texttt{f1()}返回\texttt{false}时，才会调用函数\texttt{f2()}。前面的例子中，条件是简单的布尔变量\texttt{c1}、\texttt{c2}和\texttt{c3}。编译器可能已经知道没有任何副作用，并且计算整个表达式的最后不会改变可观察行为。有些编译器会做这种优化。如果我们的\textit{假分支}基准测试使用这样的编译器，将会有良好的分支预测性能。不幸的是，大多数编译器并没有意识到这是一个潜在的问题(事实上，编译器没有办法知道整个表达式的计算结果常为\texttt{true})。因此，这是开发者通常必须手动完成的优化。
 
-Assume that the programmer knows that one of the two branches of the if() statement is taken much more often. For example, the else branch could correspond to an error situation or some other exceptional condition that must be handled properly but should not arise under normal operation. Let us also assume that we did things right and verified, using the profiler, that the individual conditional instructions that make up the complex boolean expression are not well-predicted. How do we optimize the code?
+假设开发者知道\texttt{if()}的两个分支中的一个经常使用，例如：\texttt{else}分支可以对应错误情况，或其他一些必须正确处理，但在正常操作下不应出现的异常情况。假设我们做了正确的事情，并使用分析器进行了验证，组成复杂布尔表达式的单个条件指令并没有得到很好的预测。 这时，要如何优化代码？
 
-The first impulse may be to move the condition evaluation out of the if() statement:
+第一件事可能是将条件求值移出\texttt{if()}语句:
 
 \begin{lstlisting}[style=styleCXX]
-const bool c = c1 && c2) || c3;
+const bool c = (c1 && c2) || c3;
 if (c) { … } else { … }
 \end{lstlisting}
 
-However, this is almost guaranteed not to work, for two reasons. First, the condition expression is still using the logical \&\& and || operations, so the evaluation still must be short-circuited and will require separate and unpredictable branches. Second, the compiler will likely optimize this code by removing the unnecessary temporary variable c, so the resulting object code probably will not change at all.
+这几乎肯定不会奏效，原因有二。首先，条件表达式使用逻辑\&\&和||操作，因此计算仍然短路，并且需要单独的和不可预测的分支。其次，编译器可能会通过删除不必要的临时变量\texttt{c}来优化这段代码，因此最终的代码可能根本不会改变。
 
-In the case of a loop over an array of conditional variables, a similar transformation may be effective. For example, this code is likely to suffer from poor branch prediction:
+对条件变量数组进行循环的情况下，可以使用类似的转换。下面这段代码很可能会受到分支预测的影响:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_i i = 0; i < N; ++i) {
@@ -95,7 +94,7 @@ for (size_i i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-However, if we pre-evaluate all the conditional expressions and store them in a new array, most compilers will not eliminate that temporary array:
+但是，如果预先计算所有的条件表达式并存储在一个新数组中，大多数编译器都不会干掉这个临时数组:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_i i = 0; i < N; ++i) {
@@ -107,25 +106,25 @@ for (size_i i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-Of course, the boolean expression used to initialize c[i] now suffers from branch misprediction, so this transformation works only if the second loop is executed many more times than the initialization loop.
+当然，用于初始化\texttt{c[i]}的布尔表达式，现在面临着分支预测错误的问题，因此只有当第二个循环执行的次数比初始化循环多很多时，这种转换才会有用。
 
-Another optimization that is usually effective is to replace the logical \&\& and || operations with addition and multiplication or with bitwise \& and | operations. Before doing this, you must be certain that the arguments to the \&\& and || operations are booleans (have values of zero or one) and not integers: even though a value of, say, 2 is interpreted as true, the result of the expression 2 \& 1 is not the same as the result of bool(2) \& bool(1). The former evaluates to 0 (false) while the latter gives us the expected and correct answer, 1 (or true).
+通常有效的优化方法是用加法和乘法或按位\&和|操作替换逻辑\&\&和||操作。这样做之前，必须确定\&\&和||操作的参数是布尔值(值为0或1)而不是整数:即使值2解释为真，表达式\texttt{2 \& 1}的结果与\texttt{bool(2) \& bool(1)}的结果也不相同。前者的计算结果为0(\texttt{false})，而后者预期的正确答案为1(或\texttt{true})。
 
-We can compare the performance of all these optimizations in a benchmark:
+我们可以在基准测试中比较这些优化的性能:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/29.jpg}\\
-Figure 3.29
+图 3.29
 \end{center}
 
-As you can see, the naïve attempt to optimize the false branch by introducing a temporary variable, BM\_false\_branch\_temp, was utterly ineffective. Using a temporary vector gives us the expected performance of a perfectly predicted branch because all elements of the temporary vector are equal to true, and that is what the branch predictor learns (BM\_false\_branch\_vtemp). Replacing the logical || with either arithmetic addition (+) or the bitwise | produces similar results.
+可以看到，通过引入临时变量\texttt{BM\_false\_branch\_temp}来优化\textit{假分支}的尝试完全没有效果。因为临时向量的所有元素都为\texttt{true}，这就是分支预测器所知道的(\texttt{BM\_false\_branch\_vtemp})，所以临时向量给出了一个完全预测的分支的预期性能。用算术加法(+)或按位|替换逻辑||会产生类似的结果。
 
-You should keep in mind that the last two transformations, using arithmetic or bitwise operations instead of logic operations, change the meaning of your code: specifically, all arguments to the operations in the expression are always evaluated, including their side effects. It is up to you to decide whether this change will affect the correctness of your program. If these side effects are also expensive, then the overall performance change may end up being not in your favor. For example, if evaluating f1() and f2() is very timeconsuming, replacing the logical || in the expression f1() || f2() by the equivalent arithmetic addition (f1() + f2()) may degrade the performance even as it improves the branch prediction.
+最后两个转换(使用算术或位操作，而不是逻辑操作)改变了代码的含义:表达式中所有操作的参数都是求值的，并具有副作用。由编程者决定此更改是否会影响程序的正确性。如果这些副作用开销特别大，那么总体性能收益可能会是负的，例如：如果\texttt{f1()}和\texttt{f2()}非常耗时，那么用等价的算术加法(\texttt{f1() + f2()})替换表达式\texttt{f1()|| f2()}中的操作会让性能下降(即使它改善了分支预测)。
 
-Overall, there is no standard approach to optimizing the branch prediction in false branches, which is why it is so hard for the compiler to do any effective optimizations as well. The programmer must use problem-specific knowledge, such as whether a particular condition is likely to occur, and combine it with profiling measurements to arrive at the optimal solution.
+总的来说，没有标准的方法来优化\textit{假分支}中的分支预测，这就是为什么编译器难进行有效的优化。开发者必须使用特定于问题的知识，例如：某个特定条件是否可能发生，并将其与分析度量相结合，以获得最佳的解决方案。
 
-In this chapter, we have learned how CPU operations affect performance, then progressed to a concrete and practically relevant example of applying this knowledge to code optimization. Before the end, we will learn about one more such optimization.
+本章中，我们了解了CPU操作如何影响性能，然后扩展到一个具体的和实际相关的例子中，并将这些知识应用于代码优化。在结束本章之前，我们再来看一个这样的优化。
 
 
 

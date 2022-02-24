@@ -1,11 +1,11 @@
 
-Here is what we have learned so far: to use the processor efficiently, we must give it enough code to execute many instructions in parallel. The main reason we may not have enough instructions to keep the CPU busy is the data dependencies: we have the code, but we cannot run it because the inputs aren't ready. We solve this problem by pipelining the code, but in order to do so, we must know in advance which instructions are going to be executed. We cannot do this if we do not know in advance which path the execution will take. The way we deal with that is by making an educated guess about whether a conditional branch will be taken or not, based on the history of evaluating this condition. The more reliable the guess, the better the performance. Sometimes, there is no way to guess reliably, and performance suffers.
+目前为止，我们知道为了有效地使用处理器，必须给有足够的代码来并行执行多条指令。没有足够的指令来保持CPU繁忙的主要原因可能是数据依赖:我们有代码，但由于输入没有准备好，我们无法运行它。通过流水线可以来解决这个问题，但是为了做到这一点，必须事先知道哪些指令将执行。如果事先不知道执行的路径，就无法做到这一点。处理这个问题的方法是，根据计算这个条件的历史走向，对是否采用条件分支进行有根据的猜测。猜测越可靠，性能越好。有时候，没有可靠的猜测方法，性能会受到严重影响。
 
-The root of all of these performance problems is the conditional branches, where the next instruction to be executed is not known until runtime. A radical solution to the problem would be to rewrite our code to use no branches or at least much fewer of them. This is known as branchless computing.
+所有这些性能问题的根源是条件分支，下一条要执行的指令直到运行时才知道。这个问题的根本解决方案是重写我们的代码，不使用分支，或者更少的分支。这就是所谓的\textbf{无分支计算}。
 
-\subsubsubsection{3.8.1\hspace{0.2cm}Loop unrolling}
+\subsubsubsection{3.8.1\hspace{0.2cm}循环展开}
 
-In truth, the idea is not particularly novel. Now that you understand the mechanism by which the branches affect performance, you can recognize the well-known technique of loop unrolling as an early example of code transformation for the purpose of reducing the number of branches. Let us go all the way back to our original code example:
+事实上，这个想法并不特别新颖。我们了解了分支影响性能的机制，因此使用循环展开技术来减少分支数量。让我们回到我们最初的代码示例:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; i < N; ++i) {
@@ -13,7 +13,7 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-We understand now that, while the body of the loop is perfectly pipelined, there is a hidden branch in this code: the end of the loop check. This check is performed once per loop iteration. If we had prior knowledge that, say, the number of iterations N is always even, then we don't need to perform the check after odd iterations. We can explicitly omit this check as follows:
+虽然循环的主体是完全流水的，但是这段代码中有一个隐藏的分支:循环检查的结束。这个检查在每个循环迭代中执行一次。若我们事先知道，迭代次数N总是偶数，那么就不需要在奇数次迭代后执行检查，可以显式地省略这个检查:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; i < N; i += 2) {
@@ -22,11 +22,11 @@ for (size_t i = 0; i < N; i += 2) {
 }
 \end{lstlisting}
 
-We have unrolled this loop, converted two iterations into one larger one. In this and other similar examples, the manual unrolling is not likely to improve performance for several reasons: first of all, the end of the loop branch is predicted almost perfectly if N is large. Second, the compiler may do the unrolling anyway as an optimization; more likely, a vectorizing compiler will use SSE or AVX instructions to implement this loop, which, in effect, unrolls its body since the vector instructions process several array elements at once. All of these conclusions need to be confirmed by benchmarking or profiling; just don't be surprised if you find out that manual loop unrolling had no effect on performance: this does not mean that what we learned about branches is not true; it means that our original code already had the benefit of loop unrolling, thanks to the compiler optimizations most likely.
+展开循环，将两个迭代转换为一个更大的迭代。这个例子和其他类似的例子一样，手动展开不太可能提高性能，原因有以下几个:首先，如果N很大，循环分支的结束部分可以完美地预测出来。其次，编译器可能会将展开作为一种优化;很可能，矢量化编译器将使用SSE或AVX指令来实现这个循环。实际上，这里对循环体进行展开的原因是，向量指令一次可以处理多个数组元素，不过所有这些结论都需要通过基准测试或分析来确认。如果发现手动循环展开对性能没有影响，不要感到惊讶(我们对于分支的理解没有问题)，这意味着原始代码已经进行了循环展开，这个优化操作由编译器来完成了。
 
-\subsubsubsection{3.8.2\hspace{0.2cm}Branchless selection}
+\subsubsubsection{3.8.2\hspace{0.2cm}无分支选择}
 
-Loop unrolling is a very specific optimization that the compilers were taught to do. Generalizing this idea into branchless computing is a recent advance that can yield spectacular performance gains. We will start with a very simple example:
+循环展开是一个非常特殊的优化，编译器会来做这件事。将展开的想法转化为无分支计算是最近的进展，可以带来惊人的性能收益。我们将从一个非常简单的例子开始:
 
 \begin{lstlisting}[style=styleCXX]
 unsigned long* p1 = ...; // Data
@@ -41,7 +41,7 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-Let us assume that the conditional variable b1[i] cannot be predicted by the processor. As we have already seen, this code runs several times slower than a loop with a well-predicted branch. However, we can do even better; we can eliminate the branch entirely and replace it by indexing into an array of pointers to the two destination variables:
+假设条件变量\texttt{b1[i]}不能由处理器预测，这段代码的运行速度比良好的分支预测循环慢几倍。然而，这里我们可以做得更好，就是可以完全消除这个分支，并通过在指向两个目标变量的指针数组中进行索引来替换它:
 
 \begin{lstlisting}[style=styleCXX]
 unsigned long* p1 = ...; // Data
@@ -53,17 +53,17 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-In this transformation, we take advantage of the fact that a boolean variable can have only two values, 0 (false) or 1 (true), and is implicitly convertible to an integer (if we used some other type instead of bool, we would have to make sure that all true values are indeed represented by 1 since any non-zero value is considered true but only the value of 1 works in our branchless code).
+这种转换中，利用了布尔变量只能有两个值(0(\texttt{false})或1(\texttt{true}))这一情况，将其转换为整数(如果用其他类型代替\texttt{bool}，必须确保所有的真值都由1表示，因为任何非零值都被认为是真值，但只有1的值在我们的无分支代码中有效)。
 
-This transformation replaces a conditional jump to one of two possible instructions by conditional access of one of two possible memory locations. Because such conditional memory accesses can be pipelined, the branchless version delivers significant performance improvement:
+这个转换通过对两个可能的内存位置中的一个进行条件访问，来替换到两个可能指令中的条件跳转。由于这种条件内存访问可以流水化，无分支的版本具有显著的性能改善:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/30.jpg}\\
-Figure 3.30
+图 3.30
 \end{center}
 
-In this example, the branchless version of the code is 3.5 times faster. It is worth noting that some compilers implement the ?: operator using a lookup array instead of a conditional branch whenever possible. With such a compiler, we can gain the same performance benefit by rewriting our loop body as follows:
+这个例子中，无分支的代码版本要快3.5倍。有些编译器在可能的情况下使用查找数组，而不是条件分支来实现\texttt{?:}操作符。使用这样的编译器，可以通过如下循环体获得相同性能:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; i < N; ++i) {
@@ -71,13 +71,13 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-As usual, the only way to be certain whether this optimization works or how effective it is, is to measure.
+通常，确定这种优化是否有效或效果如何的唯一方法是测量。
 
-The preceding example covers all essential elements of branchless computing: instead of conditionally executing this code or that code, we transform the program so that the code is the same in all cases, and the conditional logic is implemented by an indexing operation. We will go through several more examples to highlight some noteworthy considerations and limitations.
+前面的例子涵盖了无分支计算的所有基本元素:不是有条件地执行这个或那个代码，而是转换它们，使代码在所有情况下都是相同的，条件逻辑由索引操作实现。我们将通过更多的例子来强调一些值得注意的事项和限制。
 
-\subsubsubsection{3.8.3\hspace{0.2cm}Branchless computing examples}
+\subsubsubsection{3.8.3\hspace{0.2cm}无分支的例子}
 
-Most of the time, the code that depends on the condition is not as simple as where to write the result. Usually, we have to do the computations differently depending on some intermediate values:
+大多数时候，依赖于条件的代码并不简单。通常，必须根据一些中间值来进行不同的计算:
 
 \begin{lstlisting}[style=styleCXX]
 unsigned long *p1 = ..., *p2 = ...; // Data
@@ -92,9 +92,9 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-Here the condition affects what expression we compute and where the result is stored. The only thing common to both branches is the input, and even that doesn't have to be the case, in general.
+条件影响计算的表达式和结果存储的位置。两个分支唯一的共同之处就是输入，通常情况下，即使是输入也不一定是这样。
 
-To compute the same results without branches, we have to fetch the result of the correct expression from a memory location indexed by the condition variable. This implies that both expressions will be evaluated since we decided not to change which code we execute based on the condition. With this understanding, the transformation to the branchless form is straightforward:
+为了在没有分支的情况下计算出相同的结果，我们必须从由条件变量索引的内存位置获取正确表达式的结果。这意味着两个表达式都将执行，因为我们决定不根据条件更改执行的代码。有了这种理解，向无分支形式的转换就很简单了:
 
 \begin{lstlisting}[style=styleCXX]
 unsigned long a1 = 0, a2 = 0;
@@ -105,23 +105,23 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-Both expressions are evaluated, and their results are stored in an array. Another array is used to index the destination of the computation, that is, which variable is incremented. Overall, we have significantly increased the amount of computing the loop body must do; on the other hand, it's all sequential code with no jumps, so, as long as the CPU has the resources to do few more operations without spending any extra cycles, we should come out ahead. The benchmark confirms that indeed this branchless transformation is effective:
+两个表达式都执行了，结果存储在一个数组中。该数组用于索引计算的目标，即递增的变量。总的来说，这增加了循环体的计算量；另一方面，由于是连续的代码，没有了跳转，所以只要CPU有资源做更多的操作，这里的性能就会有提升。基准测试证实了这种无分支转换确实有效:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/31.jpg}\\
-Figure 3.31
+图 3.31
 \end{center}
 
-It must be stressed that there is a limit to how many extra computations you can do and still outperform the conditional code. There isn't even a good general rule of thumb you could use to make an educated guess here (and you should never guess about performance anyway). The effectiveness of such optimizations must be measured: it is highly dependent on both the code and the data. For example, if the branch predictor were highly effective (predictable condition instead of a random one), the conditional code would outperform the branchless version:
+额外计算放入数量有限，而且仍然优于条件代码。这里甚至没有一个通用型经验法则可以用来进行猜测(无论如何，都不应该猜测性能)。必须测量这种优化的有效性:它高度依赖于代码和数据，例如：如果分支预测器非常有效(可预测的条件，而不是随机条件)，那么条件代码将优于无分支的版本:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/32.jpg}\\
-Figure 3.32
+图 3.32
 \end{center}
 
-Perhaps the most remarkable conclusion we can learn from Figure 3.31 and Figure 3.32 is just how expensive a pipeline flush (a mispredicted branch) is and how much computing the CPU can do at once with instruction-level parallelism. The latter can be deduced from the relatively small difference in performance between the perfectly predicted branch (Figure 3.32) and the branchless implementation (Figure 3.31). This hidden and largely unused reserve of computing power is what branchless computing relies on, and we probably have not exhausted this reserve in our example. It is instructive to show another variant of the branchless transformation of the same code where, instead of using an array to select the right result variable, we always increment both by zero if we don't want to actually change the result:
+可以从图3.31和图3.32中得到的结论是，流水线刷新(错误预测的分支)的成本有多高，以及CPU在指令级并行性的同时可以做多少计算。无分支计算依赖的是隐藏的和未使用的计算资源，在我们的示例中，可能还没有耗尽这个资源。我们可以展示代码的无分支转换的另一个版本，不是使用数组来选择正确的结果变量，如果不想改变结果，将两者加零:
 
 \begin{lstlisting}[style=styleCXX]
 unsigned long a1 = 0, a2 = 0;
@@ -133,17 +133,17 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-Instead of an array of destinations, we now have two arrays of intermediate values. This version does even more computations unconditionally and yet, provides the same performance as the previous branchless code:
+现在有两个中间值的数组，而不是目标数组。这个版本会无条件地进行更多的计算，并且具有与之前的无分支代码相同的性能:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter3/images/33.jpg}\\
-Figure 3.33 – The results of Figure 3.31, with the alternative branchless implementation added as "BM\_branchless1"
+图3.33 - 图3.31的结果，为另一个无分支实现添加了“BM\_branchless1”
 \end{center}
 
-It is important to understand the limitations of the branchless transformations and not get carried away. We have already seen the first limitation: branchless code usually executes more instructions; therefore, if the branch predictor ends up working well, the small number of pipeline flushes may not be enough to justify the optimization.
+理解无分支变换的局限性是很重要的，不要忘乎所以。我们已经看到了一个限制:无分支代码通常要执行更多指令。因此，如果分支预测器工作良好，那么少量的流水刷新可能不足以证明优化的合理性。
 
-The second reason for the branchless transformation to not perform as expected has to do with the compiler: in some cases, the compiler can do an equivalent or even better optimization. For example, consider what is known as a clamp loop:
+无分支转换不能按预期执行的第二个原因与编译器有关:在某些情况下，编译器可以进行等效或更好的优化。例如\textbf{钳位环(clamp loop)}:
 
 \begin{lstlisting}[style=styleCXX]
 unsigned char *c = ...; // Random values from 0 to 255
@@ -152,7 +152,7 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-This loop clamps the values in an array c of unsigned char to the limit of 128. Assuming the initial values were random, the condition in the body of the loop cannot be predicted with any degree of certainty, and we can expect a very high branch misprediction rate. The alternative, branchless, implementation uses a lookup table (LUT) that has 256 elements, one for each possible value of unsigned char. The table entries LUT[i] for indices i from 0 to 127 contain the index value itself, and the entries LUT[i] for the higher indices all contain 128:
+该循环将\texttt{unsigned char}数组\texttt{c}的值限制为128。初始值是随机的，循环体中的条件在任何程度上都不能预测，可以预期一个非常高的分支错误预测率。另一种无分支的实现使用一个具有256个元素的\textbf{查找表(LUT)}，每个元素对应一个\texttt{unsigned char}值。索引\texttt{i}从0到127的表项\texttt{LUT[i]}包含索引值本身，更高索引值的在\texttt{LUT[i]}中为128:
 
 \begin{lstlisting}[style=styleCXX]
 unsigned char *c = ...; // Random values from 0 to 255
@@ -162,9 +162,9 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-With most modern compilers, this is not optimization at all: the compiler will do better with the original code, most likely using SSE or AVX vector instructions to copy and clamp multiple characters at once and without any branches at all. If we profiled the original code instead of assuming that the branch must be mispredicted, we would have discovered that the program does not suffer from a poor branch prediction.
+大多数现代编译器，这根本不是优化问题:编译器可以更好地处理原始代码，很可能使用SSE或AVX向量指令一次复制和多个钳位字符，从而不需要任何分支。我们对原始代码进行了剖析(而不是假设分支必须错误预测)，发现该程序不会受到分支预测的影响。
 
-There is one more scenario where a branchless transformation may not pay off, and that is the case when the body of the loop is significantly more expensive than the branch, even a mispredicted one. This case is notable because it often describes loops that make function calls:
+还有一种情况是，无分支转换可能不成功，即循环体的开销明显高于分支(即使是错误的预测分支)。这种情况值得注意，因为它经常会在循环中使用:
 
 \begin{lstlisting}[style=styleCXX]
 unsigned long f1(unsigned long x, unsigned long y);
@@ -181,7 +181,7 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-Here we call one of the two functions, f1() or f2(), depending on the condition b1. The if-else statement can be eliminated, and the code can be made branchless if we use an array of function pointers:
+根据条件\texttt{b1}，我们调用两个函数中的一个，\texttt{f1()}或\texttt{f2()}。如果使用函数指针数组，可以消除\texttt{if-else}语句，可以使代码无分支:
 
 \begin{lstlisting}[style=styleCXX]
 decltype(f1)* f[] = { f1, f2 };
@@ -190,13 +190,11 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-Is this an optimization worth doing? Often, it isn't. First of all, if the functions f1() or f2() can be inlined, the function pointer call will prevent that. Inlining is usually a major optimization; giving up inlining to get rid of a branch is almost never justified. When the functions are not inlined, the function call by itself disrupts the pipeline (this is one reason inlining is such an effective optimization). Compared to the cost of the function call, even a mispredicted branch is usually not that much.
+这是值得做的优化吗？通常情况下，并不是。首先，如果可以内联\texttt{f1()}或\texttt{f2()}，那么函数指针调用将阻止这种情况。内联通常是一个主要的优化，放弃内联来摆脱分支是不合理的。函数没有内联，函数调用本身就破坏了流水(这是内联是有效的优化的一个原因)。与函数调用的成本相比，即使是一个错误的分支预测通常也没有那么多性能开销。
 
-Nonetheless, sometimes this function lookup table is a worthwhile optimization: it almost never pays off for just two alternatives, but if we had to choose from many functions based on a single condition, the function pointer table is more efficient than a chained if-else statement. It is worth noting that this example is very similar to the implementation used by all modern compilers to implement virtual function calls; such calls are also dispatched using an array of function pointers instead of a chain of comparisons. When faced with a need to optimize code that calls one of several functions based on a runtime condition, you should consider whether a redesign using polymorphic objects is worthwhile.
+尽管如此，有时函数查找表也是值得优化的:它从不只提供两个选项，但是如果必须基于一个条件从多个函数中进行选择，那么函数指针表比链式\texttt{if-else}语句更有效。值得注意的是，这个示例与所有现代编译器用于实现虚函数调用的实现非常相似，调用也使用函数指针数组(而不是比较链)。如果需要优化基于运行时条件，调用多个函数中的一个，则应该考虑是否应该使用多态对象进行重新设计。
 
-You should also keep in mind the effect of the branchless transformations on the readability of your code: a lookup table of function pointers is not as easy to read and can be much harder to debug than a switch or if-else statement. Given the many factors contributing to the final outcome (compiler optimizations, hardware resource availability, the nature of the data the program operates on), any optimizations must be verified by measurements such as benchmarks and profiles and weighed against the additional cost imposed on the programmer in terms of time, readability, and complexity.
-
-
+还应该记住无分支转换对代码可读性的影响:函数指针的查找表不容易读懂，调试起来可能比开关或if-else语句困难得多。由于影响最终结果的因素很多(编译器优化、硬件资源可用性、程序操作数据的属性)，任何优化都必须通过基准测试和概要数据文件之类的测量进行验证，并权衡其源码对于开发者的开发时间、可读性和复杂性。
 
 
 
