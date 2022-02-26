@@ -1,7 +1,7 @@
 
-We have good evidence to assume that CPUs can operate much faster on the data already in registers compared to the data in memory. The specifications of the processor and memory speeds alone suggest at least an order of magnitude difference. However, we have learned by now not to make any guesses or assumptions about performance without verifying them through direct measurements. This does not mean that any prior knowledge about the system architecture and any assumptions we can make based on that knowledge are not useful. Such assumptions can be used to guide the experiments and devise the right measurements. We will see in this chapter that the process of discovery by accident can take you only so far and can even lead you into error. The measurements can be correct in and of themselves, but it is often hard to determine what exactly is being measured and what conclusions we can derive from the results.
+有充分的证据表明，与内存数据相比，CPU中的寄存器可以更快地对数据进行操作。处理器和内存的速度至少有一个数量级的差异。到目前为止，在没有通过直接测量对性能进行验证之前，不要对性能做出任何猜测或假设。不过这不意味着关于系统架构的任何先验知识和基于这些知识的任何假设都没用，假设可以用来指导实验和设计正确的测量方法。我们将在本章中了解到，偶然尝到的甜头只能让你走这么远，甚至会让你误入歧途。测量本身没问题，但通常很难确定测量的是什么，以及可以从结果中得出什么结论。
 
-It would seem that measuring memory access speed should be fairly trivial. All we need is some memory to read from and a way to time the reads, like so:
+测量内存访问速度相当简单，需要一些可以读取的内存和确定读取时间的方法，像这样:
 
 \begin{lstlisting}[style=styleCXX]
 volatile int* p = new int;
@@ -12,7 +12,7 @@ for (auto _ : state) {
 delete p;
 \end{lstlisting}
 
-This benchmark runs and measures … something. You can expect to get the time of one iteration reported as 0 nanoseconds. This could be the result of an unwanted compiler optimization: if the compiler figures out that the whole program has no observable effects, it may indeed optimize it to nothing. We did take precautions against such an event, though: the memory we read is volatile, and accessing volatile memory is considered an observable effect and cannot be optimized away. Instead, the 0 nanoseconds result is partly a deficiency in the benchmark itself: it suggests that the single read is faster than 1 nanosecond. While this is not quite what we expected based on the memory speed, we can't learn anything, including our own mistakes, from a number we do not know. To fix the measurement aspect of the benchmark, all we have to do is perform multiple reads in one benchmark iteration, like so:
+这个基准测试会运行和测量……一些东西。可以将一次迭代的时间报告为0纳秒。这可能是不必要的编译器优化的结果:如果编译器发现整个程序没有可观察行为，那么它确实可以将其优化为零。但是，我们针对这样的事件采取了措施:读取的内存是\texttt{volatile}，访问\texttt{volatile}内存会认为是一种可观察行为，不能优化掉。相反，0纳秒的结果在一定程度上是基准测试本身的缺陷:表明单次读取的速度要快于1纳秒。这里测试到的内存速度与期望大相径庭，我们不能从一个什么都没有的报告中得到任何东西，包括我们自己犯的错误。在修正基准测试的测量方面，我们要做的就是在基准测试迭代中进行多次读取，如下所示:
 
 \begin{lstlisting}[style=styleCXX]
 volatile int* p = new int;
@@ -26,33 +26,33 @@ state.SetItemsProcessed(32*state.iterations());
 delete p;
 \end{lstlisting}
 
-In this example, we perform 32 reads per iteration. While we could figure out the time of the individual read from the reported iteration time, it is convenient to make the Google Benchmark library do the calculation for us and report the number of reads per second; this is accomplished by setting the number of items processed at the end of the benchmark.
+这个例子中，每次迭代执行32次读取。可以从报告的迭代时间中计算出单个读取的时间，让谷歌基准库为我们进行计算，并报告每秒读取的次数。这可以通过在基准测试结束时，设置处理数量来实现。
 
-This benchmark should report the iteration time around 5 nanoseconds on a mid-range CPU, confirming that a single read is 1/32 of this time and well below 1 nanosecond (so our guess about the reason why 0 is reported for a single read per iteration is validated). On the other hand, this measured value does not match our expectations for the memory being slow. It is possible that our earlier assumptions about what makes the performance bottleneck are incorrect; it would not be the first time. Or, we could be measuring something other than the memory speed.
+基准测试在中等级别的CPU上大约需要5纳秒的迭代时间，从而确认单次读取时间是总时间的1/32，远低于1纳秒(因此对每次迭代报告为0的猜测得到了验证)。另一方面，这个测量值与我们对慢速内存的期望并不匹配。我们之前关于性能瓶颈的假设可能不正确，假设不正确也不是第一次了。当然，我们还可以测量内存速度之外的指标。
 
-\subsubsubsection{4.3.1\hspace{0.2cm}Memory architecture}
+\subsubsubsection{4.3.1\hspace{0.2cm}内存架构}
 
-To understand how to measure memory performance correctly, we have to learn more about the memory architecture of a modern processor. The most important feature of the memory system, for our purposes, is that it is hierarchical. The CPU does not access the main memory directly but through a hierarchy of caches:
+为了理解如何正确地测量内存性能，我们必须更多地了解现代处理器的内存架构。对于我们来说，内存系统最重要的特性是层级结构。CPU不直接访问主存，而是通过缓存的层级结构:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter4/images/2.jpg}\\
-Figure 4.2 – Memory hierarchy diagram
+\includegraphics[width=0.8\textwidth]{content/1/chapter4/images/2.jpg}\\
+图4.2 - 内存层次结构图
 \end{center}
 
-The RAM in Figure 4.2 is the main memory, the DRAM on the motherboard. When the system specifications say that the machine has so many gigabytes of memory, that's the capacity of the DRAM. As you can see, the CPU does not access the main memory directly but instead through several levels of a hierarchy of caches. These caches are also memory circuits, but they are located on the CPU die itself, and they use different technology to store the data: they are all SRAMs of different speeds. The key difference between the DRAM and the SRAM, from our point of view, is that the SRAM is much faster to access, but it draws significantly more power than the DRAM. The speed of the memory access increases as we move closer to the CPU through the memory hierarchy: the level-1 (L1) cache has almost the same access time as the CPU registers, but it uses so much power that we can have only a few kilobytes of such memory, most commonly 32 KB per CPU core. The next level, L2 cache, is larger but slower, the third level (L3) cache is even larger but also slower (and usually shared between multiple cores of a CPU), and the last level of the hierarchy is the main memory itself.
+图4.2中的\textbf{RAM}是主存储器，即主板上的DRAM。系统说明书上说，这台机器有这么多G的内存，这就是DRAM的容量。可以看到，CPU并不直接访问主内存，而是通过几个层级结构的缓存访问主内存。这些缓存也是内存电路，但它们位于CPU芯片内部，使用不同的技术来存储数据:它们都是不同速度的SRAM。在我们看来，DRAM和SRAM的关键区别在于SRAM的访问速度要快得多，但比DRAM的功耗要大得多。随着我们在内存层级结构中越靠近CPU，内存访问的速度就越快:level-1(\textbf{L1})缓存的访问时间与CPU寄存器的访问时间几乎相同，但它功耗很大，以至于只能拥有几千字节的内存空间，通常每个CPU核心有32KB的L1缓存。下一层，\textbf{L2}缓存更大但更慢，第三层(\textbf{L3})缓存更大但也更慢(通常在CPU的多核之间共享)，层次结构的最后一层就是主存。
 
-When the CPU reads a data value from the main memory for the first time, the value is propagated through all the cache levels, and a copy of it remains in the cache. When the CPU reads the same value again, it does not need to wait for the value to be fetched from the main memory because a copy of the same value is already available in the fast L1 cache.
+CPU第一次从主内存中读取数据值，该值通过所有缓存级别传播，其副本保留在缓存中。CPU再次读取相同的值，它不需要等待从主内存获取值，因为相同值的副本已经存储在快速L1缓存中。
 
-As long as the data we want to read fits into the L1 cache, that is all that needs to happen: all the data will be loaded into the cache the first time it's accessed, after that, the CPU only ever needs to access the L1 cache. However, if we try to access a value that is not currently in the cache and the cache is already full, something has to be evicted from the cache to make room for the new value. This process is controlled entirely by the hardware, which has some heuristics to determine which value we are least likely to need again, based on the values we have accessed recently (to the first approximation, the data that wasn't used for the longest time is probably not going to be needed again soon). The next-level caches are larger, but they are used in the same way: as long as the data is in the cache, it is accessed there (the closer to the CPU, the better). Otherwise, it has to be fetched from the next level cache or, for the L3 cache, from the main memory, and, if the cache is full, some other piece of data has to be evicted from the cache (that is, forgotten by the cache, since the original remains in the main memory).
+只要想要读取的数据适合L1缓存，所有数据在第一次访问时就会加载到缓存中，之后CPU只需要访问L1缓存即可。如果我们试图访问当前不在缓存中的值，并且缓存已满，那么必须从缓存中清除一些内容，以便为新值腾出空间。这个过程完全由硬件控制，它有一些方法，根据我们最近访问的值(根据第一次近似，长时间没有使用的数据可能很快就不再需要了)，来确定我们最不可能再次需要哪个值。下一级缓存更大，但它们的使用方式相同:只要数据在缓存中，就在那里访问它(离CPU越近越好)。否则，需要从下一级缓存取值，对于L3缓存来说，就是从主存取值，如果缓存已满，一些其他的数据块必须从缓存中去除(也就是被缓存遗忘，不过原始数据仍然在主存中)。
 
-Now we can better understand what we measured earlier: since we were reading the same value over and over, tens of thousands of times, the cost of the initial read was completely lost, and the average read time was that of the L1 cache read. The L1 cache indeed appears to be quite fast, so if your entire data fits into the 32 KB, you do not need to worry about the memory gap. Otherwise, you have to learn how to measure memory performance correctly, so you can draw conclusions that will be applicable to your program.
+我们可以更好地理解之前测量的结果:由于反复读取相同的值成千上万次，初始读取的时间基本上可以忽略，测试所得的平均读取时间是L1缓存的读取时间。L1缓存的速度确实非常快，所以如果测试数据是32KB，那么就不需要担心内存的读取的性能差。不过，还是需要了解如何正确地测量内存性能，这样才能得出相应的结论。
 
-\subsubsubsection{4.3.2\hspace{0.2cm}Measuring memory and cache speeds}
+\subsubsubsection{4.3.2\hspace{0.2cm}测量内存和缓存的速度}
 
-Now that we understand that the memory speed is more complex than just the time of a single read, we can devise a more appropriate benchmark. We can expect the cache sizes to affect the results significantly, so we have to access data of different sizes, from several kilobytes (fits into the 32 KB L1 cache) to tens of megabytes or more (L3 cache sizes vary but are usually around 8 MB to 12 MB). Since, for large data volumes, the memory system will have to evict the old data from the cache, we can expect the performance to depend on how well that prediction works or, more generally, on the access patterns. Sequential access, such as copying a range of memory, may end up performing very differently than accessing the same range in random order. Finally, the results may depend on the granularity of the memory access: is accessing a 64-bit long value slower than accessing a single char?
+现在我们已经理解了内存速度比一次读取的时间要复杂得多，现在可以设计一个更合适的基准测试。可以预期缓存大小会对结果有影响，因此我们必须访问不同大小的数据，从几千字节(适合32KB的L1缓存)到几十兆字节或更多(L3缓存大小不同，但通常在8MB到12MB之间)。由于对于大数据量测试，内存系统将从缓存中清除旧数据，所以可以预期性能取决于预测的情况，或者说取决于访问模式。所谓的访问，例如复制一个内存范围，可能会以非常不同方式结束，而不是以随机的顺序访问相同的范围。最后，结果可能取决于内存访问的粒度:访问64位长值比访问单个字符那个快？
 
-A simple benchmark for sequentially reading a large array can look like this:
+一个简单的连续读取大数组的基准测试:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -77,7 +77,7 @@ void BM_read_seq(benchmark::State& state) {
 }
 \end{lstlisting}
 
-The benchmark for writing looks very similar, with a one-line change in the main loop:
+编写的基准测试与之前非常类似，只是在主循环中做了一行的修改:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -92,9 +92,9 @@ for (auto _ : state) {
 }
 \end{lstlisting}
 
-The value we write into the array should not matter; if you are concerned that zero is somehow special, you can initialize the fill variable with any other value.
+写入数组的值并不重要。如果认为0有点特殊，那么可以用任何其他值初始化\texttt{fill}。
 
-The macro REPEAT is used to avoid manually copying the benchmarked code many times. We still want to perform several memory reads per iteration: while avoiding the 0 nanoseconds per iteration report is less critical once we start reporting the number of reads per second, the overhead of the loop itself is non-trivial for a very cheap iteration like ours, so it is better to unroll this loop manually. Our REPEAT macro unrolls the loop 32 times:
+使用\texttt{REPEAT}宏来避免多次手动复制代码。我们仍然希望每次迭代执行几次内存读取:当开始报告每秒读取的数量时，避免每次迭代0纳秒的报告就不那么重要了，但是对于像我们这样成本非常低的迭代来说，循环本身的开销并不小，所以最好手动展开这个循环。\texttt{REPEAT}宏将循环展开32次:
 
 \begin{lstlisting}[style=styleCXX]
 #define REPEAT2(x) x x
@@ -105,9 +105,9 @@ The macro REPEAT is used to avoid manually copying the benchmarked code many tim
 #define REPEAT(x) REPEAT32(x)
 \end{lstlisting}
 
-Of course, we have to make sure that the memory size we request is large enough for the 32 values of the Word type and that the total array size is divisible by 32; neither is a significant restriction on our benchmark code.
+当然，我们必须确保请求的内存大小足够容纳32个\texttt{Word}类型的值，并且数组的总大小能被32整除，这对我们的基准测试代码来说都不是什么限制。
 
-Speaking of the Word type, this is the first time we used a TEMPLATE benchmark. It is used to generate the benchmarks for several types without copying the code. There is a slight difference in invoking such a benchmark:
+说到\texttt{Word}类型，这是我们第一次使用\texttt{TEMPLATE}基准测试。它用于在不复制代码的情况下为几种类型生成基准测试，在调用时有一些细微的差别:
 
 \begin{lstlisting}[style=styleCXX]
 #define ARGS ->RangeMultiplier(2)->Range(1<<10, 1<<30)
@@ -115,7 +115,7 @@ BENCHMARK_TEMPLATE1(BM_read_seq, unsigned int) ARGS;
 BENCHMARK_TEMPLATE1(BM_read_seq, unsigned long) ARGS;
 \end{lstlisting}
 
-If the CPU supports it, we can read and write the data in even larger chunks, for example, using SSE and AVX instructions to move 16 or 32 bytes at a time on an x86 CPU. In GCC or Clang, there are library headers for these larger types:
+如果CPU支持，我们可以在更大的块中读写数据，例如：在x86 CPU上使用SSE和AVX指令一次移动16或32个字节。在GCC或Clang中，对于这些较大的类型，有一些库头文件:
 
 \begin{lstlisting}[style=styleCXX]
 #include <emmintrin.h>
@@ -125,19 +125,19 @@ BENCHMARK_TEMPLATE1(BM_read_seq, __m128i) ARGS;
 BENCHMARK_TEMPLATE1(BM_read_seq, __m256i) ARGS;
 \end{lstlisting}
 
-The types \_\_m128i and \_\_m256i are not built into the language (at least not C/C++), but C++ lets us declare new types easily: these are value-type classes (classes that represent a single value), and they have a set of arithmetic operations defined for them, such as addition and multiplication, which the compiler implements using the appropriate SIMD instructions.
+\texttt{\_\_m128i}和\texttt{\_\_m256i}类型没内置在语言中(至少不是C/C++)，但C++可以很容易地声明新类型:这些是值类型类(表示单个值的类)，它们有一组为它们定义的算术操作(加法和乘法)，编译器使用适当的SIMD指令来实现这些操作。
 
-The preceding benchmark accesses the memory range sequentially, from the beginning to the end, in order, one word at a time. The size of the memory varies, as specified by the benchmark arguments (in the example, from 1 KB to 1 GB, doubling every time). After the memory range is copied, the benchmark does it again, from the beginning, until enough measurements are accumulated.
+前面的基准测试依次访问内存范围，从开始到结束，依次访问一个词。内存的大小随基准参数的指定而变化(在本例中，从1KB到1GB，每次增加一倍)。当复制一定范围的内存时，基准测试会从头再做一次，直到积累足够的量。
 
-More care must be taken when measuring the speed of accessing the memory in random order. The naïve implementation would see us benchmarking the code that looks something like this:
+当以随机顺序测量访问内存速度，必须小心。天真的实现会对代码进行基准测试，代码看起来像这样:
 
 \begin{lstlisting}[style=styleCXX]
 benchmark::DoNotOptimize(p[rand() % size]);
 \end{lstlisting}
 
-Unfortunately, this benchmark measures the time it takes to call the rand() function: it is so much more computationally expensive than reading a single integer that you'll never notice the cost of the latter. Even the modulo operator \% is significantly more expensive than a single read or write. The only way to get something remotely accurate is to precompute the random indices and store them in another array. Of course, we have to contend with the fact that we're now reading both the index values and the indexed data, so the measured cost is that of two reads (or a read and a write).
+不幸的是，此基准测试了调用\texttt{rand()}函数所需的时间:它的计算开销比读取单个整数要大得多，因此可能永远不会注意到后者的开销。取模运算符\texttt{\%}比单个读或写开销大得多。获得精确结果的唯一方法是预先计算随机索引并将它们存储在另一个数组中。当然，必须面对这样一个事实，即我们正在同时读取索引值和索引数据，所以测量的开销是两次读取(或一次读取和一次写入)。
 
-The additional code for writing memory in random order can be as follows:
+随机写入内存的代码如下所示:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -158,15 +158,15 @@ for (auto _ : state) {
 }
 \end{lstlisting}
 
-Here we use the STL algorithm random\_shuffle to generate a random order of indices (we could have used random numbers instead; it's not exactly the same since some indices would have appeared more than once and others never, but it should not affect the results much). The value we write should not really matter: writing any number takes the same time, but the compiler can sometimes do special optimizations if it can figure out that the code is writing a lot of zeroes, so it's best to avoid that and write something else. Note also that the longer AVX types cannot be initialized with an integer, so we write an arbitrary bit pattern into the writing value using memset().
+我们使用STL算法\texttt{random\_shuffle}来产生随机的索引顺序(可以用随机数代替，这并不完全相同，因为一些指数可能出现过不止一次，而另一些则从未出现过，但这不会对结果产生太大影响)。我们编出来的值实际上不重要:编写任何数字都需要相同的时间，但是编译器有时可以进行优化，如果它能够发现代码编写了大量的零，那么最好避免这种情况。另外，较长的AVX类型不能用整数初始化，因此我们使用\texttt{memset()}写入值。
 
-The benchmark for reading is, of course, very similar, just the inner loop has to change:
+当然，读取的基准测试代码非常相似，只是内部循环进行了修改:
 
 \begin{lstlisting}[style=styleCXX]
 REPEAT(benchmark::DoNotOptimize(*(p0 + *ind++));)
 \end{lstlisting}
 
-We have the benchmarking code that measures mostly the cost of the memory access. The arithmetic operations necessary to advance the indices are unavoidable, but the additions take a single cycle at most, and we have already seen that the CPU can do several at once, so the math is not going to be the bottleneck (and, in any case, any program that accesses memory in an array would have to do the same computations, so this is the access speed that matters in practice). Now let us see the results of our efforts.
+我们有基准测试代码，主要用于测量内存访问的开销。提升索引所需要的算术运算不可避免，但是加法最多只需要一个时钟周期(CPU可以同时做几个)，所以数学运算不会成为瓶颈(而且，访问数组内存的程序都必须做相同的计算，因此这就是实际中的访问速度)。来看看我们努力的结果。
 
 
 

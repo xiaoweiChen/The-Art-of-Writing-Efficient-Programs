@@ -1,86 +1,83 @@
 
-Now that we have our benchmarking code to measure the speed of reading and writing into memory, we can collect the results and see how we can get the best performance when accessing data in memory. We begin with random access, where the location of each value we read or write is unpredictable.
+现在我们已经有了基准测试来测量读写内存的速度，看看如何访问内存中的数据，可以获得最佳性能。先从随机存取开始，我们读或写的每个值的位置都不可预测。
 
+\subsubsubsection{4.4.1\hspace{0.2cm}随机访存的速度}
 
+如果不多次运行这个基准测试，并对结果进行平均(基准库可以做到这一点)，那么测量结果可能会相当混乱。在合理的运行时间(分钟)内，可能会看到如下结果:
 
-\subsubsubsection{4.4.1\hspace{0.2cm}The speed of random memory access}
-
-The measurements are likely to be fairly noisy unless you run this benchmark many times and average the results (the benchmark library can do that for you). For a reasonable run time (minutes), you will likely see the results that look something like this:
-
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/3.jpg}\\
-Figure 4.3 – Random read speed as a function of memory size
+图4.3 - 随机读取速度与内存大小的关系
 \end{center}
 
-The benchmark results in Figure 4.3 show the number of words read from memory per second (in billions, on any reasonable PC or workstation you can find today), where the word is a 64-bit integer or a 265-bit integer (long or \_\_m256i, respectively). The same measurements can be alternatively presented as the time it takes to read a single word of the chosen size:
+图4.3中的基准测试结果显示，每秒从内存中读取的单词数(以十亿为单位)，其中单个词的长度为64位整数或265位整数(分别为\texttt{long}或\texttt{\_\_m256i})。同样的测量值也可以表示为，读取指定大小的单个单词所花费的时间:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/4.jpg}\\
-Figure 4.4 – Read time for one array element versus array size
+图4.4 - 读取一个数组元素的时间与数组大小的关系
 \end{center}
 
-The graphs have several interesting features we can observe at once. First of all, as we expected, there is no single memory speed. The time it takes to read a single 64-bit integer varies from 0.3 nanoseconds to 7 nanoseconds on the machine I have used. Reading small amounts of data is significantly faster, per value, than reading large amounts of data. We can see the cache sizes in these graphs: the L1 cache of 32 KB is fast, and the read speed does not depend on the data volume as long as it all fits into the L1 cache. As soon as we exceed 32 KB of data, the read speed starts to drop. The data now fits into the L2 cache, which is larger (256 KB) but slower. The larger the array, the smaller is the portion of it that fits into the fast L1 cache at any time, and the slower is the access.
+图表有几个有趣的特征。首先，没有单一的内存速度。在我所使用的计算机上，读取一个64位整数所需的时间从0.3纳秒到7纳秒不等。读取少量数据要比读取大量数据快得多。可以从这些图中看到缓存的大小:32KB的L1缓存速度很快，只要数据量都能装入L1缓存，读取速度就不依赖于数据量。一旦超过32KB的数据，读取速度就开始下降。数据现在适合L2缓存，它更大(256KB)，但速度更慢。数组越大，适合快速L1缓存的部分就越少，访问速度越慢。
 
-The read time increases even more if the data spills out of the L2 cache, and we have to use the L3 cache, which is even slower. The L3 cache is much larger, though, so nothing happens until the data size exceeds 8 MB. Only at that point do we actually start reading from the main memory: until now, the data was moved from the memory into caches the first time we touched it, and all subsequent read operations used the caches only. But if we need to access more than 8 MB of data at once, some of it will have to be read from the main memory (on this machine, anyway—cache sizes vary between CPU models). We don't lose the benefit of caches right away, of course: as long as most data fits in the cache, it is at least somewhat effective. But once the volume of data exceeds the cache size by several times, the read time is almost completely determined by the time it takes to retrieve the data from the memory. 
+如果数据从L2缓存溢出，读取时间会增加得更多，我们必须使用L3缓存。不过，L3缓存要大得多，所以直到数据大小超过8MB时才会发生变化。只有在这时，我们才真正开始从主存读取数据:到目前为止，数据都是在我们第一次接触它时从内存中移动到缓存中，所有后续的读取操作都只使用缓存。如果我们需要一次访问超过8MB的数据，那么其中的一些数据必须从主内存中读取(不同的CPU模型的缓存大小不同)。当然，不要马上去除缓存的好处是:只要大多数数据适合于缓存，至少在某种程度上是有效的。当数据量超出缓存大小几倍，读取时间几乎完全取决于从内存中检索数据所花费的时间。
 
-Whenever we need to read or write some variable, and we find it in a cache, we call it a cache hit. However, if it's not found, then we register a cache miss. Of course, an L1 cache miss can be an L2 hit. An L3 cache miss means that we have to go all the way to the main memory.
+在缓存中找到某个变量进行读或写，称之为缓存命中。如果没有找到，就注册一个缓存缺失事件。当然，L1缓存缺失可以是L2命中。一个L3缓存缺失意味着必须从主存加载数据。
 
-The second property of note is the value itself: 7 nanoseconds to read a single integer from memory. By processor standards, this is a very long time: in the previous chapter, we have seen that the same CPU can do several operations per nanosecond. Let this sink in: the CPU can do about 50 arithmetic operations in the time it takes to read a single integer value from memory unless the value happens to be in the cache already. Very few programs need to do 50 operations on each value, which means that the CPU will likely be underutilized unless we can figure out something to speed up memory access.
+第二个值得注意的是值:从内存中读取一个整数需要7纳秒。按照处理器的标准，这是非常长的时间:前一章中，CPU每纳秒可以做几个操作。还需要注意的是，CPU可以在从内存中读取一个整数值所花费的时间，可以执行大约50个算术运算，除非该值恰好已经在缓存中。很少有程序需要对每个值执行50个操作，这意味着CPU很可能没有得到充分利用，除非能够找到一些加速内存访问的方法。
 
-Finally, we see that the read speed in words per second does not depend on the size of the word. From a practical point of view, the most relevant implication is that we can read four times as much data if we use 256-bit instructions to read the memory. Of course, it's not that simple: SSE and AVX load instructions read values into different registers than the regular loads, so we also have to use the SSE or AVX SIMD instructions to do the computations. One simpler case is when we just need to copy a large amount of data from one location in memory to another; our measurements suggest that copying 256-bit words does the job four times faster than using 64-bit words. Of course, there is already a library function that copies memory, memcpy() or std::memcpy(), and it is optimized for best efficiency.
+最后，以每秒单词为单位的读取速度并不取决于词的大小。从实用的角度来看，如果使用256位的指令来读取内存，可以读取4倍的数据。当然，并不是那么简单:SSE和AVX加载指令将值读入不同的寄存器，因此我们还要使用SSE或AVX SIMD指令进行计算。更简单的情况是，只需要将大量数据从内存中的一个位置复制到另一个位置。测试表明，复制256位字比64位字快4倍。当然，现在有了库函数可以进行内存复制，比如：\texttt{memcpy()}或\texttt{std::memcpy()}，并对其进行了优化，以获得最佳的效率。
 
-There is another implication from the fact that the speed does not depend on the word size: it implies that the read speed is limited by latency and not by bandwidth. Latency is the delay between the time the request for data is issued and the time the data is retrieved. Bandwidth is the total amount of data the memory bus can transmit in a given time. Going from a 64-bit word to a 256-bit word transmits four times as much data in the same time; this implies that we haven't hit the bandwidth limit yet. While this may seem like a purely theoretical distinction, it does have important consequences for writing efficient programs that we will learn about later in this chapter.
+速度不依赖于数据的大小这一事实还有另一个暗示:读取速度受延迟影响，而不是带宽的限制。延迟是发出数据请求和检索数据之间的事件。带宽是内存总线在给定时间内可以传输的数据总量。从64位到256位在同一时间内传输的数据是64位的4倍。也就是，我们还没有达到带宽限制。这似乎是一个纯理论的结论，它确实对编写高效程序有重要的影响，我们将在本章后面了解到。
 
-Finally, we can measure the speed of writing the memory:
+最后，我们可以测量写入内存的速度:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/5.jpg}\\
-Figure 4.5 – Write time for one array element versus array size
+图4.5 - 数组元素的写入时间与数组大小的关系
 \end{center}
 
-In our case, the random reads and writes have very similar performance, but this can vary for different hardware: sometimes reads are faster. Everything we observed earlier about the speed of reading memory also applies to writing: we see the cache size effects in Figure 4.5, the overall wait time for a write is very long if the main memory is involved, and writing large words is more efficient.
+随机读和写有非常相似的性能，但是这可能会因不同的硬件而不同:有时读更快。我们在前面观察到的读取内存的速度也适用于写入，在图4.5中看到了缓存大小的影响。如果涉及到主内存，则写入的总体等待时间会非常长，而且依次写入多个词会更有效率。
 
-What can we conclude about the impact of memory access on performance? On the one hand, if we need to access a small amount of data (less than 32 KB) repeatedly, we don't have to worry much about it. Of course, repeatedly is the key here: the first access to any memory location will have to touch the main memory regardless of how much memory we plan to access (the computer doesn't know that your array is small until you read the entire array and go back to the beginning—reading the first element of a small array for the first time looks exactly the same as reading the first element of a large array). On the other hand, if we have to access large amounts of data, the memory speed is likely to become our first concern: at 7 nanoseconds per number, you can't get very far.
+我们能否得出内存访问对性能影响的结论？一方面，如果需要重复访问少量的数据(小于32KB)，就不必为此担心太多。当然，重复是这里的关键，无论计划访问多少内存，第一次访问任何内存位置都必须接触主存(直到读取整个数组并返回开始，计算机才知道你的数组很小——第一次读取一个小数组的第一个元素看起来与读取第一个元素完全一样大数组的)。另一方面，如果必须访问大量的数据，那么内存速度可能会成为首先关心的问题:以7纳秒/个的速度，你能等得起吗？
 
-There are several techniques for improving memory performance that we will see throughout this chapter. Before we study how to improve our code, let us see what help we can get from the hardware itself.
+有几种提高内存性能的技术，我们将会在本章中看到。我们也会研究如何改进我们的代码，先看看硬件本身。
 
-\subsubsubsection{4.4.2\hspace{0.2cm}The speed of sequential memory access}
+\subsubsubsection{4.4.2\hspace{0.2cm}顺序访存的速度}
 
-So far, we have measured the speed of accessing memory at random locations. When we do this, every memory access is effectively new. The entire array we are reading is loaded into the smallest cache it can fit into, and then our reads and writes randomly access different locations in that cache. If the array does not fit into any cache, then we randomly access different locations in memory and incur the 7 nanoseconds latency on every access (for the hardware we use).
+我们已经测量了在任意位置访问内存的速度，每一次内存访问实际上都是新的。我们正在读取的整个数组会加载到能够放入的最小缓存中，然后我们的随机读写该缓存中的不同位置。该数组不适合缓存，然后我们随机访问内存中的不同位置，并且每次访问(对于我们使用的硬件)都会产生7纳秒的延迟。
 
-Random memory accesses happen quite often in our programs, but just as often, we have a large array that we need to process from the first element to the last. It is important to point out that random and sequential access here is determined by the order of memory addresses. There is a potential for misunderstanding: a list is a data structure that does not support random access (meaning you cannot jump into the middle of the list) and must be accessed sequentially, starting from the head element. However, traversing the list sequentially is likely to access the memory in random order if each list element was allocated separately and at different times. An array, on the other hand, is a random access data structure (meaning you can access any element without accessing the ones before it). However, reading the array from the beginning to the end accesses memory sequentially, in order of monotonically increasing addresses. In this entire chapter, unless otherwise stated, we are concerned with the order of accessing memory addresses when we talk about sequential or random access.
+随机访存在程序中经常发生，但同样频繁的是顺序访存，从第一个元素到最后一个元素的顺序处理一个大数组。这里的随机和顺序访问是由存储器地址的顺序决定的，有可能出现误解的是，列表是不支持随机访问的数据结构(意味着不能直接跳到列表的中间)，必须从头元素开始按顺序访问。如果每个列表元素在不同的时间分配，那么顺序遍历列表很可能是以随机顺序访问内存。另一方面，数组是一种随机访问数据结构(可以随时访问任何元素)。然而，从数组的开始读取到结束，顺序访问内存，按照单调递增的地址顺序。除非另有说明，在本章讨论顺序访问或随机访问时，我们值关心访问内存地址的顺序，而非数据结构。
 
-The performance of sequential memory accesses is quite different. Here are the results for sequential writes:
+顺序访存的性能也与随机方式不同。下面是顺序写入的结果:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/6.jpg}\\
-Figure 4.6 – Write time for one array element versus array size, sequential access
+图4.6 - 顺序访存，数组元素的写入时间与数组大小的关系
 \end{center}
 
-The overall shape of the graphs is the same as before, but the differences are just as important as the similarities. The first difference we should note is the scale of the vertical axis: the time values are much smaller than the ones we saw in Figure 4.5. It takes only 2.5 nanoseconds to write a 256-bit value and just 0.8 nanoseconds for the 64-bit integer.
+图的整体形状和以前一样，但不同之处和相似之处同样重要。首先，需要注意的是纵轴的刻度:时间值比我们在图4.5中看到的要小得多。写一个256位的值只需要2.5纳秒，而64位的整数只需要0.8纳秒。
 
-The second difference is that the curves for different word sizes are no longer the same. An important caveat here is that this result is highly hardware-dependent: on many systems, you will see the results more similar to the ones from the previous section. On the hardware I used, sequential write times for different word sizes are the same for the L1 cache but different for other caches and the main memory. Looking at the main memory values, we can observe that the time to write a 64-bit integer is not quite twice the time it takes to write a 32-bit integer, and for the larger sizes, the write times double every time the word size doubles. This means that the limit is not how many words per second we can write, but how many bytes per second: the speed in bytes per second will be the same for all word sizes (except the smallest one). This implies that the speed is now limited not by latency but by bandwidth: we're pushing the bits into memory as fast as the bus can transmit them, and it doesn't matter whether we group them into 64-bit chunks or 256-bit chunks that we call words, we've hit the bandwidth limit of the memory. Again, this outcome is much more hardware-dependent than any other observation we make in this chapter: on many machines, the memory is fast enough, and a single CPU cannot saturate its bandwidth.
+第二个区别是数据块不同时的曲线不再相同。需要注意的是，此结果高度依赖硬件:许多系统中，会将看到与前一节中的结果更加相似的结果。在我使用的硬件上，对于不同大小的数据块，L1缓存的顺序写时间是相同的，但对于其他缓存和主存则不同。在主存写入时，我们可以观察到，写入64位整数的时间，并不写入32位整数所需的时间的两倍，对于更大的数据，每次数据量加倍时，写入时间都加倍。这说明，限制不是每秒可以写多少个数据块，而是每秒可以写多少个字节:对于所有数据块的大小(除了最小的一个)，每秒写入的字节数是相同的。现在限制速度的不是延迟，而是带宽:我们将比特以总线能够传输的最快速度推送到内存中，无论将它们分为64位的数据块，还是256位的数据块，我们都已经达到了内存的带宽限制。本章中，这个结果比我们所做的任何观察都更加依赖硬件:在许多机器上，会出现内存足够快，而CPU无法饱和使用其带宽的情况。
 
-The last observation we can make is that while the steps in the curves corresponding to the cache sizes are still visible, they are much less pronounced and not nearly as steep. We have the results, we have the observations. What does this all mean?
+虽然与缓存大小相对应的曲线中的“阶梯”仍然可见，但不那么明显，也不那么陡峭。现在已经有了结果，也进行了观察。那有什么结论呢？
 
+\subsubsubsection{4.4.3\hspace{0.2cm}硬件中的内存性能优化}
 
-\subsubsubsection{4.4.3\hspace{0.2cm}Memory performance optimizations in hardware}
+三个观察结果结合起来，可以看出硬件本身使用了某种隐藏延迟的技术(除了改变内存访问顺序外，我们没有做任何事情来提高代码的性能，所以这些改进都归功于硬件)。当随机访问主内存时，每次访问在我们的机器上需要7纳秒。这是从特定地址的数据请求到交付至CPU寄存器所花费的时间，这个完全由访存延迟决定(不管我们请求了多少字节，必须等待7纳秒)。当按顺序访问内存时，硬件可以立即开始传输数组的下一个元素:访问第一个元素仍然需要7纳秒，顺序访问内存时,硬件可以马上把数组的下一个元素:第一个元素仍然需要7纳秒来访问，此后硬件可以以CPU和内存总线处理它的速度将整个数组从内存中写入或读出。数组中第二个和后面的元素的传输，有可能在CPU发出数据请求之前就开始了。因此，延迟不再是限制因素，而带宽才是。
 
-The three observations, combined, point to some sort of latency-hiding technique employed by the hardware itself (other than changing the memory access order, we have not done anything to improve the performance of our code, so the gains are all thanks to the hardware doing something different). When accessing the main memory randomly, each access takes 7 nanoseconds on our machine. That's how long it takes from the time the data at a particular address is requested until it's delivered into a CPU register, and this delay is entirely determined by latency (it doesn't matter how many bytes we requested, we have to wait for 7 nanoseconds to get anything). When accessing memory sequentially, the hardware can begin transferring the next element of the array right away: the very first element still takes 7 nanoseconds to access, but after that, the hardware can start streaming the entire array from or to memory as fast as the CPU and the memory bus can handle it. The transfer of the second and the later elements of the array begins even before the CPU has issued the request for the data. Thus, the latency is no longer the limiting factor, the bandwidth is.
+当然，这是假设硬件已知要按顺序访问整个数组，以及这个数组有多大。在现实中，硬件什么都不知道，就像我们在上一章学习的条件指令一样，内存系统中有学习回路，可以做出有根据的猜测。在我们的示例中，遇到了称为\textbf{预取}的硬件技术。当内存控制器注意到CPU已经连续访问了几个地址，就会假设这个地址会继续使用，并为访问下一个内存位置做准备，将数据传输到L1缓存中(用于读操作)，或者在L1缓存中腾出空间(用于写操作)。理想情况下，预取技术允许CPU始终以L1缓存的速度访问内存，当CPU需要每个数组元素时，其已经在L1缓存中了。实际情况是否符合这种理想情况，要取决于CPU在访问相邻元素之间做了多少工作。在基准测试中，CPU几乎不做任何工作，而预取则落后了。期望线性顺序访问，则没有办法足够快地在主内存和L1缓存之间传输数据。然而，预取在隐藏内存访问延迟方面非常有效。
 
-Of course, this assumes that the hardware knows that we want to access the entire array sequentially and how large the array is. In reality, the hardware knows nothing of the sort, but, just like it did with the conditional instructions we studied in the last chapter, there are learning circuits in the memory system that make educated guesses. In our case, we have encountered the hardware technique known as the prefetch. Once the memory controller notices that the CPU has accessed several addresses sequentially, it makes the assumption that the pattern will continue and prepares for the access of the next memory location by transferring the data into the L1 cache (for reads) or vacating space in the L1 cache (for writes). Ideally, the prefetch technique would allow the CPU always to access memory at the L1 cache speeds because, by the time the CPU needs each array element, it is already in the L1 cache. Whether the reality matches this ideal case or not depends on how much work the CPU needs to do between accessing the adjacent elements. In our benchmark, the CPU does almost no work at all, and the prefetch falls behind. Even anticipating the linear sequential access, there is no way it can transfer the data between the main memory and the L1 cache fast enough. However, the prefetch is very effective at hiding the latency of memory access.
+预取并不是基于如何访问内存的预测或先验知识(有一些特定于平台的系统调用，允许程序通知硬件某个范围的内存将被顺序访问，但这是不可移植的，而且在实践中很少奏效)。相反，预取尝试在访问内存时检测访存模式。因此，预取的有效性取决于，访存模式和下一次访问的位置。
 
-The prefetch is not based on any prescience or prior knowledge about how the memory is going to be accessed (there are some platform-specific system calls that allow the program to notify the hardware that a range of memory is about to be accessed sequentially, but they are not portable and, in practice, rarely useful). Instead, the prefetch tries to detect a pattern in accessing memory. The effectiveness of the prefetch is, thus, determined by how effectively it can determine the pattern and guess the location of the next access.
+关于预取模式检测的局限性有很多信息，其中很多都已经过时，例如：在较早的文献中，可以读到按向前顺序访问内存(对于数组\texttt{a}，从\texttt{a[0]}到\texttt{a[N-1]})比向后访问更高效。这对现代CPU来说都不再适用，而且已经很多年来不是这样了。如果我开始准确地描述，哪些模式在预取方面是有效的，哪些模式是无效的，那么该书就有落入同样陷阱的风险。最后，如果算法需要特定的内存访问模式，并且想知道预取能否处理它，最可靠的方法是使用与随机内存访问类似的基准测试来进行测试。
 
-There is a lot of information, much of it is outdated, about what the limitations of the prefetch pattern detection are. For example, in the older literature, you can read that accessing memory in the forward order (for an array a, going from a[0] to a[N-1]) is more efficient than going backward. This is no longer true for any modern CPU and hasn't been true for years. This book risks falling into the same trap if I start describing exactly which patterns are and aren't efficient in terms of prefetch. Ultimately, if your algorithm requires a particular memory access pattern and you want to find out whether your prefetch can handle it, the most reliable way is to measure it using the benchmark code similar to what we used in this chapter for random memory access.
+一般来说，预取对于访问内存的递增顺序和递减顺序都有效。在预取调整到新的模式之前，反转方向会有一些性能损失。像访问数组中的每4个元素这样的跨步处理，会被检测和预测，其效率与密集的顺序访问一样。预取能够检测多个并发跨步(即访问每3个和每7个元素)，但当硬件功能从一个处理器转移到另一个处理器时，必须自己对数据进行紧致化处理。
 
-In general terms, I can tell you that the prefetch is equally effective for accessing memory in increasing and decreasing orders. However, reversing the direction will incur some penalty until the prefetch adjusts to the new pattern. Accessing memory with stride, such as accessing every fourth element in an array, will be detected and predicted just as efficiently as a dense sequential access. The prefetch can detect multiple concurrent strides (that is, accessing every third and every seventh element), but here we're getting into the territory where you have to gather your own data as the hardware capabilities change from one processor to another.
-
-Another performance optimization technique that the hardware employs very successfully is the familiar one: pipelining or hardware loop unrolling. We have already seen it in the last chapter, where it was used to hide the delay caused by the conditional instructions. Similarly, pipelining is used to hide the latency of memory accesses. Consider this loop:
+硬件非常成功地采用的另一种性能优化技术:\textbf{流水线}或\textbf{硬件循环展开}。在上一章中我们已经了解过，这种技术可以用来隐藏由条件指令引起的延迟。通常，流水线也可用于隐藏内存访问的延迟。考虑一下这个循环:
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; i < N; ++i) {
@@ -88,27 +85,27 @@ for (size_t i = 0; i < N; ++i) {
 }
 \end{lstlisting}
 
-On every iteration, we read a value a[i] from the array, do some computations, and store the result, b[i], in another array. Since both reading and writing takes time, we can expect the timeline of the execution of the loop to look like this:
+每次迭代，我们从数组中读取一个值\texttt{a[i]}，进行一些计算，并将结果存储在另一个数组\texttt{b[i]}中。读和写都需要时间，可以期望循环执行的时间轴是这样的:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/7.jpg}\\
-Figure 4.7 – Timeline of a non-pipelined loop
+图4.7 - 非流水线循环的时间线
 \end{center}
 
-This sequence of operations would leave the CPU waiting for memory operations to complete most of the time. Instead, the hardware will read ahead into the instruction stream and overlay the instruction sequences that do not depend on each other:
+这个操作序列会让CPU在大部分时间里等待内存操作完成。硬件将提前读入指令流，并覆盖彼此不依赖的指令序列:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/8.jpg}\\
-Figure 4.8 – Timeline of a pipelined (unrolled) loop
+图4.8 - 流水线(展开)循环的时间线
 \end{center}
 
-The load of the second array element can start as soon as the first one is read, assuming there are enough registers. For simplicity, we are assuming that the CPU cannot load two values at a time; most real CPUs can do more than one memory access at the same time, which just means that the pipeline can be even wider, but it doesn't change the main idea. The second set of computations begin as soon as the input value is available. After the first few steps, the pipeline is loaded, and the CPU spends most of the time computing (if the computing steps from different iterations overlap, the CPU may even be executing several iterations at once, provided it has enough compute units to do so).
+假设有足够的寄存器，第二数组元素的加载可以在第一个数组元素读取后立即开始。简单来说，假设CPU不能一次加载两个值(大多数真正的CPU可以同时做多个内存访问，这意味着流水线可以更宽)，当有输入值可用，第二组计算就开始。前几个步骤中，指令载入流水，CPU花费了大部分时间进行计算(如果来自不同迭代的计算步骤重叠，CPU甚至可以一次执行多个迭代，只要有足够多的计算单元)。
 
-The pipelining can hide the latency of memory accesses, but, obviously, there is a limit. If it takes 7 nanoseconds to read one value and we need to read a million of them, it is going to take 7 milliseconds at best, there is no getting around that (again, assuming the CPU can read only one value at a time). The pipelining can help us by overlaying the computations with the memory operations, so, in the ideal case, all the computing is done during these 7 milliseconds. The prefetch can start reading the next value before we need it and thus cut down the average read time, but only if it guesses correctly what that value is. Either way, the measurements done in this chapter show the best-case scenarios for accessing memory in different ways.
+流水线可以隐藏内存访问的延迟，但这是有限制的。读取一个值需要7纳秒，我们需要读取一百万纳秒，最多需要7毫秒，这是无法避免的(假设CPU一次只能读取一个值)。流水线操作可以通过将计算与内存操作重叠来帮助我们，因此，在理想情况下，所有计算都在这7毫秒内完成。预取可以在我们需要它之前开始读取下一个值，从而减少平均读取时间，但前提是它的猜测正确。无论哪种方式，本章中所做的测量都展示了以不同方式访问内存的最佳情况。
 
-In terms of measuring memory speed and presenting the results, we have covered the basics and learned about the general properties of the memory system. Any more detailed or specific measurements are left as an exercise for the reader, and you should be wellequipped to gather the data you need to make informed decisions about the performance of your particular applications. We now turn our attention to the next step: we know how the memory works and what performance we can expect from it, but what can we do to improve the performance of a concrete program?
+在测量内存速度和呈现结果方面，我们已经了解了基础知识，并了解了内存系统的通用属性。更详细或具体的测量方法留给读者作为练习，可以收集所需的数据，以便对特定应用程序的性能要求做出明智的决策。现在我们把注意力转到下一个阶段:知道内存是如何工作的，了解了可以在内存方面得到什么性能，那我们需要做些什么才能提高程序的性能呢？
 
 
 

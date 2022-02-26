@@ -1,19 +1,19 @@
 
-The first reaction many programmers have when they learn the material from the previous section is often this: "Thanks, I understand now why my program is slow, but I have to process the amount of data I have, not the ideal 32 KB, and the algorithm is what it is, including the complex data access pattern, so there is nothing I can do about it." This chapter would not be worth much if we didn't learn how to get better memory performance for the problems we need to solve. In this section, we will learn the techniques that can be used to improve memory performance.
+很多开发者在学习上一节的内容时，第一反应通常是这样的:“谢谢，我现在理解了为什么我的程序很慢，但我必须处理我的数据，不只是理想的32KB，算法就是这样，包括复杂的数据访问模式，所以我无能为力。”如果我们不了解如何为需要解决的问题获得更好的内存性能，那么这一章就没有多大存在意义。本节中，我们将了解可以用来提高内存性能的技术。
 
-\subsubsubsection{4.5.1\hspace{0.2cm}Memory-efficient data structures}
+\subsubsubsection{4.5.1\hspace{0.2cm}节约内存数据结构}
 
-The choice of data structures, or, more generally, data organization, is usually the most important decision the programmer makes as far as memory performance is concerned. It is important to understand what you can and cannot do: the memory performance shown in Figure 4.5 and Figure 4.6 is really all there is, and you can't get around it (strictly speaking, this is only 99\% true; there are some exotic memory access techniques that, rarely, can exceed the limits shown in these figures). But, you can choose where on these graphs is the point corresponding to your program. Let us consider first a simple example: we have 1 M 64-bit integers that we need to store and process in order. We can store these values in an array; the size of the array will be 8 MB, and, according to our measurements, the access time is about 0.6 nanoseconds per value, as shown in Figure 4.6.
+就内存性能而言，数据结构或数据组织的选择通常是开发者所做的重要的决策。重要的是要理解你能做什么和不能做什么:图4.5和图4.6展示了内存性能，这里不能绕过它(严格地说，这是99\%的正确;有一些奇异的内存访问技术，很少会超过这些图中所示的限制)。但可以在这些图上选择与自己程序相对应的点。首先考虑一个简单的示例:我们有1M个64位的整数，需要按顺序存储和处理。我们可以将这些值存储在数组中，数组的大小将为8MB。根据我们的测量，每个值的访问时间约为0.6纳秒，如图4.6所示。
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/9.jpg}\\
-Figure 4.9 – Write time for one array (A) versus list (L) element
+图4.9 - 写入数组(A)[随机]和列表(L)[顺序]的时间
 \end{center}
 
-Alternatively, we could use a list to store the same numbers. The std::list is a collection of nodes, and each node has the value and two pointers to the next and the previous node. The entire list, therefore, uses 24 MB of memory. Furthermore, each node is allocated through a separate call to operator new, so different nodes are likely to be at very different addresses, especially if the program is doing other memory allocations and deallocations at the same time. There isn't going to be any pattern in the addresses we need to access when traversing the list, so to find the performance of the list, all we need to do is find the point corresponding to the 24 MB memory range on the curve for random memory accesses. This gives us just over 5 nanoseconds per value or almost an order of magnitude slower than accessing the same data in an array.
+首先，可以使用列表来存储。\texttt{std::list}是节点的集合，每个节点都有一个值和两个指向下一个和上一个节点的指针。因此，整个列表使用24MB的内存。此外，每个节点通过对\texttt{operator new}的单独调用来分配，因此不同的节点可能位于非常不同的地址，特别是当程序同时进行其他内存分配和回收时。在遍历这个列表时，需要访问的地址没有任何模式，所以要找到这个列表的性能点，我们需要做的就是在曲线上找到对应于随机内存访问的24MB内存范围的点。这使得每个值只比访问数组中的相同数据慢了5纳秒或一个数量级。
 
-Those of you who, at this point, demanded proof, have learned something valuable from the previous chapter. We can easily construct a micro-benchmark to compare writing data into a list and a vector of the same size. Here is the benchmark for the vector:
+这些，前一章已经证明。我们可以很容易地构造一个微基准来比较将数据写入相同大小的列表和数组的区别。以下是数组的基准测试:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -36,19 +36,19 @@ BENCHMARK_TEMPLATE1(BM_write_vector, unsigned long)-
 >Arg(1<<20);
 \end{lstlisting}
 
-Change std::vector to std::list to create a list benchmark. Note that the meaning of the size has changed, compared to the earlier benchmarks: now it is the number of the elements in the container, so the memory size will depend on the element type and the container itself, just as was shown in Figure 4.6. The results, for 1 M elements, are exactly as promised:
+将\texttt{std::vector}改为\texttt{std::list}来创建一个基准测试。与之前的基准测试相比，现在是容器中元素的数量已经发生了变化，因此内存大小将取决于元素类型和容器本身，如图4.6所示。对于1M个元素，结果与预期完全一致:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/10.jpg}\\
-Figure 4.10 – List versus vector benchmark
+图4.10 - 列表和数组的基准测试结果
 \end{center}
 
 Why would anyone choose the list over the array (or std::vector)? The most common reason is that at the time of creation, we did not know how much data we were going to have, and growing a vector is extremely inefficient because of the copying involved. There are several ways around this problem. Sometimes it is possible to precompute the final size of the data relatively inexpensively. For example, it may cost us a single scan of the input data to determine how much space to allocate for the results. If the inputs are efficiently organized, it may be worth it to do two passes over the inputs: first, to count, and second, to process.
 
 If it is not possible to know the final data size in advance, we may need a smarter data structure that combines the memory efficiency of a vector with the resizing efficiency of a list. This can be achieved using a block-allocated array:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/11.jpg}\\
 Figure 4.11 – A block-allocated array (deque) can be grown in place
@@ -62,7 +62,7 @@ If there is a point in the algorithm where the data access patterns change, it i
 
 The bottom line is, if we access some data a lot, we should choose a data structure that makes that particular access pattern optimal. If the access pattern changes in time, the data structure should change as well. On the other hand, if we don't spend much time accessing the data, the overhead of converting from one arrangement of the data to another likely cannot be justified. However, in this case, inefficient data access should not be a problem in the first place. This brings us to the next question: how do we figure out which data is accessed inefficiently and, more generally, which data is expensive to access?
 
-\subsubsubsection{4.5.2\hspace{0.2cm}Profiling memory performance}
+\subsubsubsection{4.5.2\hspace{0.2cm}分析内存性能}
 
 Often, the efficiency of a particular data structure or data organization is fairly obvious. For example, if we have a class containing an array or a vector, and the interface of this class allows only one mode of access to the data, with sequential iteration from the beginning to the end (forward iterator, in the STL language), then we can be quite certain that the data is accessed as efficiently as possible, at the memory level anyway. We can't be sure about the efficiency of the algorithm: for example, a linear search of a particular element in an array is very inefficient (each memory read is efficient, of course, but there are a lot of them; we know better ways to organize data for searching).
 
@@ -82,7 +82,7 @@ The cache measurement counters are not part of the default counter set and must 
 
 We can use this command line to profile our memory benchmarks for reading the memory at random addresses. When the memory range is small, say, 16 KB, the entire array fits into the L1 cache, and there are almost no cache misses:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/12.jpg}\\
 Figure 4.12 – Profile of a program with good use of the L1 cache
@@ -90,7 +90,7 @@ Figure 4.12 – Profile of a program with good use of the L1 cache
 
 Increasing the memory size to 128 MB means that cache misses are very frequent:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/13.jpg}\\
 Figure 4.13 – Profile of a program with poor use of the L1 cache
@@ -100,7 +100,7 @@ Note that perf stat collects the overall values for the entire program, where so
 
 We have now learned how to detect and identify the data structures whose inefficient memory access patterns negatively impact performance and what are some of the alternatives. Unfortunately, the alternative data structures usually don't have the same features or performance: a list cannot be replaced with a vector if elements must be inserted at arbitrary locations throughout the life of the data structure. Often, it is not the data structure but the algorithm itself that calls for inefficient memory accesses. In such cases, we may have to change the algorithms.
 
-\subsubsubsection{4.5.3\hspace{0.2cm}Optimizing algorithms for memory performance}
+\subsubsubsection{4.5.3\hspace{0.2cm}优化内存性能的算法}
 
 The memory performance of algorithms is an often overlooked subject. Algorithms are most commonly chosen for their algorithmic performance or the number of operations or steps they perform. Memory optimizations often call for a counter-intuitive choice: do more work, even do unnecessary work, to improve memory performance. The game here is to trade some computing for faster memory operations. The memory operations are slow, so our budget for extra work is quite large.
 
@@ -112,7 +112,7 @@ In this chapter, I will show you a more interesting technique, where we do more 
 
 The demonstration requires a more elaborate example. Let us say that we have a collection of data records, such as strings, and the program needs to apply a set of changes to some of these records. Then we get another set of changes, and so on. Each set will have changes to some records, while other records remain unchanged. The changes do, in general, change the size of the record as well as its content. The subset of records that are changed in each set is completely random and unpredictable. Here is a diagram showing just that:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/14.jpg}\\
 Figure 4.14 – The record editing problem. In each change set, the records marked by * are edited, the rest remains unchanged
@@ -145,7 +145,7 @@ Our entire algorithm does nothing but loads and stores at random addresses. As w
 
 Coming up with an alternative requires a paradigm shift. The algorithm that performs the required operations literally as specified also imposes restrictions on the memory organization: changing records requires moving them in memory, and, as long as we want to be able to change any one record without affecting anything else, we cannot avoid random distribution of records in memory. We have to come at the problem sideways and start with the restrictions. We really want to access all records sequentially. What can we do under this constraint? We can read all records very fast. We can decide whether the record must be changed; this step is the same as before. But what do we do if the record must grow? We have to move it somewhere else, there is no room to grow in place. But we agreed that the records would remain allocated in sequence, one after the other. Then the previous record and the next record have to be moved too, so they remain stored before and after our new record. This is the key to the alternative algorithm: all records are moved with each change set, whether they are changed or not. Now we can store all records in one huge contiguous buffer (assuming we know the upper limit on the total record size):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/15.jpg}\\
 Figure 4.15 – Processing all records sequentially
@@ -177,7 +177,7 @@ In every change set, we copy every string (record) from the old buffer to the ne
 
 The obvious downside to this implementation is the use of the huge buffer: we have to be pessimistic in choosing its size to allocate enough memory for the largest possible records we might encounter. Doubling of the peak memory size is also concerning. We can solve this problem by combining this approach with the growable array data structure we saw earlier. Instead of allocating one contiguous buffer, we can store the records in a series of fixed-size blocks:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/16.jpg}\\
 Figure 4.16 – Using a block buffer to edit records
