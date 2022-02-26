@@ -44,33 +44,33 @@ BENCHMARK_TEMPLATE1(BM_write_vector, unsigned long)-
 图4.10 - 列表和数组的基准测试结果
 \end{center}
 
-Why would anyone choose the list over the array (or std::vector)? The most common reason is that at the time of creation, we did not know how much data we were going to have, and growing a vector is extremely inefficient because of the copying involved. There are several ways around this problem. Sometimes it is possible to precompute the final size of the data relatively inexpensively. For example, it may cost us a single scan of the input data to determine how much space to allocate for the results. If the inputs are efficiently organized, it may be worth it to do two passes over the inputs: first, to count, and second, to process.
+为什么会有人选择列表而不是数组(或\texttt{std::vector})？最常见的原因是，在创建时不知道有多少数据，并且由于涉及复制，增长\texttt{std::vector}的效率非常低。有几种方法可以解决这个问题，有时可以预先计算出数据的最终大小，例如：需要对输入数据进行一次扫描，以确定为结果分配多少空间。如果有效地组织了输入，那么可能值得对输入进行两次传递:第一次是计数，第二次是进行处理。
 
-If it is not possible to know the final data size in advance, we may need a smarter data structure that combines the memory efficiency of a vector with the resizing efficiency of a list. This can be achieved using a block-allocated array:
+如果不能提前知道最终的数据大小，可能需要一种更智能的数据结构，将\texttt{vector}的内存与\texttt{list}的调整大小效率结合起来。这可以通过使用块分配数组来实现:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter4/images/11.jpg}\\
-Figure 4.11 – A block-allocated array (deque) can be grown in place
+\includegraphics[width=0.8\textwidth]{content/1/chapter4/images/11.jpg}\\
+图4.11 - 块分配的数组(deque)可以在适当的位置进行增长
 \end{center}
 
-This data structure allocates memory in blocks of a fixed amount, usually small enough that they fit into the L1 cache (anywhere between 2 KB and 16 KB is commonly used). Each block is used as an array, so, within each block, the elements are accessed sequentially. The blocks themselves are organized in a list. If we need to grow this data structure, we just allocate another block and add it to the list. Accessing the first element of each block is likely to incur a cache miss, but the rest of the elements in the block can be accessed efficiently once the prefetch detects the pattern of sequential access. Amortized over the number of elements in each block, the cost of the random access can be made very small, and the resulting data structure can perform almost identically to the array or vector. In STL, we have such a data structure: std::deque (unfortunately, the implementation in most STL versions is not particularly efficient, and sequential accesses to the deque are usually somewhat slower than to the vector of the same size).
+这种数据结构以固定数量的块分配内存，通常小到足以装入L1缓存(通常在2KB到16KB之间)。每个块都用作数组，因此每个块中，将顺序访问元素，而块本身在在一个列表中。我们需要扩展这个数据结构，只分配一个块，并将其添加到列表中。访问每个块的第一个元素很可能会导致缓存丢失，但是当预取检测到顺序访问的模式时，块中的其他元素可以高效地访问到。按每个块中的元素数量平摊，随机访问的代价可以变得非常小，结果数据结构的性能几乎与数组或向量相同。在STL中，我们有这样一个数据结构:\texttt{std::deque}(不幸的是，大多数STL版本的实现不是特别高效，顺序访问\texttt{deque}通常比访问相同大小的\texttt{vector}慢一些)。
 
-Yet another reason to prefer a list over an array, monolithic or block-allocated, is that the list allows fast insertions at any point, not just at the ends. If you need this, then you have to use a list or another node-allocated container. In such cases, often the best solution is to not attempt to select a single data structure that works for all requirements but to migrate the data from one data structure to another. For example, if we want to use the list to store data elements, one at a time while maintaining sorted order, one question to ask is, do we need the order to be sorted at all times, only after all elements are inserted, or a few times in the middle of the construction process but not all the time?
+另一个选择列表而不是数组、单块或块分配的原因是，列表允许在任何点进行快速插入，而不仅仅是在末尾。如果需要，必须使用列表或另一个节点分配的容器。这种情况下，最好的解决方案通常不是尝试选择一个适合所有需求的数据结构，而是将数据从一个数据结构迁移到另一个数据结构，例如：如果想使用列表来存储数据元素，每次存储一个，同时保持排序顺序，那么问题来了，我们是否需要在所有元素插入后，对该顺序进行排序？还是，需要在构建过程的中间进行几次排序，而不是一直进行排序？
 
-If there is a point in the algorithm where the data access patterns change, it is often advantageous to change the data structure at that point, even at the cost of some copying of memory. For example, we may construct a list and, after the last element is added, copy it into an array for faster sequential access (assuming we won't need to add any more elements). If we can be sure that some part of the data is complete, we may convert that part to an array, perhaps one or more blocks in a block-allocated array, and leave the still mutable data in a list or a tree data structure. On the other hand, if we rarely need to process the data in the sorted order, or need to process it in multiple orders, then separating the order from the storage is often the best solution. The data is stored in a vector or a deque, and the order is imposed on top of it by an array of pointerssorted in the desired order.  Since all ordered data accesses are now indirect (through an intermediate pointer), this is efficient only if such accesses are rare, and most of the time, we can process the data in the order in which it's stored in the array.
+如果算法中发生了数据访问模式的改变，那么改变的数据结构通常是对算法有利的，即使要付出一些内存复制的代价，例如：可以构造一个列表，在添加最后一个元素之后，将其复制到数组中，以加快顺序访问(假设不需要添加更多元素)。我们可以确保数据的某些部分完整，可以将该部分转换为数组，可能是块分配数组中的一个或多个，并将可变的数据保留在列表或树的数据结构中。另一方面，如果很少需要按顺序处理数据，或者需要按多个顺序处理数据，那么将顺序索引与存储数据区分开保存，通常是最好的解决方案。数据存储在\texttt{vector}或\texttt{deque}容器中，其顺序由一个按所需顺序排序的指针数组保存。由于现在所有的有序数据访问都是间接的(通过中间指针)，在这样的访问很少的情况下这没问题，而在大多数情况下，可以按照数据存储在数组中的顺序处理数据。
 
-The bottom line is, if we access some data a lot, we should choose a data structure that makes that particular access pattern optimal. If the access pattern changes in time, the data structure should change as well. On the other hand, if we don't spend much time accessing the data, the overhead of converting from one arrangement of the data to another likely cannot be justified. However, in this case, inefficient data access should not be a problem in the first place. This brings us to the next question: how do we figure out which data is accessed inefficiently and, more generally, which data is expensive to access?
+若是经常访问一些数据，应该选择使最优特定访问模式的数据结构。访问模式随着时间的推移而改变，数据结构也应该改变。另一方面，如果不花太多时间访问数据，那么从一种数据格式转换到另一种数据格式的开销就不合理了。这种情况下，效率低下的数据访问从一开始就不应该成为问题。这就引出了下一个问题:我们如何确定哪些数据访问效率低，或者说，哪些数据访问成本高？
 
 \subsubsubsection{4.5.2\hspace{0.2cm}分析内存性能}
 
-Often, the efficiency of a particular data structure or data organization is fairly obvious. For example, if we have a class containing an array or a vector, and the interface of this class allows only one mode of access to the data, with sequential iteration from the beginning to the end (forward iterator, in the STL language), then we can be quite certain that the data is accessed as efficiently as possible, at the memory level anyway. We can't be sure about the efficiency of the algorithm: for example, a linear search of a particular element in an array is very inefficient (each memory read is efficient, of course, but there are a lot of them; we know better ways to organize data for searching).
+通常，特定数据结构或数据组织的效率相当高，例如：若我们有一个包含数组或\texttt{vector}的类，并且这个类的接口只允许一种访问数据的模式，即从开始到结束的顺序迭代(STL语言中的前向迭代器)，那么可以非常确定数据可以高效地访问(在内存级别上)。这里，我们不能确定算法的效率，例如：对数组中特定元素的线性搜索非常低效(当然，每次读取内存都是高效的，但是方法有很多。而且，我们知道更好的方法来组织数据进行搜索)。
 
-Simply knowing which data structures are memory-efficient is not enough: we also need to know how much time the program spends working on a particular set of data. Sometimes, this is self-evident, especially with good encapsulation. If we have a function that, according to the profile or the timing report, takes a lot of time, and the code inside the function is not particularly heavy on computations but moves a lot of data, the odds are good that making access to this data more efficient will improve the overall performance.
+仅仅知道哪些数据结构是内存高效的并不够，我们还需要知道程序在特定的数据上花费了多少时间。有时，这是不言自明的，特别是对封装良好的函数。如果我们有一个函数，根据数据文件或时间报告，需要大量的时间，并且函数内的代码不是特别繁重的计算，而是移动大量的数据，那么更高效地访问这些数据很可能提升整体性能。
 
-Unfortunately, that is the easy case, and so it gets optimized first. Then we get to the point where no single function or code fragment stands out in terms of execution time, but the program is still inefficient. When you have no hot code, very often you have hot data: one or more data structures that are accessed throughout the program; the cumulative time spent on this data is large, but it's not localized to any function or loop. Conventional profiling does not help us: it will show that the runtime is spread evenly across the entire program, and optimizing any one fragment of code will yield very little improvement. What we need is a way to find the data that is accessed inefficiently throughout the program, and it adds up.
+这是一个简单的例子，因此会首先进行优化。在执行时间上，没有一个函数或代码有很大的计算量，但是程序仍然很慢。要是没有计算量的热代码，那通常会有数据量的热代码：在程序中访问一个或多个数据结构，在这些数据上花费时间很大，但没有任何其他函数或循环。传统的分析会显示运行时均匀地分布在整个程序中，优化任何一段代码都收效甚微。我们需要某种方法找到那些，低效访问的数据。
 
-It is very hard to collect this information with just time-measuring tools. However, it can be collected fairly easily using a profiler that utilizes the hardware event counters. Most CPUs can count memory accesses and, more specifically, cache hits and misses. In this chapter, we again use the perf profiler; with it, we can measure how effective the L1 cache is used with this command:
+仅靠计时工具很难收集这些信息，但利用硬件事件计数器的分析器可以收集相关信息。大多数CPU都可以计算内存访问，更确切地说，可以计算缓存命中和未命中。这一章，我们再次使用\texttt{perf}剖析器，通过下面的命令，可以看到L1缓存的使用效率:
 
 \begin{tcblisting}{commandshell={}}
 $ perf stat -e \
@@ -78,47 +78,47 @@ $ perf stat -e \
   ./program
 \end{tcblisting}
 
-The cache measurement counters are not part of the default counter set and must be specified explicitly. The exact set of available counters varies from one CPU to another but can always be viewed by running the perf list command. In our example, we measure L1 cache misses when reading data. The term dcache stands for data cache (pronounced dee-cache); the CPUs also have a separate instruction cache or icache (pronounced ay-cache) that is used to load the instructions from memory.
+缓存测量计数器不是默认计数器集的一部分，必须显式指定。可用计数器的集合因CPU而不同，但可以通过运行\texttt{perf list}命令查看。我们的例子中，在读取数据时测量L1缓存未命中。术语\textbf{dcache}代表\textbf{数据缓存}(data cache，发音为dee-cache)。CPU还有一个单独的\textbf{指令缓存}或\textbf{icache}(念作ay-cache)，用于从内存中加载指令。
 
-We can use this command line to profile our memory benchmarks for reading the memory at random addresses. When the memory range is small, say, 16 KB, the entire array fits into the L1 cache, and there are almost no cache misses:
+可以使用这个命令行参数，来配置内存基准测试来读取随机地址的内存。当内存范围很小(比如：16KB)，整个数组就能放入L1缓存中，几乎没有缓存未命中:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/12.jpg}\\
-Figure 4.12 – Profile of a program with good use of the L1 cache
+图4.12 - 测试良好的使用L1缓存的程序
 \end{center}
 
-Increasing the memory size to 128 MB means that cache misses are very frequent:
+将内存大小增加到128MB意味着缓存未命中非常频繁:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/13.jpg}\\
-Figure 4.13 – Profile of a program with poor use of the L1 cache
+图4.13 - 测试未良好的使用L1缓存的程序
 \end{center}
 
-Note that perf stat collects the overall values for the entire program, where some memory accesses are cache-efficient, and others aren't. Once we know that somebody, somewhere, is handling memory accesses badly, we can get a detailed profile using perf record and perf report, as was shown in Chapter 2, Performance Measurements (we used a different counter there, but the process is the same for any counter we choose to collect). Of course, if our original timing profile failed to detect any hot code, the cache profile will show the same. There will be many locations in the code where the fraction of cache misses is large. Each location contributes only a small amount of time to the overall execution time, but it adds up. It is now up to us to notice that many of these code locations have one thing in common: the memory they operate on. For example, if we see that there are dozens of different functions that, between them all, account for the 15\% cache miss rate, but they all operate on the same list, then the list is the problematic data structure, and we have to organize our data in some other way.
+请注意，\texttt{perf stat}收集整个程序的测量值，其中一些内存访问是缓存高效的，一些则不是。我们想知道哪里对内存访问的处理很糟糕，可以使用\texttt{perf record}和\texttt{perf report}获得详细的配置文件，如第2章所示(在那里使用了不同的计数器，但是我们选择收集计数器的过程是相同的)。当然，如果最初的配置文件没有检测到任何热代码，缓存配置文件也会显示同样的结果。代码中的许多位置，缓存未命中的比例都很大。每个位置只对总体执行时间没什么贡献，但这会累积。现在我们注意到，这些代码位置中的许多都有一个共同点:所操作的内存，例如：若它们之间有几十个不同的函数，总共占15\%的缓存未命中率，但是它们都在同一个列表上运行，那么这个列表就是有问题的数据结构，我们必须以其他方式组织我们的数据。
 
-We have now learned how to detect and identify the data structures whose inefficient memory access patterns negatively impact performance and what are some of the alternatives. Unfortunately, the alternative data structures usually don't have the same features or performance: a list cannot be replaced with a vector if elements must be inserted at arbitrary locations throughout the life of the data structure. Often, it is not the data structure but the algorithm itself that calls for inefficient memory accesses. In such cases, we may have to change the algorithms.
+我们现在已经了解了如何检测和识别那些低效的内存访问模式，和会对性能产生负面影响的数据结构，以及有哪些替代方案。不幸的是，可供选择的数据结构通常没有相同的特性或性能:如果从数据结构的整个生命周期来看，必须在任意位置插入元素，则不能用\texttt{vector}替换\texttt{list}。若不是数据结构，而是算法本身调用了低效率的内存访问，则需要改变算法。
 
 \subsubsubsection{4.5.3\hspace{0.2cm}优化内存性能的算法}
 
-The memory performance of algorithms is an often overlooked subject. Algorithms are most commonly chosen for their algorithmic performance or the number of operations or steps they perform. Memory optimizations often call for a counter-intuitive choice: do more work, even do unnecessary work, to improve memory performance. The game here is to trade some computing for faster memory operations. The memory operations are slow, so our budget for extra work is quite large.
+算法的内存性能会经常忽视。选择算法，通常根据其\textbf{算法性能}或执行的操作或步骤的数量来。内存优化通常需要反直觉的选择:做更多的工作，甚至不必要的工作，以提高内存性能。这里是用一些计算来换取更快的内存操作。内存操作很慢，所以要做的工作也很多。
 
-One way to use memory faster is to use less of it. This approach often results in recomputing some values that could have been stored and retrieved from memory. In the worst-case scenario, if this retrieval results in random accesses, reading each value will take several nanoseconds (7 nanoseconds in our measurements). If recomputing the value takes less than that, and 7 nanoseconds is a fairly long time when converted to the number of operations the CPU can do, then we are better off not storing the values. This is the conventional tradeoff of space versus memory.
+更快地使用内存的方法是使用更少的内存，这种方法通常会需要重新计算一些本可以存储和从内存中检索的值。最坏的情况是，如果检索结果需要随机访问，读取每个值需要几纳秒(在我们这是7纳秒)。重新计算这个值所花费的时间比这要少，而将7纳秒转换为CPU可以执行的操作数是相当长的时间，那么我们最好不存储这些值。这是传统的空间与内存的权衡。
 
-There is an interesting variant of this optimization: instead of simply using less memory, we try to use less memory at any given time. The idea here is to try to fit the current working data set into one of the caches, say, the L2 cache, and do as much work on it as possible before moving to the next section of the data. Loading a new data set into the cache incurs a cache miss on every memory address, by definition. But it is better to accept that cache miss once and then operate on the data efficiently for some time, rather than process all the data at once and risk a cache miss every time we need this data element.
+这种优化有一个有趣的变式:在给定时间内使用更少的内存，而不是简单地使用更少的内存。这里的想法是想将当前工作的数据集放入缓存中，比如L2缓存，并在移动到数据的下一部分之前对它进行尽可能多的处理。根据定义，将新数据集插入到缓存中会导致内存地址的缓存未命中。最好接受这一次缓存未命中，然后在一段时间内有效地操作数据。而非一次处理所有数据，并在每次需要此数据元素时，会有缓存未命中的风险。
 
-In this chapter, I will show you a more interesting technique, where we do more memory accesses to save a few ot her memory accesses. The tradeoff here is different: we want to reduce the number of slow, random accesses, but we pay for it in an increased number of fast, sequential accesses. Since sequential memory streaming is about an order of magnitude faster than random access, we again have a sizeable budget to pay for the extra work we have to do to reduce the slow memory accesses.
+这一章，将展示一种更有趣的技术，通过更多的内存访问来保存一些其他的内存访问。这里的权衡不同:希望减少缓慢的、随机的访问次数，但是我们增加了快速的、连续的访问次数。由于顺序内存流比随机访问快一个数量级，我们还有很多必须做的额外工作，以减少缓慢的内存访问。
 
-The demonstration requires a more elaborate example. Let us say that we have a collection of data records, such as strings, and the program needs to apply a set of changes to some of these records. Then we get another set of changes, and so on. Each set will have changes to some records, while other records remain unchanged. The changes do, in general, change the size of the record as well as its content. The subset of records that are changed in each set is completely random and unpredictable. Here is a diagram showing just that:
+演示需要一个更详细的示例。假设我们有一组数据记录，比如字符串，程序需要对其中一些记录进行一些更改。然后我们得到另一组的变化，以此类推。每个集合将对某些记录进行更改，而其他记录保持不变。通常，这些变化会改变记录的大小及其内容。在每个集合中更改的记录子集是完全随机和不可预测的。以下是一张演示图表:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/14.jpg}\\
-Figure 4.14 – The record editing problem. In each change set, the records marked by * are edited, the rest remains unchanged
+图4.14 - 记录编辑问题。在每个变更集中，由*标记编辑过的记录，其余的保持不变
 \end{center}
 
-The most straightforward way to solve this problem is to store records in their own memory allocation and organize them in some data structure that allows each record to be replaced by a new one (the old record is deallocated, since the new one is, generally, of a different size). The data structure can be a tree (set in C++) or a list. To make the example more concrete, let us use strings for records. We also must be more specific about the way the change set is specified. Let us say that it does not point to a specific record that needs to be changed; instead, for any record, we can say whether it needs to be changed or not. The simplest example of such a change set for strings is a set of find and replace patterns. Now we can sketch our implementation:
+解决这个问题最简单的方法是将记录存储在它们自己的内存分配中，并将它们组织在某种数据结构中，允许新记录的替换(因为新记录的大小通常不同，需要重新分配旧记录)。数据结构可以是树(在C++中设置)或列表。为了让这个例子更加具体，我们使用字符串作为记录，还必须说明更改集的指定方式。它没有指向需要更改的特定记录，但对于任何记录，我们都可以说它是否需要更改。这种字符串更改集的最简单示例是查找和替换模式。这里，可以概述我们的实现:
 
 \begin{lstlisting}[style=styleCXX]
 std::list<std::string> data;
@@ -137,21 +137,21 @@ true; it = it1) {
 }
 \end{lstlisting}
 
-In every change set, we iterate over the entire collection of records, determine if the record needs to be changed, and, if needed, do so (the change set is hidden inside the functions must\_change() and change()). The code shows just one change set, so we run this loop as many times as needed.
+每个更改集中，我们都遍历整个记录集合，确定是否需要更改记录，如果需要，就这进行变更(更改集隐藏在函数\texttt{must\_change()}和\texttt{change()}中)。代码只显示一个更改集，因此我们需要运行这个循环多次。
 
-The weakness of this algorithm is that we are using a list, and, to make it even worse, we keep moving the strings in memory. Every access to a new string is a cache miss. Now, if the strings are very long, then the initial cache miss doesn't matter, and the rest of the string is read using fast sequential access. The result is similar to the block-allocated array we saw earlier, and the memory performance is fine. But if the strings are short, the entire string may well be read in a single load operation, and every load is done at a random address.
+这个算法的缺点是使用了列表，更糟的是一直在内存中移动字符串。对新字符串的访问会出现缓存未命中。如果字符串非常长，那么初始的缓存未命中就不重要了，其余的字符串都可以使用顺序访问快速的进行读取。结果与前面的块分配数组相似，而且内存性能良好。如果字符串很短，那么整个字符串很可能在一次加载操作中读取，并且每次加载都是在一个随机地址上进行。
 
-Our entire algorithm does nothing but loads and stores at random addresses. As we have seen, this is pretty much the worst way to access memory. But what else can we do? We can't store the strings in one huge array: if one string in the middle of the array needs to grow, where would the memory come from? Right after that string is the next string, so there is no room to grow.
+整个算法只在随机地址处做加载和存储。我们已经知道，这是访问内存最糟糕的方法。那我们能做什么呢？不能将字符串存储在巨大的数组中:如果数组中间的字符串需要增长，那么内存从哪里来？该字符串后面的一个字符串，所以这里已经没有增长的空间了。
 
-Coming up with an alternative requires a paradigm shift. The algorithm that performs the required operations literally as specified also imposes restrictions on the memory organization: changing records requires moving them in memory, and, as long as we want to be able to change any one record without affecting anything else, we cannot avoid random distribution of records in memory. We have to come at the problem sideways and start with the restrictions. We really want to access all records sequentially. What can we do under this constraint? We can read all records very fast. We can decide whether the record must be changed; this step is the same as before. But what do we do if the record must grow? We have to move it somewhere else, there is no room to grow in place. But we agreed that the records would remain allocated in sequence, one after the other. Then the previous record and the next record have to be moved too, so they remain stored before and after our new record. This is the key to the alternative algorithm: all records are moved with each change set, whether they are changed or not. Now we can store all records in one huge contiguous buffer (assuming we know the upper limit on the total record size):
+想出一个替代方案，不过需要范式转换。按字面意思执行所需操作的算法也对内存组织施加了限制:更改记录需要将它们移动到内存中，而且我们希望能够在不影响其他东西的情况下更改记录，所以我们就不能避免内存中记录的随机分布。我们必须从侧面来看待这个问题，从限制开始。按顺序访问所有的记录，在这个约束条件下我们能做什么？我们可以很快地读取所有记录。可以决定记录是否必须更改，这一步和之前一样。如果记录必须增加，该怎么办？必须把它移到别的地方去，这些记录要按照先后顺序分配。然后，前一个记录和下一个记录也必须移动，因此它们在新记录之前和之后都保持存储状态。这是替代算法的关键:所有记录都随着每个变更集移动，无论它们是否更改。我们可以将所有记录存储在一个巨大的连续缓冲区中(假设我们知道总记录大小的上限):
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter4/images/15.jpg}\\
-Figure 4.15 – Processing all records sequentially
+\includegraphics[width=0.25\textwidth]{content/1/chapter4/images/15.jpg}\\
+图4.15 - 按顺序处理所有记录
 \end{center}
 
-The algorithm requires allocating the second buffer of equal size during the copying, so the peak memory consumption is twice the size of the data:
+算法要求在复制过程中分配大小相等的第二个缓冲区，因此内存消耗峰值是数据大小的两倍:
 
 \begin{lstlisting}[style=styleCXX]
 char* buffer = get_huge_buffer();
@@ -173,31 +173,31 @@ release(buffer);
 buffer = new_buffer;
 \end{lstlisting}
 
-In every change set, we copy every string (record) from the old buffer to the new one. If the record needs to be changed, the new version is written into the new buffer. Otherwise, the original is simply copied. With every new change set, we will create a new buffer and, at the end of the operation, release the old one (a practical implementation would avoid repeated calls to allocate and deallocate memory and simply swap two buffers).
+在每个更改集中，我们将每个字符串(记录)从旧缓冲区复制到新缓冲区。如果需要更改记录，则将新版本写入新的缓冲区；否则，原作将复制。对每个新的更改集，创建一个新的缓冲区，并在操作结束时释放旧的缓冲区(实际的实现需要避免重复调用分配和释放内存，并简单地交换两个缓冲区)。
 
-The obvious downside to this implementation is the use of the huge buffer: we have to be pessimistic in choosing its size to allocate enough memory for the largest possible records we might encounter. Doubling of the peak memory size is also concerning. We can solve this problem by combining this approach with the growable array data structure we saw earlier. Instead of allocating one contiguous buffer, we can store the records in a series of fixed-size blocks:
+这种实现的明显缺点是使用巨大的缓冲区:我们必须确定缓冲区的大小，以便为可能遇到的最大记录分配足够的内存。峰值内存的大小也令人担忧。我们可以通过将这种方法与前面看到的可增长数组数据结构相结合来解决这个问题。可以将记录存储在一系列固定大小的块中，而不是分配一个连续的缓冲区中:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter4/images/16.jpg}\\
-Figure 4.16 – Using a block buffer to edit records
+图4.16 - 使用块缓冲区进行编辑
 \end{center}
 
-To simplify the diagram, we draw all records of the same size, but this restriction is not necessary: the records can span multiple blocks (we treat the blocks as a contiguous sequence of bytes, nothing more). When editing a record, we need to allocate a new block for the edited record. As soon as the editing is done, the block (or blocks) that contained the old record can be released; we don't have to wait for the entire buffer to be read. But we can do even better than that: instead of returning the recently freed block to the operating system, we can put it on the list of empty blocks. We are about to edit the next record, and we will need an empty new block for the result. We just happened to have one: it's the block that used to contain the last record we edited; it is at the head of our list of recently released blocks, and, best of all, that block is the last memory we accessed, so it is probably still in the cache!
+为了简化图表，我们绘制了相同大小的所有记录，但是这个限制是不必要的:记录可以跨越多个块(我们将这些块视为一个连续的字节序列，仅此而已)。当编辑时，我们需要为已编辑的记录分配一个新块。编辑完成后，可以释放包含旧记录的块(或多个块)，从而不必等待读取整个缓冲区。可以做得更好:我们可以将最近释放的块放到空块列表中，而不是返回操作系统。即将编辑下一个记录，我们将需要一个空的新块作为结果。只是碰巧有一个:这是块用来包含我们编辑的最后一个记录。它位于最近发布的块列表的头部，最重要的是，这个块是我们访问的最后一块内存，所以它可能仍然在缓存中!
 
-At first glance, this algorithm seems a really bad idea: we are going to copy all the records every time. But let us analyze the two algorithms more carefully. First of all, the amount of reading is the same: both algorithms must read each string to determine whether it must be changed. The second algorithm is already ahead in performance: it reads all data in a single sequential sweep, while the first algorithm jumps around the memory. If the tring is edited, then both algorithms must write a new one into a new area of memory. The second algorithm again comes out ahead due to its sequential memory access pattern (also, it does not need to do a memory allocation for every string). The tradeoff comes when the string is not edited. The first algorithm does nothing; the second one makes a copy.
+乍一看，这个算法似乎非常糟糕:每次都要复制所有的记录。让我们更仔细地分析这两种算法。首先，读取的数量相同:两种算法都必须读取每个字符串，以确定是否更改。第二种算法在性能上已经领先:在一次连续扫描中读取所有数据，而第一种算法则在内存中跳跃。如果编辑该字符串，那么两个算法都必须向新的内存区域写入一个新的字符串。由于顺序内存访问模式(同样，不需要为每个字符串执行内存分配)，第二种算法提前出现了。当字符串未编辑时，就需要进行权衡。第一个算法什么都不做，第二个做了一个拷贝。
 
-From this analysis, we can define the good and bad cases for each algorithm. The sequential access algorithm wins if the strings are short, and a large fraction of them are changed in every change set. The random access algorithm wins if the strings are long or if very few of them are changed. However, the only way to determine what is long and how many are a large fraction is to measure.
+通过这种分析，我们可以为每个算法定义好的和坏的情况。如果字符串很短，并且在每个更改集中更改了大部分字符串，则顺序访问算法胜出。如果字符串很长或者很少改变字符串，随机访问算法就会获胜。然而，确定什么是长、多少是大比例的唯一方法就是测试。
 
-The fact that we must measure the performance does not necessarily mean that you have to always write two versions of the complete program. Very often, we can simulate the particular aspect of the behavior in a small mock program that operates on the simplified data. We just need to know the approximate size of the records, how many are changed, and we need the code that does the change to a single record so we can measure the impact of the memory accesses on performance (if each change is very computationally expensive, it won't matter how long it takes to read or write the record). With such mock or prototype implementation, we can do the approximate measurements and make the right design decision.
+这里，不一定意味着必须编写完整程序的两个版本进行测试。通常，可以对简化数据进行操作的小型模拟程序中模拟特定的行为。我们只需要知道记录的大致大小，有多少条更改记录，并且需要对单个记录进行更改的代码，这样就可以测量内存访问对性能的影响(如果每次更改影响都非常大，那么读取或写入记录所花费的时间就无关紧要了)。可以对这样的模拟或原型实现进行近似测量，并做出正确的设计决策。
 
-So, in real life, is the sequential string-copying algorithm ever worth it? We have done the tests for editing medium-length strings (128 bytes) using a regular expression pattern. If 99\% of all strings are edited in each change set, the sequential algorithm is approximately four times faster than random (the results will be somewhat specific to a machine, so the measurements must be done on the hardware similar to what you expect to use). If 50\% of all records are edited, the sequential access is still faster, but only by about 12\% (this is likely to be within the variation between different models of CPU and types of memory, so let's call it a tie). The more surprising result is that if only 1\% of all records are changed, the two algorithms are almost tied for speed: the time saved by not doing a random read pays for the cost of the almost entirely unnecessary copying.
+在现实中，顺序字符串复制算法值得一试么？我们已经完成了使用正则表达式模式编辑中等长度字符串(128字节)的测试。所有字符串的99\%都在每个更改集中进行编辑，顺序算法的速度大约是随机算法的4倍(结果在某种程度上是特定于机器的，因此必须在与预期使用的硬件相似的硬件上进行测量)。编辑了50\%的记录时，顺序访问仍然更快，但是只有12\%的性能提升(这可能是在不同的CPU模型和内存类型的变化范围内，所以我们称之为平局)。更令人惊讶的结果是，如果只更改了1\%的记录，那么这两种算法的速度几乎是成正比的:不进行随机读取所节省的时间将用来弥补完全不必要的复制。
 
-For longer strings, the random-access algorithm wins handily if few strings are changed, and for very long strings, it's a tie even if all strings are changed: both algorithms read and write all strings sequentially (the random access to the beginning of a long string adds negligible time).
+较长的字符串，随机访问算法轻松获胜，如果改变很少的字符串，而且对于非常长的字符串，即使所有的字符串都改变，也是平局:两种算法都依次读取和写入所有字符串(对长字符串开始的随机访问增加的时间可以忽略)。
 
-We now have everything we need to determine the better algorithm for our application. This is the way the design for performance often goes: we identify the root of the performance problem, we come up with a way to eliminate the issue, at the cost of doing something else, and then we have to hack together a prototype that lets us measure whether the clever trick actually pays off.
+现在我们已经掌握了应用程序所需的所有算法。性能设计通常是这样的:确定性能问题的根源，并想出消除问题的方法，但代价是要做其他更多事情，然后必须创造一个测试，让我们能够衡量这个技巧是否真的有效。
 
-Before we end this chapter, I would like to show you an entirely different "use" of the performance improvements provided by the caches and other hardware.
+本章的最后，将向您展示一个完全不同的“使用方式”，由缓存和其他硬件提供的性能改进。
 
 
 
