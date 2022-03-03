@@ -1,41 +1,41 @@
 
-All high-performance computers today have multiple CPUs or multiple CPU cores (independent processors in a single package). Even most laptop computers have at least two, often four, cores. As we have said many times, in the context of performance, efficiency is not leaving any hardware idle; a program cannot be efficient or high-performing if it uses only a fraction of the computing power, such as one of many CPU cores. There is only one way for a program to use more than one processor at a time: we have to run multiple threads or processes. As a side note, this isn't the only way to use multiple processors for the benefit of the user: very few laptops, for example, are used for high-performance computing. Instead, they use multiple CPUs to better run different and independent programs at the same time. It is a perfectly good use model, just not the one we are interested in in the context of high-performance computing. HPC systems usually run one program on each computer at any time, even one program on many computers in case of distributed computations. How does one program use many CPUs? Usually, the program runs multiple threads.
+今天所有的高性能计算机都有多个CPU或多个CPU内核(单个包中的独立处理器)。甚至大多数笔记本电脑都至少有两个内核，通常是四个。正如我们已经说过的，在性能的上下文中，高效不会让任何硬件处于空闲。如果程序只使用一小部分计算能力，例如：多个CPU内核中的一个，那么其就不是高效或高性能的。一个程序在同一时间使用多个处理器的方法只有一种:必须运行多个线程或进程。另外，这并不是使用多处理器的唯一方法，例如：很少有笔记本电脑用于高性能计算。相反，它们可以使用多个CPU来更好地同时运行不同且独立的程序。这是一个非常好的模型，只是在高性能计算上下文中不是我们感兴趣的那种。HPC系统通常会在每台计算机上运行程序，甚至在分布式计算的情况下在多台计算机上运行同一个程序。那么程序如何使用多个CPU？通常，可以让程序运行多个线程。
 
-\subsubsubsection{5.2.1\hspace{0.2cm}What is a thread?}
+\subsubsubsection{5.2.1\hspace{0.2cm}线程是什么？}
 
-A thread is a sequence of instructions that can be executed independently of other threads. Multiple threads are running concurrently within the same program. All threads share the same memory, so, by definition, threads of the same process run on the same machine. We have mentioned that an HPC program can also consist of multiple processes. A distributed program runs on multiple machines and utilizes many separate processes. The subject of distributed computing is outside the scope of this book: we are learning how to maximize the performance of each of these processes.
+线程是一个指令序列，可以独立于其他线程执行。多个线程可以在同一个程序中并发运行。所有线程共享相同的内存，根据定义，相同进程的线程运行在同一台机器上(HPC程序也可以包含多个进程)。分布式程序可以运行在多台机器上，并可以使用许多进程。分布式计算的主题超出了本书的范围:我们正在了解如何最大化这些进程的性能。
 
-So, what can we say about the performance of multiple threads? First of all, having multiple instruction sequences execute at the same time is beneficial only if the system has enough resources actually to execute them at the same time. Otherwise, the operating system is just switching between different threads to allow each one a time slice to execute.
+那么，我们能对多线程的性能聊些什么呢？首先，只有当系统有足够的资源能够同时执行多个指令序列时，同时执行多个指令序列才有益。否则，操作系统需要在不同的线程之间切换，以确保每个线程都有时间片可以执行。
 
-On a single processor, a thread that is busy computing provides as much work as the processor can handle. This is true even if the thread is not using all of the computing units or is waiting on memory accesses: the processor can execute only one instruction sequence at a time – it has a single program counter. Now, if the thread is waiting on something, such as user input or network traffic, the CPU is idle and could execute another thread without impacting the performance of the first one. Again, the operating system handles the switching between the threads. Note that waiting on memory does not count as waiting in this sense: when a thread is waiting on memory, it just takes longer to execute one instruction. When a thread is waiting on I/O, it has to make an operating system call, then it's blocked by the OS and isn't executing anything at all until the OS wakes it up to process the data.
+单个处理器上，忙于计算的线程提供处理器能够处理的尽可能多的工作，即使线程没有使用所有的计算单元或正在等待内存访问:处理器一次只能执行一个指令序列-它有一个程序计数器。现在，如果线程正在等待某些东西，比如用户输入或网络信息，那么CPU处于空闲状态，可以执行另一个线程，而不会影响第一个线程的性能。这里，操作系统会处理线程之间的切换。注意，等待内存并不算等待:当一个线程等待内存时，只是需要更长的时间来执行一条指令。当一个线程在等待I/O时，必须进行一个操作系统调用，然后该线程会被操作系统阻塞，直到操作系统唤醒它来处理数据，才执行其他操作。
 
-All threads that do heavy computing require adequate resources if the goal is to make the program more efficient overall. Usually, when we think about resources for threads, we have in mind multiple processors or processor cores. But there are other ways to increase resource utilization through concurrency as well, as we are about to see.
+如果目标是提高程序的整体效率，那么执行繁重计算的线程就需要有足够的资源支持。通常，考虑线程的资源时，我们立即想到的是使用多个处理器或处理器核心。还有其他方法可以通过并发性来提高资源利用率，我们将看到这一点。
 
-\subsubsubsection{5.2.2\hspace{0.2cm}Symmetric multi-threading}
+\subsubsubsection{5.2.2\hspace{0.2cm}对称多线程}
 
-We have mentioned several times throughout the book that a processor has a lot of computing hardware, and most programs rarely, if ever, use all of it: the data dependencies in the program limit how much computation the processor can do at any time. If the processor has spare computing units, can't it execute another thread at the same time to improve efficiency? This is the idea behind Symmetric Multi-Threading (SMT), also known as hyper-threading.
+处理器有很多计算硬件，大多数程序很少可以使用所有的硬件:程序中的数据依赖关系限制了处理器的计算能力。如果处理器有空闲的计算单元，就不能同时执行另一个线程来提高效率吗？这就是对\textbf{称多线程(SMT)}背后的思想，也被称为\textbf{超线程}。
 
-An SMT-capable processor has a single set of registers and computing units, but two (or more) program counters and an extra copy of whatever additional hardware it uses to maintain the state of a running thread (the exact implementation varies from one processor to another). The end result is: a single processor appears to the operating system and the program as two (usually) or more separate processors, each capable of running one thread. In reality, all threads running on one CPU compete for the shared internal esources such as registers. The SMT can offer significant performance gains if each thread does not make full use of these shared resources. In other words, it compensates for the inefficiency of one thread by running several such threads.
+支持SMT的处理器只有一组寄存器和计算单元，但是有两个(或更多)程序计数器和一个计数器副本，用来维护正在运行的线程的状态(具体的实现因处理器的不同而不同)。最终结果是:操作系统将单个处理器视为两个(通常)或多个独立处理器，每个处理器能够运行一个线程。实际上，运行在一个CPU上的线程会竞争共享的资源，比如寄存器。如果每个线程没有充分利用这些共享资源，SMT可以提供显著的性能提高。换句话说，其通过运行多个这样的线程来弥补一个线程的低效。
 
-In practice, most SMT-capable processors can run two threads, and the performance gains vary widely. It is rare to see 100\% speedup (two threads both run at full speed). Usually, the practical speedup is between 25\% and 50\% (the second thread is effectively running at quarter-speed to half-speed), but some programs get no speedup at all. For the purposes of this book, we will not treat the SMT threads in any special way: to the program, an SMT processor appears as two processors, and anything we say about the performance of two real threads running on separate cores applies equally to the performance of two threads that happen to run on the same core. At the end of the day, you have to measure whether running more threads than you have physical cores provides any speedup to your program and, based on that, decide how many threads you want to run.
+实际中，大多数支持SMT的处理器都可以运行两个线程，而且性能的提高很大。很少看到100\%的加速(两个线程都以全速运行)，通常实际的加速在25\%到50\%之间(第二个线程实际上以四分之一到一半的速度运行)，但是有些程序没有加速。出于本书的目的，我们不会以任何特殊的方式对待SMT线程:对于程序来说，SMT处理器就像两个处理器，在不同内核上运行的两个线程性能情况，同样适用于恰好在同一内核上运行的两个线程的性能。这时，必须衡量运行的线程数是否大于物理内核数，并且是否能够为程序提供加速，从而确定要运行多少个线程。
 
-Whether we're sharing entire physical cores or the logical cores created by the SMT hardware, the performance of a concurrent program largely depends on how independently the threads can work. This is determined, first and foremost, by the algorithm and the partitioning of work between threads; both matters have hundreds of books dedicated to them but lie outside of the scope of this book. Instead, we now focus on the fundamental factors that affect thread interaction and determine the success or failure of a particular implementation.
+无论是共享整个物理核，还是SMT硬件创建的逻辑核，并发程序的性能在很大程度上取决于工作线程的独立性。这是由算法和线程之间的工作划分决定的，关于这两个问题的书都有数百本之多，但这个问题不在本书的讨论范围内。相反，我们现在关注的是影响线程交互，并决定特定实现成功或失败的因素。
 
-\subsubsubsection{5.2.3\hspace{0.2cm}Threads and memory}
+\subsubsubsection{5.2.3\hspace{0.2cm}线程和内存}
 
-Since there is no performance benefit to time-slice a CPU between multiple computing threads, we can assume for the rest of this chapter that we run one HPC thread on every processor core (or one thread on every logical core presented by an SMT processor). As long as these threads do not compete for any resources, they run entirely independently of each other, and we enjoy perfect speedup: two threads will do twice as much work in the same time as could be done by one thread. If the work can be divided perfectly between two threads in a way that does not require any interaction between them, two threads will solve the problem in half the time.
+由于多个计算线程之间对CPU进行时间切片不会带来性能上的好处，所以在本章的其余部分，可以假设我们在每个处理器核心上运行一个HPC线程(或者在由SMT处理器提供的每个逻辑核心上运行一个线程)。只要这些线程不竞争任何资源，就可以彼此独立地运行，我们就可以享受到加速:两个线程在同一时间内完成的工作是一个线程的两倍。如果工作可以在两个线程之间，以一种独立的方式完美地分配，那么两个线程将在一半的时间内解决问题。
 
-This ideal situation does happen, but not often; more importantly, if it happens, you are already prepared to get the best performance from your program: you know how to optimize the performance of a single thread.
+这种理想的情况确实发生过，但并不常见。如果发生这种情况，需要准备好从程序中获得最佳性能，因为我们已经知道了如何优化单个线程的性能。
 
-The hard part of writing efficient concurrent programs begins when the work done by different threads is not entirely independent, and the threads start to compete for resources. But if each thread has full use of its CPU, what else is there left to compete for? What is left is the memory, which is shared between all threads and is, therefore, a common resource. This is why any exploration of the performance of multi-threaded programs focuses almost exclusively on the issues arising from the interaction between threads through memory.
+当不同线程所做的工作不完全独立，并且这些线程开始竞争资源时，编写高效的并发程序就困难了。如果每个线程都充分利用了CPU，那么还有什么其他的东西可以竞争呢？那就是内存了。所有线程都共享内存，因此内存是公共资源。这就是为什么对多线程程序性能的任何探索，几乎都会关注线程之间通过内存交互所产生的问题。
 
-There is another aspect of writing high-performance concurrent programs, and that is dividing work between threads and processes that together comprise the program. But to learn about that, you have to find a book on parallel programming. 
+编写高性能并发程序还有另一个方面的能力，就是如何为线程和进程划分工作。但要了解这些，必须找一本关于并行编程的书，里面应该都会有介绍。
 
-It turns out that the memory, which was already the long pole of performance, is even more of a problem when we add concurrency. While the fundamental limits imposed by the hardware cannot be overcome, most programs aren't performing even close to these limits, and there is much room for a skillful programmer to improve the efficiency of their code; this chapter gives the reader the necessary knowledge and tools.
+事实证明，内存已经是性能的最大瓶颈，添加并发性时，这个问题会放大。硬件所施加的基本限制无法解决问题，大多数程序的性能甚至还没有达到触发这些限制的条件。对于资深的开发者来说，这里有很大的空间来提高代码的效率。即本章为读者提供的知识和工具。
 
-Let us first examine the performance of the memory system in the presence of threads. We do it the same way as in the last chapter, by measuring the speed of reading or writing into memory, only now we use several threads to read or write at the same time. We start with the case where each thread has its own memory region to access. We are not sharing any data between threads, but we are sharing the hardware resources, such as memory bandwidth.
+我们首先检查存在线程时内存系统的性能。用上一章的方法，通过测量读或写进内存的速度，只是现在用几个线程同时进行读或写。我们从这样一种情况开始:每个线程都有自己的内存区域可以访问。不是在线程之间共享任何数据，而是共享硬件资源，比如内存带宽。
 
-The memory benchmark itself is almost the same as the one we used earlier. In fact, the benchmark function itself is exactly the same. For example, to benchmark sequential reading, we use this function:
+内存基准测试与我们前面使用的几乎相同，基准函数体是完全相同的，例如：为了对顺序读取进行基准测试，我们使用以下函数:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -60,7 +60,7 @@ void BM_read_seq(benchmark::State& state) {
 }
 \end{lstlisting}
 
-Note that the memory is allocated inside the benchmark function. If this function is called from multiple threads, each thread has its own memory region to read. This is exactly what the Google Benchmark library does when it runs multi-threaded benchmarks. To run a benchmark on more than one thread, you just need to use the right arguments:
+注意，内存在基准函数中分配。这个函数需要多个线程调用，每个线程都要有自己读取数据的内存区域，这正是谷歌基准库在运行多线程基准时所做的。要在多个线程上运行基准测试，只需要使用正确的参数即可:
 
 \begin{lstlisting}[style=styleCXX]
 #define ARGS ->RangeMultiplier(2)->Range(1<<10, 1<<30) \
@@ -68,8 +68,7 @@ Note that the memory is allocated inside the benchmark function. If this functio
 BENCHMARK_TEMPLATE1(BM_read_seq, unsigned long) ARGS;
 \end{lstlisting}
 
-
-You can specify as many runs as you want for different thread counts or use the ThreadRange() argument to generate a range of 1, 2, 4, 8, … threads. You have to decide how many threads you want to use; for an HPC benchmark, in general, there is no reason to go over the number of CPUs you have (accounting for SMT). The benchmarking of other memory access modes, such as random access, is done the same way; you have already seen the code in the last chapter. For writing, we would need something to write; any value will do:
+可以为不同的线程数指定任意数量的运行，或者使用\texttt{ThreadRange()}参数来生成一个范围为1、2、4、8、…个线程。这里，必须决定要使用多少线程，因为对于HPC基准测试，通常没有理由检查设备拥有的CPU数量(包括SMT)。其他内存访问模式(如随机访问)的基准测试也以同样的方式进行(上一章中的代码)。为了写入，任何值都可以:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -85,47 +84,47 @@ for (auto _ : state) {
 }
 \end{lstlisting}
 
-Now it is time to show the results. For example, here is the memory throughput for sequential writes:
+现在展示结果，例如：下面是顺序写的内存吞吐量:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/1.jpg}\\
-Figure 5.1 – Memory throughput (words per nanosecond) for sequential writing of 64-bit integers as a function of memory range for 1 through 16 threads
+图5.1 - 连续写入64位整数的内存吞吐量(每纳秒字数)，线程数的范围为1到16
 \end{center}
 
-The overall trend is already familiar to us: we see the speed jumps corresponding to the cache sizes. Now we focus on the differences between the curves for a different number of threads. We have the results for 1 through 16 threads (the machine used to collect these measurements does indeed have at least 16 physical CPU cores). Let us start from the left side of the plot. Here, the speed is limited by the L1 cache (up to 32 KB) then by the L2 cache (256 KB). This processor has separate L1 and L2 caches for each core, so, as long as the data fits into the L2 cache, there should not be any interaction between the threads since they don't share any resources: each thread has its own cache. In reality, this is not quite true, there are other CPU components that are still shared even for small memory ranges, but it's almost true: the throughput for 2 threads is twice as large as that for 1 thread, 4 threads write to memory twice as fast again, and 16 threads are almost 4 times faster than 4 threads.
+总的趋势我们已经很熟悉了:我们看到了与缓存大小相对应的速度。现在我们关注不同数量线程的曲线之间的差异，得到了从1到16个线程的结果(用于收集这些测量的机器确实至少有16个物理CPU核)。我们从图的左边开始。这里，速度受到L1缓存(最多32KB)和L2缓存(256KB)的限制。这个处理器对每个核心都有单独的L1和L2缓存，所以只要数据适合L2缓存，线程之间就不应该有交互，因为它们不共享任何资源:每个线程都有自己的缓存。实际上，这并不完全正确，即使在较小的内存范围内，也有CPU组件是共享的。不过，这个结论几乎是正确的:2个线程的吞吐量是1个线程的两倍，4个线程写入内存的速度又快了一倍，16个线程几乎比4个线程快4倍。
 
-The picture changes drastically as we exceed the size of the L2 cache and cross into the L3 cache and then the main memory: on this system, the L3 cache is shared between all the CPU cores. The main memory is shared too, although different memory banks are closer to different CPUs (the non-uniform memory architecture). For 1, 2, and even 4 threads, the throughput continues to scale with the number of threads: the main memory appears to have enough bandwidth for up to 4 processors writing into it at full speed. Then things take a turn for the worse: the throughput almost doesn't increase when we go from 6 to 16 threads. We have saturated the memory bus: it can't write the data any faster.
+当数据超过L2缓存的大小，进入L3缓存，然后进入主存时，情况发生了巨大的变化:这个系统中，L3缓存是在所有CPU内核之间共享的。主内存也是共享的，尽管不同的内存体更接近于不同的CPU(非统一的内存架构)。对于1、2甚至4个线程，吞吐量继续随着线程数量的增加而增加:主内存似乎有足够的带宽，可以支持最多4个处理器的全速写入。然后情况变得更糟:当线程数从6增加到16时，吞吐量几乎没有增加。内存总线已经饱和了，不能更快地写数据了。
 
-If this wasn't bad enough, consider that these results were obtained on the latest hardware at the time of writing (2020). In 2018, the same chart presented by the author in one of his classes looked like this:
+如果这还不够糟糕，请考虑这些结果是在撰写本文时(2020年)在最新的硬件上获得的。在2018年时，作者在他的课上展示的图表:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter5/images/2.jpg}\\
-Figure 5.2 – Memory throughput of an older (2018) CPU
+\includegraphics[width=0.8\textwidth]{content/1/chapter5/images/2.jpg}\\
+图5.2 -旧CPU(2018)的内存吞吐量
 \end{center}
 
-This system has a memory bus that can be completely saturated by just two threads. Let us see what the implications of this fact for the performance of a concurrent program are.
+这个系统有一个内存总线，两个线程使用就完全饱和了。让我们看看这对并发程序的性能有什么影响。
 
-\subsubsubsection{5.2.4\hspace{0.2cm}Memory-bound programs and concurrency}
+\subsubsubsection{5.2.4\hspace{0.2cm}内存受限和并发性}
 
-The same results can be presented in a different way: by plotting the memory speed per thread versus the number of threads relative to that for one thread, we focus exclusively on the effect of concurrency on the memory speed:
+同样的结果可以用不同的方式来表示:通过绘制每个线程的内存速度(相对于一个线程)，这里专注于并发对内存速度的影响:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter5/images/3.jpg}\\
-Figure 5.3 – Memory throughput, relative to the throughput for a single thread, vs. thread count
+\includegraphics[width=0.7\textwidth]{content/1/chapter5/images/3.jpg}\\
+图5.3 - 内存吞吐量(相对于单个线程的吞吐量)，以及线程数量
 \end{center}
 
-With the memory speed normalized, so it's always 1 for the single thread, it is much easier to see that for small data sets that fit into L1 or L2 cache, the memory speed per thread remains almost the same even for 16 threads (each thread is writing at 80\% of its single-threaded speed). However, as soon as we cross into the L3 cache or exceed its size, the speed goes down after 4 threads. Going from 8 to 16 threads provides only minimal improvement. There just isn't enough bandwidth in the system to write data to memory fast enough. 
+随着内存速度的标准化，所以单线程总是1，对于适合L1或L2缓存的小数据集，每个线程的内存速度几乎保持不变，即使是16个线程(每个线程的写入速度是单线程速度的80\%)。然而，当进入L3缓存或超过它的大小，4个线程之后速度就会下降。从8个线程增加到16个线程性能改进就非常小了。系统中没有足够的带宽以足够快的速度将数据写入内存。
 
-The results for different memory access patterns look similar, although the bandwidth for reading memory often scales slightly better than that for writing.
+尽管用于读取内存的带宽通常比用于写入的带宽稍好一些，但不同内存访问模式的结果看起来非常接近。
 
-We can see that if our program was memory-bound in the single-threaded case, so its performance was limited by the speed of moving the data to and from the main memory, there is a fairly hard limit on the performance improvement we can expect to gain from concurrency. If you think that this does not apply to you because you don't have an expensive 16-core processor, remember that cheaper processors come with a cheaper memory bus, so most 4-core systems don't have enough memory bandwidth for all cores either.
+可以看到，如果程序在单线程的情况下内存受限，那么性能就会受到在主内存中移动数据速度的限制。我们可以期望从并发性中获得的性能改进时，就要受到相当严格的限制。若这不适用于你，可能是因为你没有一个16核处理器，便宜的处理器有便宜的内存总线，所以大多数4核系统也没有足够的内存带宽给所有的核。
 
-For multi-threaded programs, it is even more important to avoid becoming memorybound. The implementation techniques that are useful here are splitting computations so more work can be done on smaller data sets that fit into L1 or L2 caches; rearranging the computations so more work can be done with fewer memory accesses, often at the expense of repeating some computations; optimizing the memory access patterns so the memory is accessed sequentially instead of randomly (even though you can saturate both access patterns, the total bandwidth of sequential accesses is much larger, so for the same amount of data your program may be memory-bound if you use random access and not limited by memory speed at all if you use sequential access). If the implementation techniques alone are insufficient and do not yield the desired performance improvements, the next step is to adapt the algorithm to the realities of concurrent programming: many problems have multiple algorithms that differ in their memory requirements. The fastest algorithm for a single-threaded program can often be outperformed by another algorithm that is better suited for concurrency: what we lose in the single-threaded execution speed, we make up for by brute force of scalable execution.
+对于多线程程序，更重要的是要避免内存限制。这里使用的技术是分割计算，这样可以在更小的数据集上完成更多的工作，这些数据集适合存放于L1或L2缓存，再重新安排计算，这样可以用更少的内存访问完成更多的工作，通常会以重复一些计算为代价。优化内存访问模式，这样内存是顺序访问，而不是随机访问(即使可以饱和这两种访问模式，顺序访问的总带宽要大得多，因此对于相同数量的数据，如果使用随机访问，程序可能会受到内存限制，而如果使用顺序访问，则完全不受内存速度的限制)。仅靠实现技术是不够的，并且不能产生预期的性能改进，那么下一步就是使算法适应并发编程的实际情况:许多问题都有多个算法，它们的内存需求不同。对于单线程程序来说，最快的算法通常会被另一种更适合并发的算法所超越:我们在单线程执行速度上的损失，可以通过可扩展执行来弥补。
 
-So far, we have assumed that each thread does its own work completely independently from all other threads. The only interaction between threads was indirect, due to contention for a limited resource such as memory bandwidth. This is the easiest kind of program to write, but most real-life programs do not allow such limitations. This brings with it a whole new set of performance problems, and it is time for us to learn about them.
+目前为止，我们假设每个线程都独立于所有其他线程完成自己的工作。由于对有限资源(如内存带宽)的争用，线程之间的惟一交互是间接的。这是最容易编写的程序，但大多数实际情况中的程序不允许这样的限制。这带来了一系列全新的性能问题，是时候来了解这些问题了。
 
 
 
