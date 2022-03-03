@@ -1,7 +1,7 @@
-In this chapter, we have learned how the memory system works: in a word, slowly. The difference in the performance of the CPUs and the memory creates the memory gap, where the fast CPU is held back by the low performance of the memory. But the memory gap also contains within it the seeds of the potential solution: we can trade many CPU operations for one memory access.
+本章中，我们了解了内存系统是如何工作的:缓慢的工作，CPU会因内存的低性能而性能变低。但是存储器间距也包含了潜在解决方案:可以用多个CPU操作来换取一个内存访问。
 
-We have further learned that the memory system is very complex and hierarchical and that it does not have a single speed. This can hurt your program's performance really badly if you end up in the worst-case scenario. But again, the trick is to look at it as an opportunity rather than a burden: the gains from optimizing memory accesses can be so large that they more than pay for the overhead. 
+了解到内存系统非常复杂，并且有层级，所以内存系统没有纯粹的速度。如果内存使用的情况非常糟糕，这可能会严重影响程序的性能。同样，也可以把内存看作是一个机会而不是负担:从优化内存访问中获得的收益可能非常大，以至于超过了开销。
 
-As we have seen, the hardware itself provides several tools to improve memory performance. Beyond that, we have to choose memory-efficient data structures and, if that alone does not suffice, memory-efficient algorithms to improve performance. As usual, all performance decisions must be guided and backed up by measurements.
+正如我们所看到的，硬件本身提供了几种工具来提高内存性能。除此之外，我们还必须使用内存高效的数据结构。如果这还不够，还必须选择内存高效的算法来提高性能。通常，所有的性能决策都必须由测试指标指导和支持。
 
-So far, everything we have done and measured used a single CPU. In fact, since the first few pages in the introduction, we hardly even mentioned that almost every computer you can find today has multiple CPU cores and often multiple physical processors. The reason for this is very simple: we have to learn to use the single CPU efficiently before we can move on to the more complex multi-CPU problems. Starting with the next chapter, we turn our attention to the problems of concurrency and using large multi-core and multiprocessor systems efficiently.
+目前为止，我们所有工作和测量都使用了单个CPU。事实上，从介绍的那几页开始，我们几乎没有提到现在的每一台计算机都有多个CPU核，而且经常有多个物理处理器。原因很简单:我们必须学会有效地使用单CPU，然后才能继续讨论更复杂的多CPU问题。下一章中，我们将注意力转向并发，并有效地使用多核和多处理器系统。
