@@ -1,10 +1,10 @@
-As we have just seen, concurrent (simultaneous) access of the shared data is a real performance killer. Intuitively, it makes sense: in order to avoid a data race, only one thread can operate on the shared data at any given time. We can accomplish this with a mutex or use an atomic operation if one is available. Either way, when one thread is, say, incrementing the shared variable, all other threads have to wait. Our measurements in the last section confirm it.
+正如我们刚才看到的，对共享数据的并发(同时)访问是一个性能杀手。直观地说，这是有意义的:为了避免数据竞争，在给定的时间内只有一个线程可以操作共享数据。我们可以使用互斥量来完成这个任务，如果有原子操作的话，也可以使用原子操作。无论哪种方式，当一个线程递增共享变量时，其他所有线程都必须等待。我们在上一部分的测试结果也证实了这一点。
 
-However, before taking any action based on observations and experiments, it is critically important to understand precisely what we measured and what can be concluded with certainty.
+然而，在根据观察和实验采取任何行动之前，要准确地理解我们测量了什么，以及可以确定地得出什么结论。
 
-It is easy to describe what was observed: incrementing a shared variable from multiple threads at the same time does not scale at all and, in fact, is slower than using just one thread. This is true for both atomic shared variables and non-atomic variables guarded by mutex. We have not tried to measure unguarded access to a non-atomic variable because such an operation leads to undefined behavior and incorrect results. We also know that unguarded access to variables that are thread-specific (not shared) scales very well with the number of threads, at least until we saturate the aggregate memory bandwidth (which can only happen if we write large amounts of data; for a single variable this is not an issue). Analyzing your experimental results critically and without unjustified preconceptions is a very important skill, so let us state again what we know: guarded access to shared data is slow and unguarded access to non-shared data is fast. If we conclude from this that data sharing makes your program slow, we are making an assumption: shared data is what's important, guarded access is not. This brings up another very important point you should remember when doing performance measurements: when comparing two versions of the program, try to change only one thing at a time and measure the result.
+很容易描述所观察到的情况:多个线程同时递增一个共享变量根本没有扩展性，甚至比只使用一个线程还要慢，原子共享变量和互斥保护的非原子变量都是如此。我们没有尝试测试对非原子变量的无保护访问，因为这样的操作会导致未定义行为和不正确的结果。我们还知道，对特定于线程(非共享)变量的无保护访问，可以很好地随着线程的数量而扩展，至少直到我们饱和了内存带宽(这只会发生在我们写大量数据的时候;对于单个变量来说，这不是问题)。批判性地、不带偏见地分析实验结果是一项非常重要的技能，再次说明：有保护的访问共享数据很慢，而无保护的访问非共享数据很快。如果由此得出共享数据会使程序变慢的结论，就需要做出一个假设:\textbf{共享数据}重要，而\textbf{访问保护}不重要。这就引出了在进行性能测量时应该记住的另一个问题:在比较程序的两个版本时，一次只更改其中一个的内容，然后测量结果。
 
-The measurement we are missing is this one: non-shared access to guarded data. Of course, we don't really need to protect accesses to data that is accessed by only one thread, but we are trying to understand exactly what makes shared data access so expensive: the fact that it is shared or the fact that it is atomic (or protected by the lock). We have to make one change at a time, so let us keep the atomic access and remove data sharing. There are at least two simple ways to do this. The first one is to create a global array of atomic variables and have each thread access its own array element:
+我们缺少的衡量标准是:对受保护数据的非共享访问。当然，我们并不需要保护单线程的数据访问，但我们试图理解是什么原因使共享数据的访问有如此开销:是共享或是原子的原因(或由锁保护)？我们必须一次做一个更改，所以让我们保持原子访问，并删除数据共享。至少有两种简单的方法可以做到这一点。第一个是创建一个原子变量的全局数组，并让每个线程访问自己的数组元素:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -19,7 +19,7 @@ void BM_false_shared(benchmark::State& state) {
 }
 \end{lstlisting}
 
-The thread index in Google Benchmark is unique for each thread, the numbers start from 0 and are compact (0, 1, 2…). The other simple way is to declare the variable in the benchmark function itself as shown in the following code:
+谷歌基准测试中的线程索引对于每个线程都是唯一的，数字从0开始，并且是紧凑的(0,1,2…)。另一种简单的方法是在基准函数中声明变量，如下所示:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -33,33 +33,33 @@ void BM_not_shared(benchmark::State& state) {
 }
 \end{lstlisting}
 
-Now we are incrementing the same atomic integer as we did when we collected the measurements for Figure 5.4, only it is no longer shared between threads. This will tell us whether it is the sharing or the atomic variable that makes the increment slow. Here are the results:
+现在，我们正在增加同一个原子整数，就像为图5.4收集测试值时所做的那样，只是它不再在线程之间共享。这将告诉我们是共享，还是原子变量使增量变慢的。以下是结果:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/6.jpg}\\
-Figure 5.6 – Atomic increment time for shared and not shared variables
+图5.6 - 共享和非共享变量的原子增量时间
 \end{center}
 
-The Shared curve is the one from Figure 5.4, while the other two are from the benchmarks without data sharing. The benchmark with a local variable on each thread is labeled Not shared and behaves as such: the computation on two threads takes half the time compared to that on one thread, going to four threads cuts the time by half again, and so on. Remember that this is the average time of one increment operation: we do, say, 1 million increments in total, measure the total time it takes, and divide by a million. Since the variables that we increment are not shared between threads, we expect two threads to run twice as fast as one thread, so the Not shared result is exactly what we expected. The other benchmark, the one where we use an array of atomic variables, but each thread uses its own array element, also has no shared data. However, it performs as if the data was shared between threads, at least for a small number of threads, so we call it False sharing: nothing is really shared, but the program behaves as if it was.
+图5.4中的的\textbf{Shared}曲线为共享数据的基准测试曲线，另外两条曲线为不共享数据的基准测试曲线。线程上都有一个局部变量的基准测试标记为\textbf{Not shared}，其行为如下:在两个线程上的计算时间比在一个线程上的计算时间少一半，在四个线程上的计算时间又减少了一半，以此类推。请记住，这是一个增量操作的平均时间:我们总共做了100万次增量，测量它所花费的总时间，然后除以100万。由于我们递增的变量不是在线程之间共享的，所以我们期望两个线程的运行速度是一个线程的两倍，所以\textbf{Not shared}的结果正是我们所期望的。另一个基准测试中，使用原子变量数组，但每个线程使用自己的数组元素，也没有共享数据。然而，其执行就像数据在线程之间共享一样，至少对于少量的线程是这样，所以我们称它为\textbf{伪共享}:没有什么是真正共享的，但程序的行为就像是共享的一样。
 
-This result shows that the reason for the high cost of data sharing is more complex than what we assumed previously: in the case of false sharing, only one thread is operating on each array element, so it does not have to wait for any other thread to complete its increment. And yet, threads clearly wait for each other. To understand this anomaly, we have to learn more about the way caches work.
+这个结果表明，数据共享成本高的原因比我们之前假设的要复杂:在伪共享的情况下，只有一个线程在操作每个数组元素，所以它不需要等待任何其他线程完成它的增量。然而，线程显然在彼此等待。为了理解这种异常现象，我们必须对缓存的工作方式进行更多的了解。
 
-The way the data moves between the processors and the memory in a multi-core or a multi-processor system is illustrated in Figure 5.7.
+在多核或多处理器系统中，数据在处理器和内存之间移动的方式如图5.7所示。
 
 \hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/7.jpg}\\
-Figure 5.7 – Data transfer between CPUs and memory in a multi-core system
+图5.7 - 多核系统中CPU和内存之间的数据传输
 \end{center}
 
-The processor operates on the data in individual bytes, or in words that depend on the type of the variable; in our case, an unsigned long is an 8-byte word. An atomic increment reads a single word at the specified address, increments it, and writes it back. But reads from where? The CPU has direct access only to the L1 cache, so it gets the data from there. How does the data get from the main memory into the cache? It's copied over the memory bus, which is much wider. The minimum amount of data that can be copied from memory to cache and back is called a cache line. On all x86 CPUs, one cache line is 64 bytes. When a CPU needs to lock a memory location for an atomic transaction, such as an atomic increment, it may be writing a single word, but it has to lock the entire cache line: if two CPUs are allowed to write the same cache line into memory at the same time, one of them will overwrite the other. Note that, for simplicity, we show only one level of cache hierarchy in Figure 5.7, but it makes no difference: data travels through all cache levels in chunks of cache line length.
+处理器以字节或字的形式处理数据，这取决于变量的类型;在我们的例子中，一个\texttt{unsigned long}类型变量具有8字节。原子增量读取指定地址处的单个字，对其加1，然后写回。但是从哪里读呢？CPU只能直接访问L1缓存，因此只能从那里获取数据。数据如何从主存储器进入高速缓存？数据是通过内存总线复制的，而内存总线要宽得多。可以从内存复制到高速缓存并返回的最小数据量称为\textbf{缓存线}。在所有x86 CPU上，一条缓存线的大小为64字节。当CPU需要为一个原子事务锁定内存位置时，比如一个原子增量，CPU可能在写一个数据，并锁定整个缓存线:如果两个CPU可以在同一时间将同一缓存线写入内存，那么其中一个必然会覆盖另一个。注意，为了简单起见，我们在图5.7中只显示了一个级别的缓存层次结构，但这没有区别:数据以缓存线长度的形式通过所有级别的缓存。
 
-Now we can explain the false sharing we observed: even though the adjacent array elements are not really shared between threads, they do occupy the same cache line. When a CPU requests exclusive access to one array element for the duration of the atomic increment operation, it locks the entire cache line and prevents any other CPU from accessing any data in it. Incidentally, this explains why the false sharing in Figure 5.7 appears equivalent to the true data sharing for up to 8 threads but becomes faster for more threads: we are writing 8-byte words, so 8 of them fit into the same cache line. If we have only 8 threads (or fewer), only one thread can increment its value at any given time, the same as for true sharing. But with more than 8 threads, the array occupies at least two cache lines, and they can be locked by two CPUs independently from each other. So, if we have, say, 16 threads at any time, there are two threads that can move forward, one for each half of the array.
+现在可以解释我们观察到的伪共享:即使相邻的数组元素在线程之间并没有真正共享，但确实占用了相同的缓存线。当CPU请求独占访问一个数组元素时，它会锁定整个缓存线，阻止其他CPU访问其中的任何数据。顺便说一句，这解释了为什么图5.7中的伪共享在8个线程时看起来和真正的数据共享是一样的，但是在更多的线程时变得更快:写入的是8个字节的数据，所以它们中的8个可以放进同一个缓存线中。如果只有8个线程(或更少)，那么在任何给定的时间，只有一个线程可以增加它的值，这与真正的共享一样。但是如果超过8个线程，数组至少占用两条缓存线，并且可以被两个独立的CPU锁住。所以，若有16个线程，那么就有两个线程可以向前移动，数组的一半对应一个线程。
 
-On the other hand, the real no-sharing benchmark allocates the atomic variables on the stack of each thread. These are completely independent memory allocations, separated by many cache lines. With no interaction through memory, these threads run completely independently of each other.
+另一方面，真正的非共享基准测试在每个线程的堆栈上分配原子变量。它们是完全独立的内存分配，由许多缓存线隔开。由于没有内存交互，这些线程可以完全独立地运行。
 
-Our analysis shows that the real reason for the high cost of accessing the shared data is the work that must be done to maintain the exclusive access to a cache line and to make sure all CPUs have consistent data in their caches: after one CPU has obtained exclusive access and updated even one bit in the cache line, the copy of that line in all caches of all other CPUs is out of date. Before these other CPUs can access any data in the same cache line, they must fetch the updated content from the main memory, which, as we have seen, takes a relatively long time.
+我们的分析表明，访问共享数据的高成本的真正原因是，必须维护对缓存线的独占访问，并确保所有CPU的缓存中有一致的数据:当一个CPU获得了独占访问权，并且更新了缓存线上的1位后，所有其他CPU的缓存线的复制就过期了。在其他CPU访问同一缓存线的数据之前，它们必须从主存中获取更新后的内容，这将花费相对较长的时间。
 
 As we have seen, it doesn't really matter whether two threads try to access the same memory location or not, as long as they are competing for access to the same cache line. That exclusive cache line access is the origin of the high cost of shared variables. 
 
@@ -82,7 +82,7 @@ sum += x;
 
 We have the global result, sum, that is shared between all threads and must be atomic (or protected by a lock). But each thread accesses this variable exactly once after all the work is done. Each thread uses another variable to hold the partial sum, only the values added on this thread (increments of 1 in our trivial case, but the performance is the same regardless of the values being added). We can create a large array to store these per-thread partial sums and give each thread a unique array element to work on. Of course, in this trivial example, we could just use a local variable, but in a real program, the partial results often need to be kept after the worker threads are done, and the final processing of these results is done elsewhere, perhaps by another thread. To simulate this kind of implementation, we use an array of per-thread variables. Note that these variables are just plain integers, not atomic: there is no concurrent access to them. Unfortunately, in the process, we fell into the trap of false sharing: the adjacent elements of the array are (usually) on the same cache line and, thus, cannot be accessed concurrently. This is reflected in the performance of our program:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/8.jpg}\\
 Figure 5.8 – Sum accumulation with and without false sharing
