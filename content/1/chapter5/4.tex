@@ -53,19 +53,19 @@ void BM_not_shared(benchmark::State& state) {
 图5.7 - 多核系统中CPU和内存之间的数据传输
 \end{center}
 
-处理器以字节或字的形式处理数据，这取决于变量的类型;在我们的例子中，一个\texttt{unsigned long}类型变量具有8字节。原子增量读取指定地址处的单个字，对其加1，然后写回。但是从哪里读呢？CPU只能直接访问L1缓存，因此只能从那里获取数据。数据如何从主存储器进入高速缓存？数据是通过内存总线复制的，而内存总线要宽得多。可以从内存复制到高速缓存并返回的最小数据量称为\textbf{缓存线}。在所有x86 CPU上，一条缓存线的大小为64字节。当CPU需要为一个原子事务锁定内存位置时，比如一个原子增量，CPU可能在写一个数据，并锁定整个缓存线:如果两个CPU可以在同一时间将同一缓存线写入内存，那么其中一个必然会覆盖另一个。注意，为了简单起见，我们在图5.7中只显示了一个级别的缓存层次结构，但这没有区别:数据以缓存线长度的形式通过所有级别的缓存。
+处理器以字节或字的形式处理数据，这取决于变量的类型;在我们的例子中，一个\texttt{unsigned long}类型变量具有8字节。原子增量读取指定地址处的单个字，对其加1，然后写回。但是从哪里读呢？CPU只能直接访问L1缓存，因此只能从那里获取数据。数据如何从主存储器进入高速缓存？数据是通过内存总线复制的，而内存总线要宽得多。可以从内存复制到高速缓存并返回的最小数据量称为\textbf{缓存行}。在所有x86 CPU上，一条缓存行的大小为64字节。当CPU需要为一个原子事务锁定内存位置时，比如一个原子增量，CPU可能在写一个数据，并锁定整个缓存行:如果两个CPU可以在同一时间将同一缓存行写入内存，那么其中一个必然会覆盖另一个。注意，为了简单起见，我们在图5.7中只显示了一个级别的缓存层次结构，但这没有区别:数据以缓存行长度的形式通过所有级别的缓存。
 
-现在可以解释我们观察到的伪共享:即使相邻的数组元素在线程之间并没有真正共享，但确实占用了相同的缓存线。当CPU请求独占访问一个数组元素时，它会锁定整个缓存线，阻止其他CPU访问其中的任何数据。顺便说一句，这解释了为什么图5.7中的伪共享在8个线程时看起来和真正的数据共享是一样的，但是在更多的线程时变得更快:写入的是8个字节的数据，所以它们中的8个可以放进同一个缓存线中。如果只有8个线程(或更少)，那么在任何给定的时间，只有一个线程可以增加它的值，这与真正的共享一样。但是如果超过8个线程，数组至少占用两条缓存线，并且可以被两个独立的CPU锁住。所以，若有16个线程，那么就有两个线程可以向前移动，数组的一半对应一个线程。
+现在可以解释我们观察到的伪共享:即使相邻的数组元素在线程之间并没有真正共享，但确实占用了相同的缓存行。当CPU请求独占访问一个数组元素时，它会锁定整个缓存行，阻止其他CPU访问其中的任何数据。顺便说一句，这解释了为什么图5.7中的伪共享在8个线程时看起来和真正的数据共享是一样的，但是在更多的线程时变得更快:写入的是8个字节的数据，所以它们中的8个可以放进同一个缓存行中。如果只有8个线程(或更少)，那么在任何给定的时间，只有一个线程可以增加它的值，这与真正的共享一样。但是如果超过8个线程，数组至少占用两条缓存行，并且可以被两个独立的CPU锁住。所以，若有16个线程，那么就有两个线程可以向前移动，数组的一半对应一个线程。
 
-另一方面，真正的非共享基准测试在每个线程的堆栈上分配原子变量。它们是完全独立的内存分配，由许多缓存线隔开。由于没有内存交互，这些线程可以完全独立地运行。
+另一方面，真正的非共享基准测试在每个线程的堆栈上分配原子变量。它们是完全独立的内存分配，由许多缓存行隔开。由于没有内存交互，这些线程可以完全独立地运行。
 
-我们的分析表明，访问共享数据的高成本的真正原因是，必须维护对缓存线的独占访问，并确保所有CPU的缓存中有一致的数据:当一个CPU获得了独占访问权，并且更新了缓存线上的1位后，所有其他CPU的缓存线的复制就过期了。在其他CPU访问同一缓存线的数据之前，它们必须从主存中获取更新后的内容，这将花费相对较长的时间。
+我们的分析表明，访问共享数据的高成本的真正原因是，必须维护对缓存行的独占访问，并确保所有CPU的缓存中有一致的数据:当一个CPU获得了独占访问权，并且更新了缓存行上的1位后，所有其他CPU的缓存行的复制就过期了。在其他CPU访问同一缓存行的数据之前，它们必须从主存中获取更新后的内容，这将花费相对较长的时间。
 
-As we have seen, it doesn't really matter whether two threads try to access the same memory location or not, as long as they are competing for access to the same cache line. That exclusive cache line access is the origin of the high cost of shared variables. 
+正如我们所见，两个线程是否尝试访问相同的内存位置并不重要，重要的是它们会竞争访问相同的缓存行。独占的缓存行访问是共享变量高成本的根源。
 
-One may wonder whether the reason locks are expensive is also found in the shared data they contain (all locks must have some amount of shared data, that's the only way one thread can let another thread know that the lock is taken). A mutex lock is much more expensive than single atomic access, even on one thread, as we have seen in Figures 5.4 and 5.5. We can assume, correctly, that locking a mutex involves more work than just modifying one atomic variable. But why does this work take more time when we have more than one thread? Is it because the data is shared and needs exclusive access to the cache line? We leave it as an exercise to the reader to confirm that this is indeed so. The key to this experiment is to set up false sharing of locks: an array of locks such that each thread operates on its own lock, but they compete for the same cache line (of course, such per-thread locks don't actually protect anything from concurrent access, but all we want is the time it takes to lock and unlock them). The experiment is slightly more complex than you might think: the standard C++ mutex, std::mutex, is usually quite large, between 40 and 80 bytes depending on the OS. This means you can't fit even two of them into the same cache line. You have to do this experiment with a smaller lock, such as a spinlock or a futex.
+有人可能想知道，锁昂贵的原因是否也存在于包含的共享数据中(所有锁都必须具有一定数量的共享数据，这是一个线程可以让另一个线程知道锁占用的唯一方法)。即使是在一个线程上，互斥锁比单个原子访问要昂贵得多，如图5.4和5.5中看到的那样。我们可以正确地假设，锁定互斥对象比仅仅修改一个原子变量需要更多的工作。但是，当我们有多个线程时，为什么这项工作要花费更多的时间呢？是因为数据是共享的，需要独占的访问缓存行吗？我们把这个问题留给读者作为一个练习，通过自己的方法确认是否真的是这样。这个问题的关键是设置锁的伪共享:一个锁数组，每个线程操作自己的锁，它们竞争相同的缓存行(当然，这种每个线程的锁实际上并不能保护并发访问，但我们想要的是锁定和解锁所花费的时间)。这个实验比想象的要稍微复杂一些:标准C++的互斥量\texttt{std::mutex}通常相当大，根据操作系统的不同，在40到80字节之间。这意味着，可能不能在同一个缓存行中放入两个互斥量。所以必须使用较小的锁来进行这个实验，例如：自旋锁或futex(fast userspace mutex)。
 
-We now understand why the cost of accessing the shared data concurrently is so high. This understanding gives us two important lessons. The first one is to avoid false data sharing when we attempt to create non-shared data. How can the unintended false sharing creep into our program? Consider the simple example we have studied throughout this chapter: accumulating a sum concurrently. Some of our approaches were slower than others, but they were all very slow (slower than the single-threaded program, or, at best, no faster). We understand that accessing shared data is expensive. So, what is less expensive? Not accessing the shared data, of course! Or at least not accessing it as often. There is no reason for us to access the shared sum value every time we want to add something to it: we can make all the additions locally, on the thread, and add them to the shared accumulator value once, at the very end. The code would look something like this: 
+现在我们明白了为什么并发访问共享数据的代价如此之高。这里需要我们注意两点：首先，创建非共享数据时，要避免错误的数据共享。无意间的错误共享会在我们的程序出现吗？我们在这一章已经有了个简单的例子:对多个数进行同时累加求和。我们的方法都非常慢(比单线程程序慢，或者和单线程性能相当)。我们了解了访问共享数据的开销很高。那么，什么方法能降低这个开销呢？当然，不是访问共享数据!至少是不经常访问它。对于我们来说，不需要在想要进行累加时，就访问共享和值:我们可以在本地、线程上进行累加，并在最后一次将它们添加到共享的累加器值中:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -80,19 +80,19 @@ for (size_t i = 0; i < N; ++i) ++x;
 sum += x;
 \end{lstlisting}
 
-We have the global result, sum, that is shared between all threads and must be atomic (or protected by a lock). But each thread accesses this variable exactly once after all the work is done. Each thread uses another variable to hold the partial sum, only the values added on this thread (increments of 1 in our trivial case, but the performance is the same regardless of the values being added). We can create a large array to store these per-thread partial sums and give each thread a unique array element to work on. Of course, in this trivial example, we could just use a local variable, but in a real program, the partial results often need to be kept after the worker threads are done, and the final processing of these results is done elsewhere, perhaps by another thread. To simulate this kind of implementation, we use an array of per-thread variables. Note that these variables are just plain integers, not atomic: there is no concurrent access to them. Unfortunately, in the process, we fell into the trap of false sharing: the adjacent elements of the array are (usually) on the same cache line and, thus, cannot be accessed concurrently. This is reflected in the performance of our program:
+我们有一个全局结果\texttt{sum}，它在所有线程之间共享，并且必须是原子的(或者由锁保护)。但是在所有的工作完成后，每个线程只访问这个变量一次。每个线程使用另一个变量来保存部分和，只保存在该线程上添加的值(在我们的简单示例中，增量为1，但无论添加的值是什么，性能都是相同的)。我们可以创建一个大数组来存储每个线程的部分和，并给每个线程一个单独的数组来对元素进行处理。在这个简单的例子中，可以只使用一个局部变量，但是在实际的程序中，部分结果通常需要在工作线程完成之后保存，而这些结果的最终处理可能是通过其他线程完成的。为了模拟这种实现，我们使用每个线程的数组。注意，这些数组中只是普通的整数:不会并发访问。在此过程中，我们落入了错误共享的陷阱:数组的相邻元素(通常)位于同一高速缓存行上，因此不能并发访问。这反映在程序的性能上:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/8.jpg}\\
-Figure 5.8 – Sum accumulation with and without false sharing
+图5.8 - 有和没有伪共享的累加计算
 \end{center}
 
-As you can see in Figure 5.8, our program scales very poorly until we get to a very large number of threads. On the other hand, it scales perfectly, as expected, if we eliminate the false sharing by making sure the per-thread partial sums are at least 64 bytes apart (or simply using local variables in our case). While both programs become faster when we use more threads, the implementation that is not burdened by the false sharing remains approximately twice as fast.
+可以在图5.8中看到，我们的程序的扩展性非常差，需要开非常多的线程才会好。另一方面，如果通过确保每个线程的部分和之间，至少有64字节(或者在我们的例子中仅使用局部变量)来消除伪共享，那么它就可以完美地扩展。当我们使用更多的线程时，两个程序都会变得更快，但不受伪共享影响的实现性能，可以是单线程的(大约)两倍。
 
-The second lesson will become more important in the later chapters: since accessing shared variables concurrently is, comparatively, very expensive, an algorithm or an implementation that uses fewer shared variables will, in general, perform faster.
+第二点将在后面的章节中变得更加重要:由于并发访问共享变量相对来说非常昂贵，因此使用较少共享变量的算法或实现通常会执行得更快。
 
-This statement may be confusing at the moment: by nature of the problem, we have some amount of the data that must be shared. We can do optimizations like the one we just did and eliminate unnecessary accesses to this data. But once this is done, the rest is the data we need to access to produce the desired results. How can there be more, or fewer, shared variables, then? To understand this, we have to realize that there is more to writing concurrent programs than protecting access to all shared data.
+目前，这种说法可能令人困惑。问题的本质是，我们有一些必须共享的数据。我们可以像刚才那样进行优化，并消除对该数据的不必要访问。完成后，剩下的就是需要访问的数据，以产生所需的结果。那么，共享变量怎么可能更多或更少呢？要理解这一点，我们必须了解，好的并发代码比保护对所有共享数据的访问更重要。
 
 
 

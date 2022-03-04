@@ -1,7 +1,7 @@
 
 As the reader was reminded earlier in this chapter, any program that accesses any shared data without access synchronization (mutexes or atomic accesses, usually) has undefined behavior that is usually called a data race. This seems simple enough, at least in theory. But our motivational example was too simple: it had just one variable shared between threads. There is more to concurrency than locking shared variables, as we are about to see.
 
-\subsubsubsection{5.5.1\hspace{0.2cm}The need for order}
+\subsubsubsection{5.5.1\hspace{0.2cm}顺序的必要性}
 
 Now consider this example known as the producer-consumer queue. Let us say that we have two threads. The first thread, the producer, prepares some data by constructing objects. The second thread, the consumer, processes the data (does work on each object). For simplicity, let us say that we have a large memory buffer that is initially uninitialized and the producer thread constructs new objects in the buffer as if they were array elements:
 
@@ -78,7 +78,7 @@ std::atomic<size_t> N; // Count of initialized objects
 
 Now every read of the counter N by the consumer is atomic, but in between the two reads the producer is not blocked and can keep working. This approach to concurrency is known as lock-free (it does not use any locks), and we will come back to it later. For now, the important question is this: do we still have the guarantee that the producer and the consumer cannot access the same object buffer[i] concurrently?
 
-\subsubsubsection{5.5.2\hspace{0.2cm}Memory order and memory barriers}
+\subsubsubsection{5.5.2\hspace{0.2cm}内存序和内存栅栏}
 
 As we have realized, being able to access shared variables safely is not enough to write any non-trivial concurrent program. We also have to be able to reason about the order in which events happen. In our producer and consumer example, the entire program rests on a single assumption: that we can guarantee that the construction of the Nth array element, incrementing the counter to N + 1, and the access to the Nth element by the consumer thread happen in that order.
 
@@ -88,7 +88,7 @@ But there is another aspect of accessing shared data, that of memory order. Just
 
 There are several forms of memory order. The least restricted one is the relaxed memory order. When an atomic operation is executed with relaxed order, the only guarantee we have is that the operation itself is executed atomically. What does this mean? Let us first consider the CPU that is executing the atomic operation. It runs a thread that contains other operations, both non-atomic and atomic. Some of these operations modify the memory; the results of these operations can be seen by other CPUs. Other operations read the memory; they observe the results of operations executed by other CPUs. The CPU that runs our thread executes these operations in a certain order. It may not be the order in which they are written in the program: both the compiler and the hardware can reorder instructions, usually to improve the performance. But it is a well-defined order. Now let us look at it from the point of view of another CPU that is executing a different thread. That second CPU can see the content of the memory changing as the first CPU does its work. But it does not necessarily see them in the same order with respect to each other or to the atomic operation that we have been focused on:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/9.jpg}\\
 Figure 5.9 – Visibility of operations with relaxed memory order
@@ -100,7 +100,7 @@ If our operations on the shared counter N were executed with relaxed memory orde
 
 Fortunately, there are other memory order guarantees we can use. The most important one is the acquire-release memory order. When an atomic operation is executed with this order, we have a guarantee that any operation that accesses the memory and was executed before the atomic operation becomes visible to another thread before that thread executes an atomic operation on the same atomic variable. Similarly, all operations that are executed after the atomic operation become visible only after an atomic operation on the same variable. Again, remember that when we talk about the visibility of operations, we really mean that their results become observable to other CPUs. This is evident in Figure 5.10: on the left, we have the operations as they are executed by CPU0. On the right, we have the same operations as they are seen by CPU1. Note, in particular, that the atomic operation shown on the right is Atomic Write. But CPU1 does not execute atomic write: it executes an atomic read to see the results of the atomic write executed by CPU0. The same goes for all other operations: on the left, the order is as executed by CPU0. On the right, the order is as seen by CPU1.
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/10.jpg}\\
 Figure 5.10 – Visibility of operations with acquire-release memory order
@@ -118,7 +118,7 @@ What is the harm in having stronger guarantees than what is strictly necessary? 
 
 The memory order that gives us exactly what we need for our producer-consumer program is as follows. On the producer side, we need one-half of the guarantee given by the acquire-release memory barrier: all operations executed before the atomic operation with the barrier must become visible to other threads before they execute the corresponding atomic operation. This is known as the release memory order:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/11.jpg}\\
 Figure 5.11 – Release memory order
@@ -128,7 +128,7 @@ When CPU1 sees the result of the atomic write operation executed by CPU0 with th
 
 The acquire memory order is what we need to use on the consumer side. It guarantees that all operations executed after the barrier become visible to other threads after the barrier, as shown in Figure 5.12:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/12.jpg}\\
 Figure 5.12 – Acquire memory order
@@ -138,7 +138,7 @@ The acquire and release memory barriers are always used as a pair: if one thread
 
 Now that we understand that it is not enough to just operate atomically on the shared data, you may ask whether our producer-consumer program actually works. As it turns out, both the lock version and the lock-free version are correct, even though we did not say anything explicitly about the memory order. So, how is the memory order controlled in C++?
 
-\subsubsubsection{5.5.3\hspace{0.2cm}Memory order in C++}
+\subsubsubsection{5.5.3\hspace{0.2cm}C++中的内存序}
 
 First of all, let us think back to the lock-free version of our producer-consumer program, the one with the atomic counter:
 
@@ -175,7 +175,7 @@ Before we go any further, we must realize that we have jumped over one criticall
 
 Speaking of locks, what memory order guarantees do they give? We know that any operation protected by the lock will be seen by any other thread that acquires the lock later, but what about the rest of the memory? The memory order enforced by the use of the lock is shown in Figure 5.13:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/13.jpg}\\
 Figure 5.13 – Memory order guarantees of a mutex
