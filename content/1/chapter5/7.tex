@@ -1,12 +1,12 @@
-In this chapter, we have learned about the C++ memory model and the guarantees it gives to the programmer. The result is a thorough understanding of the low level of what happens when multiple threads interact through shared data.
+在本章中，我们学习了C++内存模型，以及它给开发者的保证。需要对多线程通过共享数据进行交互时，所发生的详细情况，进行全面的理解。
 
-In multi-threaded programs, unsynchronized and unordered access to memory leads to undefined behavior and must be avoided at any cost. The cost, however, is usually paid in performance. While we always value a correct program over an incorrect but fast one, when it comes to memory synchronization, it is easy to overpay for correctness. We have seen different ways to manage concurrent memory accesses, their advantages, and tradeoffs. The simplest option is to lock all accesses to the shared data. The most elaborate implementation, on the other hand, uses atomic operations and restricts memory order as little as possible.
+在多线程程序中，对内存的非同步和无序访问会导致未定义行为，必须不惜任何代价避免。然而，成本通常是通过性能来支付的。虽然我们看重正确性，但当涉及到内存同步时，很容易为正确性付出过高的代价。我们已经了解了管理并发内存访问的不同方法，以及它们的优缺点。最简单的选择是锁定对共享数据的所有访问。另一方面，最复杂的实现使用原子操作，并尽可能少地限制内存序。
 
-The first rule of performance is in full force here: performance must be measured, not guessed. This is even more important for concurrent programs where clever optimizations can fail to yield measurable results for a multitude of reasons. On the other hand, the one guarantee you always have is that a simple program with locks is easier to write and is more likely to be correct. 
+性能的第一条规则在这里是完全有效的:性能必须测量，而不是猜测。这对于并发程序来说尤为重要，在并发程序中，由于种种原因，聪明的优化可能无法产生可测量的结果。另一方面，可以保证的一点是，带锁的简单程序更容易编写，而且更有可能是正确的。
 
-Armed with the understanding of the fundamental factors affecting the performance of data sharing, you can better understand the results of your measurements, as well as developing some sense for when it makes sense to even try to optimize the concurrent memory accesses: the larger the part of your code affected by the memory order restrictions, the more likely it is that relaxing these restrictions will improve the performance. Also, keep in mind that some of the restrictions come from the hardware itself.
+有了数据共享对性能影响的理解，就可以更好地理解测量结果，以及在什么时候尝试优化并发内存访问:受内存序限制影响的代码部分越大，放松这些限制就越有可能提高性能。另外，请记住，有些限制来自硬件本身。
 
-Overall, this is much more complex material than anything you had to deal with in the earlier chapters (not surprising, concurrency is hard in general). The next chapter shows some of the ways you can manage this complexity in your program without giving up the performance benefits. You will also see the practical applications of the knowledge you have learned here.
+总的来说，这比在前面几章中处理的任何内容都要复杂得多(不奇怪，并发通常很难)。下一章将展示在不放弃性能优势的情况下，在程序中如何管理这种复杂性的一些方法。还将看到如何将这里学到的知识，进行实际应用。
 
 
 

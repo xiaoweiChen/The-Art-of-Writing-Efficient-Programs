@@ -1,6 +1,6 @@
-We need a more systematic and rigorous way to describe the interaction of threads through memory, their use of the shared data, and its effect on concurrent applications. This description is known as the memory model. The memory model describes what guarantees and restrictions exist when threads access the same memory location.
+我们需要一种更系统、更严格的方式来描述线程通过内存交互、对共享数据的使用，及其对并发应用的影响，这个描述称为内存模型。内存模型描述了当线程访问相同的内存位置时存在哪些保证和限制。
 
-Prior to the C++11 standard, the C++ language had no memory model at all (the word thread was not mentioned in the standard). Why is that a problem? Consider our producer-consumer example again (let us focus on the producer side):
+C++11标准之前，C++语言根本没有内存模型(在标准中没有提到线程这个词)。这有什么问题呢？再来看看我们的生产者-消费者例子(关注生产者方面):
 
 \begin{lstlisting}[style=styleCXX]
 std::mutex mN;
@@ -13,7 +13,7 @@ new (buffer + N) T( … arguments … );
 } // Critical section end - release lock
 \end{lstlisting}
 
-The lock\_guard is just an RAII wrapper around the mutex, so we can't forget to unlock it, so the code boils down to this:
+\texttt{lock\_guard}只是一个互斥锁的RAII包装器，所以不能忘记解锁:
 
 \begin{lstlisting}[style=styleCXX]
 std::mutex mN;
@@ -25,7 +25,7 @@ mN.lock(); // mN
 mN.unlock(); // mN
 \end{lstlisting}
 
-Note that each line of this code uses either the variable N or the object nM, but they are never used together in one operation. From the C++ point of view, this code is similar to the following:
+请注意，这段代码的每一行都使用了\texttt{N}或\texttt{nM}，但它们从未在一个操作中一起使用。从C++的角度来看，这段代码可化简为:
 
 \begin{lstlisting}[style=styleCXX]
 size_t n, m;
@@ -33,7 +33,7 @@ size_t n, m;
 ++n;
 \end{lstlisting}
 
-In this code, the order of the operations does not matter, and the compiler is free to reorder them as long as the observable behavior does not change (observable behavior is things like input and output, changing a value in memory is not an observable behavior). Going back to our original example, why doesn't the compiler reorder the operations there?
+这段代码中，操作的顺序并不重要，只要可观察对象的行为没有改变即可(可观察对象的行为是输入和输出，改变内存中的值不是可观察对象的行为)，编译器就可以自由地重新排列它们的顺序。回到最初的例子，为什么编译器不重新对操作进行排序呢？
 
 \begin{lstlisting}[style=styleCXX]
 mN.lock(); // mN
@@ -41,13 +41,13 @@ mN.unlock(); // mN
 ++N; // N
 \end{lstlisting}
 
-This would be very bad, and yet, nothing in the C++ standard (until C++11) prevents the compiler from doing so.
+这将是非常糟糕的，但C++标准(直到C++11)无法阻止编译器这样做。
 
-Of course, we were writing multi-threaded programs in C++ long before 2011, so how did they work? Obviously, the compilers did not do such optimizations, but why? The answer is found in the memory model: the compilers provided certain guarantees that went beyond the C++ standard and supplied a certain memory model even when the standard required none. The Windows-based compilers followed the Windows memory model, while most Unix- and Linux-based compilers provided the POSIX memory model and the corresponding guarantees.
+当然，早在2011年之前，我们就已经在用C++编写多线程程序了，那么它们是如何工作的呢？显然，编译器当时没有做这样的优化，原因可以在内存模型中找到:编译器提供了超出C++标准的某些保证，并提供了特定的内存模型，即使标准不需要这些模型。基于Windows的编译器遵循Windows内存模型，而大多数基于Unix和linux的编译器提供POSIX内存模型和相应的保证。
 
-The C++11 standard changed that and gave C++ its own memory model. We have already taken advantage of it in the previous section: the memory order guarantees that accompany the atomic operations, and the locks are part of this memory model. The C++ memory model now guarantees portability across platforms that previously offered a different set of guarantees, each according to its memory model. In addition, the C++ memory model offers some language-specific guarantees.
+C++11标准改变了这一点，并赋予了C++内存模型。我们在前一节中已经利用了它:伴随原子操作的内存序保证，而锁是内存模型的一部分。C++内存模型现在保证了跨平台的可移植性，而以前提供了一组在不同平台上的保证，每个保证都根据其内存模型进行。此外，C++内存模型提供了一些特定于语言的保证。
 
-We have seen these guarantees in the form of the different memory order specifications: relaxed, acquire, release, and acquire-release. C++ has an even stricter memory order called sequentially consistent (std::memory\_order\_seq\_cst), which is the default order you get when you don't specify one: not only there is a bidirectional memory barrier associated with each atomic operation that specifies this order, but the entire program satisfies the sequential consistency requirement. This requirement states that the program behaves as if all operations executed by all processors were executed in a single global order. Furthermore, this global order has an important property: consider any two operations A and B that are executed on one processor such that A executed before B. These two operations must appear in the global order with A preceding B as well. You can think of a sequentially consistent program like this: imagine a deck of cards for every processor, where the cards are operations. Then we slide these decks together without shuffling them; cards from one deck slide between cards from the other deck, but the order of the cards from the same deck never changes. The one combined deck of cards is the apparent global order of the operations in the program. Sequential consistency is a desirable property because it makes it much easier to reason about the correctness of a concurrent program. It does, however, often come at a cost in performance. We can demonstrate this cost in a very simple benchmark that compares different memory orders:
+我们已经在不同的内存序标准中看到了这些保证:自由、获取、释放和获取-释放。C++有一个更严格的内存顺序，称为\textbf{顺序一致}(\texttt{std::memory\_order\_seq\_cst})，这是默认的内存序:不仅每个原子操作都有一个指定顺序的双向内存栅栏，而且整个程序都满足顺序一致性的要求。这个要求表明，程序的行为都按照一个全局顺序执行。此外，这个全局顺序有一个重要的属性:在一个处理器上执行的任意两个操作A和B，使得A在B之前执行。这两个操作必须以全局顺序出现，并且A也在B之前。可以这样考虑一个顺序一致的程序:为每个处理器设想一组卡片，卡片是操作。然后我们把这些牌放到一起，而不洗牌。一组牌的牌在另一组牌之间进行移动，但同一组牌的顺序永远不会改变，一组卡片就是程序中操作的全局顺序。顺序一致性是一个理想的属性，因为它使判断并发程序的正确性变得更加容易。然而，这往往会以性能为代价。我们可以用一个非常简单的基准测试来进行演示，其比较了不同的内存序:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -64,23 +64,23 @@ void BM_order(benchmark::State& state) {
 }
 \end{lstlisting}
 
-We can run this benchmark using different memory orders. The results will, of course, depend on the hardware, but the following result is not uncommon:
+我们可以使用不同的内存序运行这个基准测试。当然，结果取决于硬件，但下面的结果很罕见:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/14.jpg}\\
-Figure 5.14 – Performance of acquire-release vs. sequential consistency memory order
+图5.14 -获取-释放与连续一致性内存序的性能
 \end{center}
 
-There is a lot more to the C++ memory model than just the atomic operations and the memory order. For example, when we studied false sharing earlier, we have assumed that it is safe to access adjacent elements of an array from multiple threads concurrently. It makes sense: these are different variables. And yet, it was not guaranteed by the language or even by the additional restrictions adopted by the compiler. On most hardware platforms, accessing adjacent elements of an array of integers is indeed thread-safe. But it is definitely not the case for data types of smaller size, for example, an array of bool. Many processors write a single byte using a masked integer write: they load the entire 4-byte word containing this byte, change the byte to the new value, and write the word back. Obviously, if two processors do this at the same time for two bytes that share the same 4-byte word, the second write will overwrite the first one. The C++11 memory model requires that writing into any distinct variables, such as array elements, is thread-safe if no two threads access the same variable. Prior to C++11, it was easy to write a program that would demonstrate that writing into two adjacent bool or char variables from two threads is not thread-safe. The only reason we don't have this demonstration in this book is that the compilers available today don't fall back to this aspect of C++03 behavior even if you specify the standard level as C++03 (this is not guaranteed, and a compiler could use masked writes to write single bytes in C++03 mode, but most compilers use the same instructions as in C++11 mode).
+C++内存模型不仅仅是原子操作和内存序。还有，在前面学习伪共享时，我们假设从多个线程并发地访问数组相邻元素是安全的，这些是不同的变量。然而，语言(甚至编译器)所采用的限制都不能保证。在大多数硬件平台上，访问整数数组的相邻元素确实是线程安全的。但对于较小的数据类型(例如\texttt{bool}数组)，情况肯定不是这样。许多处理器使用掩码整数写入单个字节:它们加载包含该字节的整个4字节字，将字节更改为新值，然后将字写回。显然，如果两个处理器同时对共享相同4字节字的两个字节执行此操作，那么第二个写操作将覆盖第一个写操作。C++11的内存模型要求，如果没有两个线程访问同一个变量，那么写入不同的变量(比如数组元素)都是线程安全的。在C++11之前，很容易编写一个程序来证明从两个线程写入两个相邻的\texttt{bool}或\texttt{char}变量不是线程安全的。我们在这本书中没有这个演示的原因是，今天可用的编译器不会退回到C++03，即使指定标准级别为C++03(这是不保证的，编译器可以使用掩码写在C++03模式中写单个字节，大多数编译器使用与C++11模式相同的指令)。
 
-The last example of the importance of the C++ memory model also contains a valuable observation: the language and the compiler are not all that defined the memory model. The hardware has a memory model, the OS and the runtime environment have their memory models, and each component of the hardware/software system the program runs on has a memory model. The overall memory model, the total set of guarantees and restrictions available to the program, is a superposition of all of these memory models. Sometimes you can take advantage of that, for example, when writing processor-specific code. However, any portable C++ code can rely only on the memory model of the language itself, and, more often than not, other underlying memory models are a complication.
+关于C++内存模型的重要性，最后一个例子也有一个有价值的观察:语言和编译器并不都定义了内存模型。硬件有一个内存模型，操作系统和运行时环境有它们的内存模型，程序运行的硬件/软件系统的每个组件都有一个内存模型。整个内存模型，即程序可用的所有保证和限制的集合，是所有这些内存模型的叠加。有时候，您可以利用它，例如：在编写特定于处理器的代码时。然而，任何可移植的C++代码都只能依赖于语言本身的内存模型，并且其他底层内存模型都很复杂。
 
-Two kinds of problems arise because of the differences in the memory model of the language and that of the hardware. First of all, there may be bugs in your program that cannot be detected on particular hardware. Consider the acquire-release protocol we used for our producer-consumer program. If we made a mistake and used the release memory order on the producer side but relaxed memory order (no barrier at all) on the consumer side, we would expect the program to produce incorrect results intermittently. However, if you run this program on an x86 CPU, it would appear to be correct. This is because the memory model of the x86 architecture is such that every store is accompanied by a release barrier, and every load has an implicit acquire barrier. Our program still has a bug, and it would trip us up if we ported it to, say, an ARM-based processor (like the one in an iPad). But the only way to find this bug on x86 hardware is with the help of a tool like the Thread Sanitizer (TSAN) available in GCC and Clang.
+由于语言的内存模型和硬件的内存模型的不同，出现了两种问题。首先，程序中可能有一些在特定硬件上无法检测到的Bug。考虑我们用于生产者-消费者程序的获取-释放协议。如果我们犯了一个错误，在生产者端使用释放内存序，而在消费者端使用自由内存序(完全没有栅栏)，我们会期望程序间歇性地产生不正确的结果。但是，如果在x86 CPU上运行这个程序，它似乎是正确的。这是因为x86架构的内存模型是这样的，每个存储都伴随着一个释放栅栏，而每个加载都有一个隐式的获取栅栏。当然，我们的程序仍然存在一个漏洞，如果将其移植到基于ARM的处理器(就像iPad上的处理器)上，它就会给我们带来麻烦。但是在x86硬件上找到这个bug的唯一方法会用到GCC和Clang中提供的\textbf{Thread santizer(TSAN是一种C/C++数据竞争检测工具)}工具。
 
-The second problem is the flip-side of the first one: reducing the restrictions on the memory order does not always result in better performance. As you can expect from what you have just learned, going from release to relaxed memory order on write operations does not yield any benefit on an x86 processor because the overall memory model still guarantees the release order (in theory, the compiler might do more optimizations with the relaxed memory order than with the release one, however, most compilers do not optimize the code across atomic operations at all).
+第二个问题与第一个问题相反:减少对内存序的限制并不总是会带来更好的性能。在一个x86处理器上从释放到自由内存序写操作不会带来任何性能上的提升，因为总的内存模型可以保证释放顺序(理论上，编译器可能会对自由内存序做更多的优化，而大多数编译器根本不会优化原子操作)。
 
-The memory model provides both the scientific foundation and the common language for discussing how programs interact with the memory system. The memory barriers are the actual tools the programmer utilizes, in code, to control the memory model features. Often, these barriers are invoked implicitly by using locks, but they are always there. The optimal use of memory barriers can make a large difference in the efficiency of certain high-performance concurrent programs.
+内存模型为讨论程序如何与内存系统交互提供了科学基础和通用语言，内存栅栏是程序员在代码中用来控制内存模型特性的实际工具。通常，这些栅栏是通过使用锁隐式调用的，但它们是存在的。内存栅栏的最佳使用可以对某些高性能并发程序的效率，产生很大的影响。
 
 
 

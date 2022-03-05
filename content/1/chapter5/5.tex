@@ -1,28 +1,28 @@
 
-As the reader was reminded earlier in this chapter, any program that accesses any shared data without access synchronization (mutexes or atomic accesses, usually) has undefined behavior that is usually called a data race. This seems simple enough, at least in theory. But our motivational example was too simple: it had just one variable shared between threads. There is more to concurrency than locking shared variables, as we are about to see.
+正如在本章前面所说，访问共享数据而不进行访问同步(通常是互斥或原子访问)的程序都会出现未定义行为，这通常称为数据竞争。这看起来很简单，至少在理论上是这样，而我们的例子太简单了，只有一个变量在线程之间共享。但在现实中，并发不仅仅是锁定共享变量那么简单。
 
 \subsubsubsection{5.5.1\hspace{0.2cm}顺序的必要性}
 
-Now consider this example known as the producer-consumer queue. Let us say that we have two threads. The first thread, the producer, prepares some data by constructing objects. The second thread, the consumer, processes the data (does work on each object). For simplicity, let us say that we have a large memory buffer that is initially uninitialized and the producer thread constructs new objects in the buffer as if they were array elements:
+来看一下\textbf{生产者-消费者队列}的例子。假设我们有两个线程：第一个线程(生产者)通过构造对象准备一些数据；第二个线程，即消费者，处理数据(处理每个对象)。简单起见，假设我们有一个很大内存缓冲区，没有初始化，生产者线程在缓冲区中构造新的对象，就如同数组元素一样:
 
 \begin{lstlisting}[style=styleCXX]
 size_t N; // Count of initialized objects
 T* buffer; // Only [0]…[N-1] are initialized
 \end{lstlisting}
 
-In order to produce (construct) an object, the producer thread calls the constructor via the placement of the new operator on each element of the array, starting with N==0:
+为了生成(构造)一个对象，生产者线程通过\texttt{new}操作符对数组的每个元素进行构造，从\texttt{N==0}开始:
 
 \begin{lstlisting}[style=styleCXX]
 new (buffer + N) T( … arguments … );
 \end{lstlisting}
 
-Now the array element buffer[N] is initialized and is available to the consumer thread. The producer signals this by advancing the counter N then moves on to initialize the next object:
+现在，初始化数组\texttt{buffer[N]}，并可用于消费者线程。生产者通过推进计数器\texttt{N}来表示，然后继续初始化下一个对象:
 
 \begin{lstlisting}[style=styleCXX]
 ++N;
 \end{lstlisting}
 
-The consumer thread must not access an array element buffer[i] until the counter N has been incremented so it is greater than i:
+当\texttt{i}大于\texttt{N}时，消费者线程不能访问数组元素\texttt{buffer[i]}
 
 \begin{lstlisting}[style=styleCXX]
 for (size_t i = 0; keep_consuming(); ++i) {
@@ -31,9 +31,9 @@ for (size_t i = 0; keep_consuming(); ++i) {
 }
 \end{lstlisting}
 
-For simplicity, let us ignore the problem of running out of memory and assume that the buffer is large enough. Also, we are not concerned with the termination condition (how does the consumer know when to keep consuming?) right now. At the moment, we are interested in the producer-consumer handshake protocol: how does the consumer access the data without any races?
+为了简单起见，我们忽略内存耗尽的问题，并假设缓冲区足够大。此外，我们现在不关心终止条件(消费者如何知道可以继续消费？)。目前，感兴趣的是生产者-消费者信号交换协议:消费者如何在没有任何竞争的情况下访问数据？
 
-The general rule states that any access to the shared data must be protected. Obviously, the counter N is a shared variable, so accessing it needs more care:
+规则对共享数据的任何访问都必须受到保护。显然，\texttt{N}是一个共享变量，所以对它的访问需要更多的注意:
 
 \begin{lstlisting}[style=styleCXX]
 size_t N; // Count of initialized objects
@@ -53,16 +53,16 @@ std::mutex mN; // Mutex to guard N
 }
 \end{lstlisting}
 
-But is this enough? Look carefully: there is more shared data in our program. The entire array of objects T is shared between the two threads: each thread needs to access every element. But if we need to lock the entire array, we might as well go back to a single-threaded implementation: one of the two threads is always going to be locked out. From experience, every programmer who has ever written any multi-threaded code knows that, in this case, we do not need to lock the array, only the counter. In fact, it is the whole point of locking the counter that we don't need to lock the array this way: any particular element of the array is never accessed concurrently. First, it is accessed only by the producer before the counter is incremented. Then, it is accessed only by the consumer after the counter is incremented. This is known. But the goal of this book is to teach you how to understand why things work the way they do, and so, why is locking the counter enough? What guarantees that the events really happen in the order we imagine?
+这就足够了吗？在程序中出现了更多的共享数据。数组\texttt{T}在两个线程之间共享，线程需要访问每个元素。但如果锁定整个数组，因为两个线程中总有一个需要等待解锁，那就和单线程的实现没区别了。根据经验，写过多线程代码的开发者都知道，在这种情况下，我们不需要锁定数组，只需要锁定计数器，因为这个数组不会被并发访问。首先，生产者在计数器递增之前访问会访问这个数组。然后，在计数器增加后，消费者才会访问这个数组，这些都是已知情况。但本书的目的是让你理解程序为什么会这样工作。那么问题来了，为什么锁上计数器就足够了？是什么保证程序真的按照我们期望的顺序执行呢？
 
-By the way, even this trivial example has just become not so trivial. The naïve way to protect the consumer's access to the counter is as follows:
+顺便说一下，现在这个简单的例子，也变得不那简单了。无效的保护消费者使用计数器的如下所示:
 
 \begin{lstlisting}[style=styleCXX]
 std::lock_guard l(mN);
 while (N <= i) {};
 \end{lstlisting}
 
-This is a guaranteed deadlock: once the consumer acquires the lock, it waits for the element i to be initialized before releasing the lock. The producer cannot make any progress because it is waiting to acquire the lock before it can increment the counter N. Both threads are now waiting forever. It is easy to notice that our code would be so much simpler if we just used an atomic variable for the counter:
+这是一个有死锁写法。当使用者获得了锁，就会等待元素\texttt{i}初始化。生产者无法取得任何操作，因为它正在等待解锁，然后才能增加计数器\texttt{N}。两个线程现在都在永远等待。很容易注意到，如果只是为计数器使用一个原子变量，代码就会简单很多:
 
 \begin{lstlisting}[style=styleCXX]
 std::atomic<size_t> N; // Count of initialized objects
@@ -76,71 +76,71 @@ std::atomic<size_t> N; // Count of initialized objects
 }
 \end{lstlisting}
 
-Now every read of the counter N by the consumer is atomic, but in between the two reads the producer is not blocked and can keep working. This approach to concurrency is known as lock-free (it does not use any locks), and we will come back to it later. For now, the important question is this: do we still have the guarantee that the producer and the consumer cannot access the same object buffer[i] concurrently?
+现在，消费者对计数器\texttt{N}的读取是原子的，但在两次读取之间，生产者没有阻塞，可以继续工作。这种实现并发的方法称为\textbf{无锁}(它不使用任何锁)，我们将在稍后讨论这种方式。现在的问题是:我们是否能够保证生产者和消费者不在同时访问同一个\texttt{buffer[i]}？
 
 \subsubsubsection{5.5.2\hspace{0.2cm}内存序和内存栅栏}
 
-As we have realized, being able to access shared variables safely is not enough to write any non-trivial concurrent program. We also have to be able to reason about the order in which events happen. In our producer and consumer example, the entire program rests on a single assumption: that we can guarantee that the construction of the Nth array element, incrementing the counter to N + 1, and the access to the Nth element by the consumer thread happen in that order.
+仅仅能够安全地访问共享变量，还不足以应对并发程序，还要能够推理出事件发生的顺序。在生产者和消费者的例子中，整个程序基于一个假设:可以保证第\texttt{N}个数组元素的构造时，可以将计数器增加到\texttt{N + 1}，并且消费者线程访问第\texttt{N}个元素也是按这个顺序进行的。
 
-But the problem is really even more complex than that once we realize that we are dealing not just with multiple threads but with multiple processors that are executing these threads truly at the same time. The key concept we have to remember here is visibility. A thread is executing on one CPU and is making changes to the memory when the CPU assigns values to variables. In reality, the CPU is only changing the content of its cache; the cache and memory hardware eventually propagate these changes to the main memory or the shared higher-level cache, at which point these changes may become visible to other CPUs. We say "may" because the other CPUs have different values for the same variables in their caches, and we do not know when these differences are reconciled. We do know that, once a CPU begins an operation on an atomic variable, no other CPU can access the same variable until this operation is done, and that once this operation completes, all other CPUs will see the latest updated value of this variable (but only if all CPUs treat the variable as atomic). We know that the same applies to a variable guarded by a lock. But these guarantees are not sufficient for our producer-consumer program: based on what we know so far, we cannot be sure it is correct. This is because, until now, we were concerned with only one aspect of accessing a shared variable: the atomic or transactional nature of this access. We wanted to make sure that the entire operation, whether simple or complex, is executed as a single transaction without the possibility of being interrupted.
+但是，当我们意识到需要处理的不仅仅是多个线程，而是多个处理器同时执行这些线程时，问题就会变得更加复杂。这里的关键概念是\textbf{可见性}：线程在一个CPU上执行，当CPU给变量赋值时，线程正在对内存进行更改。实际上，CPU只改变了缓存的内容，缓存和内存最终会将这些更改传送到主存或共享的高级别缓存中，此时这些更改\textit{可能}对其他CPU可见。我们说“可能”是因为其他CPU的缓存中相同的变量有不同的值，我们不知道这些差异在何时进行会进行同步。当一个CPU开始对一个原子变量进行操作，那么在这个操作完成之前，其他CPU都不能访问这个变量，并且这个操作完成时，其他CPU都会看到这个变量的最新更新值(前提是所有的CPU都将这个变量视为原子变量)。我们知道，同样的道理也适用于锁保护的变量。但是这些保证对于生产者-消费者计划来说是不够的:根据目前所知道的，我们不能确定它是否正确。因为，我们只关心访问共享变量的一个方面:访问的原子或事务性质。我们希望确保整个操作(无论是简单的还是复杂的)，都作为单个事务执行，而不存在被中断的可能性。
 
-But there is another aspect of accessing shared data, that of memory order. Just like the atomicity of the access itself, it is a feature of the hardware that is activated using a particular machine instruction (often an attribute or a flag on the atomic instruction itself).
+但是访问共享数据还有另一个方面，即\textbf{内存序}。就像访问本身的原子性一样，它是使用特定机器指令(通常是原子指令本身的属性或标志)激活的硬件特性。
 
-There are several forms of memory order. The least restricted one is the relaxed memory order. When an atomic operation is executed with relaxed order, the only guarantee we have is that the operation itself is executed atomically. What does this mean? Let us first consider the CPU that is executing the atomic operation. It runs a thread that contains other operations, both non-atomic and atomic. Some of these operations modify the memory; the results of these operations can be seen by other CPUs. Other operations read the memory; they observe the results of operations executed by other CPUs. The CPU that runs our thread executes these operations in a certain order. It may not be the order in which they are written in the program: both the compiler and the hardware can reorder instructions, usually to improve the performance. But it is a well-defined order. Now let us look at it from the point of view of another CPU that is executing a different thread. That second CPU can see the content of the memory changing as the first CPU does its work. But it does not necessarily see them in the same order with respect to each other or to the atomic operation that we have been focused on:
+内存序有几种形式，最不受限制的是自由序。当原子操作以宽松的顺序执行时，我们能保证的是操作本身是原子执行的。这是什么意思呢？首先考虑执行原子操作的CPU，它运行一个包含其他操作(包括非原子操作和原子操作)的线程。其中一些操作修改了内存，这些操作的结果可以被其他CPU看到。其他操作读取内存，它们观察其他CPU执行的执行结果。运行线程的CPU按照一定的顺序执行这些操作，可能不是在程序中提前写好的顺序：编译器和硬件都可以重新排序指令，通常是为了提高性能。但这是定义明确的顺序。现在让我们以另一个正在执行另一个线程的CPU的角度来看这个问题。当第一个CPU工作时，第二个CPU可以看到内存内容的变化。但它们的顺序不一定是一致，无论是相互之间还是原子操作:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/9.jpg}\\
-Figure 5.9 – Visibility of operations with relaxed memory order
+图5.9 - 自由内存序操作的可见性
 \end{center}
 
-This is the visibility that we were talking about earlier: one CPU executes operations in a certain order, but their results are visible to other CPUs in a very different order. For brevity, we usually talk about the visibility of the operations and do not mention results every time.
+这就是我们之前讨论过的可见性:一个CPU按照一定的顺序执行操作，但结果对其他CPU是可见的，顺序却不同。为简单起见，我们通常只讨论操作的可见性，而不是每次的结果。
 
-If our operations on the shared counter N were executed with relaxed memory order, we would be in deep trouble: the only way to make our program correct would be to lock it so only one thread, the producer or the consumer, can run at any time, and we get no performance improvement from concurrency.
+在共享计数器\texttt{N}上的操作是按照自由内存序执行的，这会让我们陷入严重的麻烦中:使程序正确的唯一方法是锁定它，以便只有一个线程(生产者或消费者)运行，并且没有从并发性方面得到性能的改进。
 
-Fortunately, there are other memory order guarantees we can use. The most important one is the acquire-release memory order. When an atomic operation is executed with this order, we have a guarantee that any operation that accesses the memory and was executed before the atomic operation becomes visible to another thread before that thread executes an atomic operation on the same atomic variable. Similarly, all operations that are executed after the atomic operation become visible only after an atomic operation on the same variable. Again, remember that when we talk about the visibility of operations, we really mean that their results become observable to other CPUs. This is evident in Figure 5.10: on the left, we have the operations as they are executed by CPU0. On the right, we have the same operations as they are seen by CPU1. Note, in particular, that the atomic operation shown on the right is Atomic Write. But CPU1 does not execute atomic write: it executes an atomic read to see the results of the atomic write executed by CPU0. The same goes for all other operations: on the left, the order is as executed by CPU0. On the right, the order is as seen by CPU1.
+幸运的是，我们还可以使用其他的内存序，比如获取-释放内存序。当原子操作按照这个顺序执行时，可以保证访问内存，并在原子操作之前执行的操作，在另一个线程对同一原子变量执行原子操作之前是可见的。类似地，在原子操作之后执行的操作只有在对同一变量进行原子操作之后才可见。同样，当我们讨论操作的可见性时，是说结果对其他CPU可见。这在图5.10中很明显:在左边，CPU0在执行的操作。在右边，与CPU1看到的相同的操作。特别要注意的是，右边有显式的原子写操作。但是CPU1不执行原子写，它执行一个原子读来查看CPU0执行的原子写的结果。所有其他操作也一样:左边，是CPU0的执行顺序。右边，是CPU1可见的顺序。
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/10.jpg}\\
-Figure 5.10 – Visibility of operations with acquire-release memory order
+图5.10 - 获取-释放内存序操作的可见性
 \end{center}
 
-The acquire-release order guarantee is a terse statement packed with a lot of important information, so let us elaborate on a few distinct points. First of all, the order is defined relative to the operations both threads execute on the same atomic variable. Until two threads access the same variable atomically, their clocks remain entirely arbitrary with respect to each other, and we cannot reason about what happens before or after something else, there is no meaning to these words. It is only when one thread has observed the results of an atomic operation executed by another thread that we can talk about before and after. In our producer-consumer example, the producer atomically increments the counter N. The consumer atomically reads the same counter. If the counter has not changed, we don't know anything about the state of the producer. But if the consumer sees that the counter has changed from N to N+1 and both threads use the acquire-release memory order, we know that all operations executed by the producer prior to incrementing the counter are now visible to the consumer. These operations include all the work necessary to construct the object that now resides in the array element buffer[N], and, thus, the consumer can safely access it.
+获取-释放保证是一个包含许多重要信息的简短声明，这里我们来详细阐述几个不同的观点。首先，顺序是相对于两个线程在同一个原子变量上执行的操作定义的。除非两个线程以原子的方式访问同一个变量，否则它们的时钟对彼此来说完全没意义，我们无法推断出在其他事情之前或之后发生了什么。只有当一个线程观察到另一个线程执行的原子操作的结果时，我们才可以在此基础上，对操作之前和之后的行为进行讨论。在生产者-消费者的例子中，生产者以原子的方式增加计数器\texttt{N}。消费者以原子的方式读取同一个计数器。如果计数器没有改变，则对生产者的状态一无所知。但当消费者看到计数器从N变成了N+1，并且两个线程都使用了获取-释放内存序，我们就知道生产者在计数器增加之前执行的所有操作，现在对消费者是可见的。这些操作包括构造相应的元素，并将其保存在数组\texttt{buffer[N]}中所需的所有工作，所以消费者可以安全地进行访问。
 
-The second salient point is that both threads must use the acquire-release memory order when accessing the atomic variable. If the producer uses this order to increment the count, but the consumer reads it with relaxed memory order, there are no guarantees on the visibility of any operations.
+第二个要点是，在访问原子变量时，两个线程都必须使用获取-释放内存序。如果生产者使用这个顺序来增加计数值，但是消费者使用自由内存序来读取它，就不能保证操作的可见性了。
 
-The final point is that all order guarantees are given in terms of before and after the operation on the atomic variable. Again, in our producer-consumer example, we know that the results of the operations executed by the producer to construct the Nth object are all visible by the consumer when it sees the counter change. There are no guarantees on the order in which these operations become visible. You can see this in Figure 5.10. Of course, it should not matter to us: we can't touch any part of the object until it's constructed, and, once the construction is finished, we don't care about the order in which it was done. The atomic operations with memory order guarantees act as barriers across which other operations cannot move. You can imagine such a barrier in Figure 5.10, dividing the entire program into two distinct parts: everything that happened before the count was incremented and everything that happened after. For that reason, it is often convenient to talk about such atomic operations as memory barriers.
+最后一点是，所有的顺序都是根据对原子变量的操作之前和之后给出的。同样，在生产者-消费者的例子中，我们知道生产者为构造第N个对象而执行的操作结果，在消费者看到计数器变化时都是可见的。这些操作的可见顺序没有保证，可以在图5.10中看到这一点。当然，这对我们来说并不重要:在构建对象之前，我们不能访问，而当构建完成，我们就不关心完成的顺序了。具有内存序的原子操作保证充当其他操作无法跨越的栅栏，可以在图5.10中想象这样存在这样一个栅栏，它把整个程序分成两个不同的部分:计数之前发生的和计数之后发生的操作。由于这个原因，讨论类似内存栅栏这样的原子操作通常会比较简单。
 
-Let us assume, for a moment, that in our program, all atomic operations on the counter N have acquire-release barriers. That would certainly guarantee that the program is correct. Note, however, that the acquire-release order is overkill for our needs. For the producer, it gives us the guarantee that all objects buffer[0] through buffer[N] that were constructed before we incremented the count to N+1 will be visible to the consumer when it sees the counter change from N to N+1. We need that guarantee. But we also have the guarantee that none of the operations executed for the purpose of constructing the remaining objects, buffer[N+1] and beyond, have become visible yet. We don't care about that: the consumer is not going to access these objects until it sees the next value of the counter. Similarly, on the consumer side, we have the guarantee that all the operations executed after the consumer sees the counter change to N+1 will have their effects (memory accesses) happen after that atomic operation. We need that guarantee: we do not want the CPU to reorder our consumer operations and execute some of the instructions that access the object buffer[N] before it is ready. But we also have the guarantee that the work done by the consumer to process the previous objects like buffer[N-1] is done and made visible to all threads before the consumer moves to the next object. Again, we don't need that guarantee: nothing depends on it.
+让我们暂时假设，程序中计数器\texttt{N}上的所有原子操作都有获取-释放栅栏，这肯定能保证程序的正确性。然而，请注意，获取-释放对于我们的需求来说过度了。对于生产者来说，它给了我们保证，当消费者看到计数器从N到N+1的变化时，所有在计数增加到N+1之前构建的\texttt{buffer[0]}到\texttt{buffer[N]}都是可见的。我们需要这样的保证。还可以保证，为构造剩余的对象、\texttt{buffer[N+1]}或更大的对象而执行的操作中，没有一个是可见的。我们不关心这个:消费者不会访问这些对象，直到它看到计数器的更新。在消费者端，我们保证在消费者看到计数器改变为N+1后，执行的所有操作都会在原子操作之后产生效果(内存访问)。我们需要这样的保证:不希望CPU重新排序消费者操作，并在准备好之前执行一些访问对象\texttt{buffer[N]}的指令。但是我们也可以保证消费者处理之前的对象(比如\texttt{buffer[N-1]})所做的工作已经完成，并且在消费者处理到下一个对象之前对所有线程可见。再说一遍，我们不需要这种保证，没有任何操作需要这个保证。
 
-What is the harm in having stronger guarantees than what is strictly necessary? In terms of correctness, none. But this is a book about writing fast programs (also, correct ones). Why are the ordering guarantees necessary in the first place? Because when left to their own devices, the compilers and the processors can reorder our program instructions almost arbitrarily. Why would they do that? Usually, to improve performance. Thus, it stands to reason that the more restrictions we impose on the ability to reorder the execution, the stronger the adverse impact on performance is. Therefore, in general, we want to use the memory order that is restrictive enough for the correctness of our program but no more strict than that.
+严格的内存序是否有害？对正确性而言，没有。但这是一本关于编写快速程序(也是正确的程序)的书。为什么内存序的保证是必须的呢？因为当让编译器和处理器自己处理时，它们可以以重新排列程序的指令。为什么要这么做呢？通常是为了提高性能。因此，我们对重新排序执行的能力施加的限制越多，对性能的不利影响就越大。因此，我们希望使用的内存序对程序的正确性有足够的限制，但不能太严格。
 
-The memory order that gives us exactly what we need for our producer-consumer program is as follows. On the producer side, we need one-half of the guarantee given by the acquire-release memory barrier: all operations executed before the atomic operation with the barrier must become visible to other threads before they execute the corresponding atomic operation. This is known as the release memory order:
+为生产者-消费者程序提供所需要的内存序如下。在生产者端，我们需要获得-释放内存栅栏所提供的一半保证:所有在使用栅栏的原子操作之前执行的操作，必须在其他线程执行相应的原子操作之前可见。这就是释放内存序:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter5/images/11.jpg}\\
-Figure 5.11 – Release memory order
+\includegraphics[width=0.8\textwidth]{content/1/chapter5/images/11.jpg}\\
+图5.11 - 释放内存序
 \end{center}
 
-When CPU1 sees the result of the atomic write operation executed by CPU0 with the release memory order, it is guaranteed that the state of the memory, as seen by CPU1, already reflects all operations executed by CPU0 before this atomic operation. Note that we said nothing about the operations executed by CPU0 after the atomic operation. As we see in Figure 5.11, these operations may become visible in any order. The memory barrier created by the atomic operation is effective only in one direction: any operation that is executed before the barrier cannot cross it and be seen after the barrier. But the barrier is permeable in the other direction. For this reason, the release memory barrier and the corresponding acquire memory barrier are sometimes called half-barriers.
+当CPU1看到CPU0以释放内存序执行的原子写操作的结果时，可以保证CPU1看到的内存状态已经反映给CPU0在这个原子操作之前执行的所有操作。注意，我们没有提到CPU0在原子操作之后执行的操作。正如在图5.11中看到的，这些操作可以以任何顺序显示。由原子操作创建的内存栅栏只在一个方向上有效:在栅栏之前执行的操作都不能跨越它，并且在栅栏之后才看到。但是在另一个方向上，栅栏是可渗透的。出于这个原因，释放内存栅栏和相应的获取内存栅栏有时称为\textbf{半栅栏}。
 
-The acquire memory order is what we need to use on the consumer side. It guarantees that all operations executed after the barrier become visible to other threads after the barrier, as shown in Figure 5.12:
+获取内存序是在消费者端使用的，确保栅栏后执行的所有操作对栅栏后的其他线程可见，如图5.12所示:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/1/chapter5/images/12.jpg}\\
-Figure 5.12 – Acquire memory order
+\includegraphics[width=0.8\textwidth]{content/1/chapter5/images/12.jpg}\\
+图5.12 - 获取内存序
 \end{center}
 
-The acquire and release memory barriers are always used as a pair: if one thread (in our case, the producer) uses the release memory order with an atomic operation, the other thread (the consumer) must use the acquire memory order on the same atomic variable. Why do we need both barriers? On the one hand, we have the guarantee that everything that is done by the producer to build the new object before it increments the count is already visible to the consumer as soon as this increment is seen. But this is not enough, so, on the other hand, we have the guarantee that the operations executed by the consumer to process this new object cannot be moved backward in time, to a moment before the barrier when they could have seen the object in an unfinished state.
+获取和释放内存栅栏总是成对使用:如果一个线程(在我们的例子中，是生产者线程)使用一个原子操作来释放内存，那么另一个线程(消费者线程)必须在同一个原子变量上使用获取内存序。为什么需要两个栅栏？一方面，可以保证生产者在增加计数之前构建新对象所做的一切，只要看到这个增量，消费者就可以看到。但这还不够，因此需要保证消费者为处理这个新对象而执行的操作不会在时间上向后移动，回到栅栏之前的某个时刻，此时他们可能已经看到了处于未完成状态的对象。
 
-Now that we understand that it is not enough to just operate atomically on the shared data, you may ask whether our producer-consumer program actually works. As it turns out, both the lock version and the lock-free version are correct, even though we did not say anything explicitly about the memory order. So, how is the memory order controlled in C++?
+我们知道仅仅对共享数据进行原子化操作是不够的，您可能会问，上面的方法对生产者-消费者项目是否真的有效。事实证明，锁和无锁版本都是正确的，尽管我们没有明确地说明内存序。那么，C++是如何控制内存序的呢？
 
 \subsubsubsection{5.5.3\hspace{0.2cm}C++中的内存序}
 
-First of all, let us think back to the lock-free version of our producer-consumer program, the one with the atomic counter:
+首先，让我们回想一下我们的生产者-消费者程序的无锁版本，那个有原子计数器的版本:
 
 \begin{lstlisting}[style=styleCXX]
 std::atomic<size_t> N; // Count of initialized objects
@@ -157,33 +157,33 @@ for (size_t i = 0; keep_consuming(); ++i) {
 }
 \end{lstlisting}
 
-The counter N is an atomic variable, an object of a type generated by the template std::atomic with the type parameter size\_t. All atomic types support atomic read and write operations, that is, they can appear in assignment operations. In addition, the integer atomics have the regular integer operations defined and implemented atomically, so ++N is an atomic increment (not all operations are defined, for example, there is no operator *=). None of these operations explicitly specify the memory order, so what guarantees do we have? As it turns out, by default, we get the strongest possible guarantee, the bidirectional memory barrier with each atomic operation (the actual guarantee is even a little stricter, as you will see in the next section). This is why our program is correct.
+计数器\texttt{N}是一个原子变量，由模板\texttt{std::atomic}生成的类型对象，类型参数为\texttt{size\_t}。所有原子类型都支持原子读写操作，也就是说，它们可以出现在赋值操作中。此外，整数原子具有以原子方式定义和实现的常规整数操作，因此\texttt{++N}是一个原子增量(并不是所有操作都定义了，例如：没有\texttt{operator *=})。这些操作都没有明确指定内存序，那么我们如何保证内存序呢？实际上，在默认情况下，我们内存序会得到了最严格的保证，即每个原子操作的双向内存栅栏(实际的保证甚至更加严格，您将在下一节中看到)。这就是我们的程序正确的原因。
 
-If you think this is overkill, you can reduce the guarantees to be just the ones you need, but you have to be explicit about it. The atomic operations can also be executed by calling the member functions of the std::atomic type, and that is where you can specify the memory order. The consumer thread needs a load operation with the acquire barrier:
+若认为这有些过度了，那可以将内存序改为所需要的，但必须显式地说明。原子操作也可以通过调用\texttt{std::atomic}类型的成员函数来执行，在这里也可以指定内存顺序。用户线程需要使用获取栅栏进行加载操作:
 
 \begin{lstlisting}[style=styleCXX]
 while (N.load(std::memory_order_acquire) <= i);
 \end{lstlisting}
 
-The producer thread needs an increment operation with the release barrier (just like the increment operator, the member function also returns the value before the increment was done):
+生产者线程需要一个带有释放屏障的自增操作(就像自增操作符一样，成员函数也会返回自增操作完成之前的值):
 
 \begin{lstlisting}[style=styleCXX]
 N.fetch_add(1, std::memory_order_release);
 \end{lstlisting}
 
-Before we go any further, we must realize that we have jumped over one critically important step in our optimization. The right way to start the previous paragraph is, If you think this is overkill, you have to prove it by performance measurements, and only then can you reduce the guarantees to be just the ones you need. Concurrent programs are hard enough to write even when using locks; the use of lock-free code and especially explicit memory orders has to be justified.
+我们必须意识到，在优化过程中，已经跳过了一个非常重要的步骤。开始前一段的正确方式是，如果认为这有些过度了，那么必须通过性能测试来证明，只有这样才能将保证达到性能和正确性的真正平衡。即使在使用锁的情况下，并发程序也很难编写，必须证明无锁代码和内存序的正确性。
 
-Speaking of locks, what memory order guarantees do they give? We know that any operation protected by the lock will be seen by any other thread that acquires the lock later, but what about the rest of the memory? The memory order enforced by the use of the lock is shown in Figure 5.13:
+说到锁，它们内存顺序是什么呢？我们知道，锁保护的操作都将被随后获得锁的任何其他线程看到，但是剩下的内存呢？使用锁所强制的内存序如图5.13所示:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/1/chapter5/images/13.jpg}\\
-Figure 5.13 – Memory order guarantees of a mutex
+图5.13 - 互斥锁的内存序
 \end{center}
 
-The mutexes have (at least) two atomic operations inside. Locking the mutex is an equivalent of a read operation with the acquire memory order (which explains the name: this is the memory order we use when we acquire the lock). The operation creates a half-barrier any operation executed earlier can be seen after the barrier, but any operation executed after the lock is acquired cannot be observed earlier. When we unlock the mutex or release the lock, the release memory order is guaranteed. Any operation executed before this barrier will become visible before the barrier. You can see that the pair of barriers, acquire and release, act as borders for the section of the code sandwiched between them. This is known as the critical section: any operation executed inside the critical section, that is, executed while the thread was holding the lock, will become visible to any other thread when it enters the critical section. No operation can leave the critical section (become visible earlier or later), but other operations from the outside can enter the critical section. Crucially, no such operation can cross the critical section: if an outside operation enters the critical section, it cannot leave. So, anything that was done by CPU0 before its critical section is guaranteed to be visible by CPU1 after its critical section.
+互斥对象内部(至少)有两个原子操作。锁定互斥锁相当于读取操作和获取内存序(这解释了名称:这是获取锁时使用的内存序)。任何在栅栏前执行的操作，都可以在越过栅栏后看到，但是任何在获得锁之后执行的操作都不能在之前看到。当我们解锁或释放锁时，即为释放内存序。在栅栏之前执行的操作将在栅栏之前可见，获取和释放这对栅栏充当了夹在它们之间的边界，这就是所谓的临界区:任何在临界区内执行的操作，也就是说，在线程持有锁时执行的操作，在进入临界区时对其他线程都是可见的。任何操作都不能离开临界区(在之前或之后变得可见)，但是外部的操作可以进入临界区。至关重要的是，没有这样的操作可以跨越临界区:如果外部操作进入临界区，就不能离开。因此，CPU0在进入临界区之前所做的任何事情，都会在离开临界区之后让CPU1可见。
 
-For our producer-consumer program, this translates into the following guarantee:
+对于我们的生产者-消费者计划，这转化为以下保证:
 
 \begin{lstlisting}[style=styleCXX]
 … Producer …
@@ -200,9 +200,9 @@ n = N;
 consume(buffer[N]);
 \end{lstlisting}
 
-All operations executed by the producer to construct the Nth object are done before the producer enters the critical section. They will be visible to the consumer before it leaves its critical section and begins consuming the Nth object. Therefore, the program is correct.
+生产者为构造第N个对象而执行的所有操作，都在生产者进入临界区之前完成。它们将在消费者离开临界区，并开始使用第N个对象之前对其可见。因此，程序是正确的。
 
-The section you just read introduced the concept of memory order and illustrated it with examples. But, as you try to use this knowledge in your code, you will find the results wildly inconsistent. To better understand performance, what you should expect from the different ways you can use to synchronize your multi-threaded programs and avoid data races, we need to have a less hand-waving way to describe the memory order and related concepts.
+刚才阅读的部分介绍了内存序的概念，并举例说明了它。但是，当试图在代码中使用这些知识时，会发现结果非常不一致。为了更好地理解性能，应该从同步多线程和避免数据竞争的不同方法中期望得到什么，所以我们需要一种稍微复杂的方式来描述内存序和相关概念。
 
 
 
