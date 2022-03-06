@@ -1,48 +1,48 @@
 
-The development of concurrent programs is, generally, quite difficult. Several factors can make it even more difficult: for example, it is much harder to write concurrent programs that also need to be correct and efficient (in other words, all of them). Complex programs with many mutexes, or lock-free programs, are harder still.
+并发程序的开发通常挺难的。有几个因素会使它变得更加困难:例如，编写同时需要正确和高效(换句话说，所有这些都需要)的并发程序要困难得多。对于具有许多互斥对象或无锁程序的复杂程序会更加困难。
 
-As was said at the conclusion of the last section, the only hope of managing this complexity is to corral it into small, well-defined sections of the code, or modules. As long as the interfaces and requirements are clear, the clients of these modules don't need to know whether the implementation is lock-free or lock-based. It does affect the performance, so the module may be too slow for a particular need until it's optimized, but we do these optimizations as needed, and they are confined to the particular module.
+正如在上一节的结语中所说的，管理这种复杂性的唯一方法就是对其进行封装，放入定义良好的代码或模块中。只要接口和需求是明确的，这些模块的使用者就不需要知道实现是无锁的还是基于锁的。它确实会影响性能，所以在优化之前，模块对于特定的需求可能不够用，但我们会根据需要进行优化，而且这些优化仅限于特定的模块。
 
-In this chapter, we focus on the modules that implement data structures for concurrent programming. Why data structures and not algorithms? First of all, there is much more literature on concurrent algorithms out there. Second, most programmers have a much easier time dealing with the algorithms: the code gets profiled, there is a function that takes an excessively long time, we find a different way to implement the algorithm and move on to the next high pole on the performance chart. Then you end up with a program where no single computation takes a large portion of time, but you still have this feeling that it's nowhere as fast as it should be. We have said it before, but it bears repeating: when you have no hot code, you probably have hot data.
+在本章中，我们将重点讨论为并发编程实现数据结构的模块。为什么是数据结构而不是算法？首先，有很多关于并发算法的文献。其次，大多数开发者在处理算法上都有更宽纵的时间:分析代码，相应函数花费了过多的时间，再找到了一种不同的方法来实现算法，并在性能图表上移动到下一个高度。然后，最终会得到一个程序，其中没有一个单独的计算需要花费大量的时间，但您仍然会有它没有达到它应该达到的速度的感觉。我们以前说过，但这需要重复:当没有热代码时，就可能有热数据。
 
-The data structures play an even more important role in concurrent programs because they determine what guarantees the algorithms can rely on and what the restrictions are. Which concurrent operations can be done safely on the same data? How consistent is the view of the data as seen by different threads? We cannot write much code if we don't have answers to these questions, and the answers are determined by our choice of the data structures.
+数据结构在并发程序中扮演着更重要的角色，因为它们决定了如何保证算法的可依赖性，以及限制是什么。哪些并发操作可以在相同的数据上安全执行？不同线程看到的数据视图是否一致？如果不知道这些问题的答案，我们就无法编写代码，而答案是由对数据结构的选择而决定的。
 
-At the same time, the design decisions, such as the choice of interfaces and module boundaries, can critically impact the choices we can make when writing concurrent programs. Concurrency cannot be added to a design as an afterthought; the design has to be drawn up with the concurrency in mind from the very beginning, especially the organization of the data.
+与此同时，设计决策，比如接口和模块边界的选择，会对我们编写并发程序时的选择产生重大影响，并发不能作为事后的想法添加到设计中。在设计时，从一开始就必须考虑到并发性，特别是数据的组织。
 
-We begin the exploration of the concurrent data structures by defining a few basic terms and concepts.
+我们通过定义一些基本的术语和概念开始探索并发数据结构。
 
-\subsubsubsection{6.4.1\hspace{0.2cm}The basics of concurrent data structures}
+\subsubsubsection{6.4.1\hspace{0.2cm}并发数据结构的基础}
 
-Concurrent programs that use multiple threads need thread-safe data structures. This seems obvious enough. But what is thread safety, and what makes a data structure thread-safe? At first glance, it seems simple: if a data structure can be used by multiple threads at the same time without any data races (shared between threads), then it is thread-safe.
+使用多线程的并发程序需要线程安全的数据结构。但是什么是线程安全，怎么使数据结构是线程安全的？乍一看，这似乎很简单:如果一个数据结构可以被多个线程同时使用，而没有任何数据竞争(在线程之间共享)，那么它就是线程安全的。
 
-However, this definition turns out to be too simplistic:
+然而，这个定义过于简单:
 
 \begin{itemize}
-\item It raises the plank very high – for example, none of the STL containers would be considered thread-safe.
-\item It carries a very high performance cost.
-\item It is often unnecessary, and so is the cost.
-\item On top of everything else, it would be completely useless in many cases.
+\item 将标准定的很高——例如，没有一个STL容器是线程安全的。
+\item 具有非常高的性能开销。
+\item 这通常是不必要的，开销也是如此。
+\item 除此之外，在许多情况下是完全无用的。
 \end{itemize}
 
-Let's tackle these considerations one at a time. Why could a thread-safe data structure be unnecessary even in a multi-threaded program? One trivial possibility is that it is used in a single-threaded portion of the program. We strive to minimize such portions due to their deleterious impact on the overall runtime (remember Amdahl's Law?), but most programs have some, and one of the ways we make such code faster is by not paying unnecessary overhead. The more common scenario for not needing thread safety is when an object is used exclusively by one thread, even in a multi-threaded program. This is very common and very desirable: as we have said several times, shared data is the main source of inefficiency in concurrent programs, so we try to do as much work as possible on each thread independently, using only local objects and data.
+我们将逐一解决这些问题。为什么线程安全的数据结构即使在多线程程序中也是不必要的？一种微小的可能性是，用于程序的单线程部分。我们努力最小化这些部分，因为它们对总体运行时的有害影响(还记得Amdahl定律吗？)，但是大多数程序都有一些需要单线程处理的事情，我们使这些代码更快的方法是只针对必要的开销。更常见的不需要线程安全的情况是，一个对象仅由一个线程使用，即使是在多线程程序中。这是非常常见的，也是非常可取的:正如我们多次说过的，共享数据是并发程序中效率低下的主要原因，因此我们试图在每个线程上只使用本地对象和数据，独立地完成尽可能多的工作。
 
-But can we be certain that a class or a data structure is safe to use in a multi-threaded program, even if each object is never shared between threads? Not necessarily: just because we do not see any sharing at the interface level does not mean that none is going on at the implementation level. Multiple objects could be sharing the same data internally: static members and memory allocators are just some of the possibilities (we tend to think that all objects that need memory get it by calling malloc() and that malloc() is thread-safe, but a class could implement its own allocator as well).
+但是，我们能确定在多线程程序中使用一个类或一个数据结构是安全的吗？即使每个对象永远不会在线程之间共享。这还真不一定:仅仅因为我们在接口层没有看到任何共享，并不意味着在实现层没有共享。多个对象可以在内部共享相同的数据:静态成员和内存分配器只是其中的一些可能性(我们倾向于认为所有需要内存的对象都通过调用\texttt{malloc()}获得，并且\texttt{malloc()}是线程安全的，而且类也可以实现自己的分配器)。
 
-On the other hand, many data structures are perfectly safe to use in a multi-threaded code as long as none of the threads modify the object. While this may seem obvious, again, we have to consider the implementation: the interface may be read-only, but the implementation may still modify the object. If you think that it is an exotic possibility, consider the standard C++ shared pointer, std::shared\_ptr: when you make a copy of a shared pointer, the copied object is not modified, at least not visibly (it is passed to the constructor of the new pointer by const reference). At the same time, you know that the reference count in the object has to be incremented, which means the copied-from object has changed (shared pointers are thread-safe in this scenario, but this did not happen by accident, and neither is it free, there is a performance cost).
+另一方面，只要没有线程修改对象，在多线程代码中使用许多数据结构是安全的。虽然这似乎是显而易见的，但我们必须再次考虑实现:接口可以是只读的，但实现仍然是可以修改对象。如果你认为这是一种奇异的可能性，请考虑标准的C++共享指针\texttt{std::shared\_ptr}:当复制一个共享指针时，复制的对象不会被修改，至少不会可见(它是通过\texttt{const}引用传递给新指针的构造函数的)。与此同时，知道对象中的引用计数必须增加，这意味着复制的对象已经改变(在此场景中，共享指针是线程安全的，但这不是偶然发生的，也不是免费的，同样也有性能成本)。
 
-The bottom line is, we need a more nuanced definition of thread safety. Unfortunately, there is no common vocabulary for this very common concept, but there are several popular versions. The highest level of thread safety is often called a strong thread safety guarantee and it means the following: an object that provides this guarantee can be used concurrently by multiple threads without causing data races or other undefined behavior (in particular, any class invariants are preserved). The next level is known as a weak thread safety guarantee. It implies that, first, an object that provides that guarantee can be accessed by multiple threads at once as long as all threads are limited to read-only access (call const member functions of the class), and, second, any thread that has exclusive access to an object can perform any otherwise valid operations on it, no matter what other threads are doing at the same time. An object that does not provide any such guarantee cannot be used in a multi-threaded program at all: even if the object itself is not shared, something inside its implementation is vulnerable to modifications by other threads.
+我们需要一个更细致的线程安全定义。不幸的是，对于这个普遍的概念，没有通用的标准，但是有几个流行的版本。线程安全的最高级别通常称为\textbf{强线程安全保证}，意思是:提供这种保证的对象可以被多个线程并发使用，而不会引起数据竞争或其他未定义的行为(特别是，任何类不变量都会保留)。下一级称为\textbf{弱线程安全保证}，只要所有线程都限制为只读访问(调用类的\texttt{const}成员函数)，提供这种对象就可以使用多个线程同时访问。其次，任何对对象具有独占访问权的线程都可以对对象执行其他的操作(无论其他线程在同一时间做什么)。不提供任何此类保证的对象，根本不能在多线程程序中使用:即使对象本身不共享，其实现内部的某些内容也很容易被其他线程修改。
 
-In this book, we will use the language of strong and weak thread-safety guarantees. A class that provides a strong guarantee is sometimes called simply thread-safe. If the class provides only a weak guarantee, it is called thread-compatible. Most STL containers offer this guarantee: if a container is local to one thread, you can use it in any otherwise valid way, but if a container object is shared, you can call only const member functions. Finally, the classes that do not offer any guarantees at all are called thread-hostile and, generally, cannot be used in a multi-threaded program at all.
+本书中，我们将使用强弱线程安全的语言保证。提供强担保的类有时简单地称为\textbf{线程安全}。如果该类只提供弱保证，则称为\textbf{线程兼容}。大多数STL容器都提供了这样的保证:如果容器是一个线程的局部对象，可以以任何有效的方式使用它，但如果容器对象是共享的，只能调用\texttt{const}成员函数。最后，根本不提供任何保证的类被称为\textbf{线程敌对}，并且不能使用在多线程程序中。
 
-In practice, we often encounter a mix of strong and weak guarantees: a subset of the interface offers a strong guarantee, but the rest of it provides only the weak guarantee.
+实践中，我们经常遇到强保证和弱保证的组合:接口的一个子集提供强保证，但其余部分只提供弱保证。
 
-So, why do we not try to design every object with a strong thread safety guarantee? The first reason we already mentioned: there is usually performance overhead, the guarantee is often unnecessary because the objects are not shared between threads, and the key to writing an efficient program is not doing any work that can be avoided. The more interesting objection is the one we mentioned earlier, in passing: even in the case where the object is shared in a way that would require thread safety, the strong thread safety guarantee may be useless. Consider this problem: you need to develop a game where the players recruit an army and do battles. The names of all the units in the army are stored in a container, let's say a list of strings. Another container stores the current strength of each unit. During the campaign, the units get killed or recruited all the time, and the gaming engine is multi-threaded and needs to be efficient to manage a large army. While the STL containers provide only the weak thread safety guarantee, let's assume that we have a library of strongly thread-safe containers. It is easy to see that this is not enough: adding a unit requires inserting its name into one container and its initial strength into the other. Both operations are thread-safe by themselves. One thread creates a new unit and inserts it into the first container. Before this thread can also add its strength value, another thread sees the new unit and needs to look up its strength, but there is nothing in the second container yet. The problem is that the thread safety guarantee is offered at the wrong level: from the application point of view, creating a new unit is a transaction, and all gaming engine threads should be able to see the database either before the unit is added or after, but not in the intermediate state. We can accomplish that, for example, by using a mutex: it will be locked before the unit is added and unlocked only after both containers have been updated. However, in this scenario, we don't care about the thread safety guarantees provided by the individual containers, as long as all accesses to these objects are guarded by a mutex anyway. Obviously, what we need instead is a unit database that itself provides the desired thread safety guarantees, for example, by using mutexes. This database may internally use several container objects, and the implementation of the database may or may not need any thread safety guarantees from these containers, but this should be invisible to the clients of the database (having thread-safe containers may make the implementation easier, or not).
+那么，为什么不尝试在设计每个对象时都有强线程安全保证呢？我们已经提到的第一个原因是:会有性能开销，保证通常是不必要的，因为对象不是在线程之间共享的，编写高效程序的关键是不做无用的工作。更有趣的反对意见是我们前面提到的:即使在以需要线程安全的方式共享对象，强线程安全保证可能是无用的。假如需要开发一款玩家招募军队并进行战斗的游戏。军队中所有单位的名称都存储在一个容器中，比如一个字符串列表。另一个容器存储每个单元的当前强度。在战役中，单位总是会被杀死或招募，游戏引擎是多线程的，需要有效地管理庞大的军队。虽然STL容器只提供弱线程安全保证，但假设我们有一个强线程安全容器库。很容易看出这是不够的:添加一个单元需要将它的名称插入到一个容器中，并将它的初始强度插入到另一个容器中，这两个操作本身都是线程安全的。一个线程创建一个新单元并将其插入到第一个容器中。在这个线程还可以添加它的强度值之前，另一个线程看到这个新单位并需要查找它的强度，但是在第二个容器中还没有任何东西。问题在于线程安全保证是在错误的层面上提供的:从应用程序的角度来看，创建一个新单元是一个事务，所有游戏引擎线程都应该能够在添加单元之前或之后查看数据库，但不能在中间状态。例如，可以通过使用互斥锁来实现:它会在单元添加前锁定，只有在两个容器都新之后才会解锁。然而，在这个场景中，我们不关心单个容器提供的线程安全保证，只要这些对象的所有访问都由互斥锁保护。显然，我们需要的是一个单元数据库，它本身提供所需的线程安全保证，例如：通过使用互斥对象。这个数据库可能在内部使用几个容器对象，数据库的实现可能需要或不需要这些容器的任何线程安全保证，但这对数据库的使用者应该是不可见的(拥有线程安全的容器可能会使实现更容易，也可能不会)。
 
-This leads us to a very important conclusion: thread safety begins at the design stage. The data structures and the interfaces used by the program must be chosen wisely, so they represent the appropriate level of abstraction and the correct transactions at the level where thread interaction is taking place.
+这让我们得出一个非常重要的结论:线程安全始于设计阶段。必须明智地选择程序使用的数据结构和接口，以便它们表示适当的抽象级别，以及发生线程交互级别上的正确事务。
 
-With this in mind, the rest of this chapter should be seen from two sides: on the one hand, we show how to design and implement some basic thread-safe data structures that can be used as building blocks for the more complex (and infinitely more varied) ones you will need in your programs. On the other hand, we also show the basic techniques for building thread-safe classes that can be used to design these more complex data structures.
+考虑到这一点，本章的其余部分应该从两个方面来看:一方面，将展示如何设计和实现一些基本的线程安全的数据结构，这些数据结构可以用作在程序中需要的更复杂(和更多样化)的构建块。另一方面，还展示了构建线程安全类的基本技术，这些类可用于设计这些更复杂的数据结构。
 
-\subsubsubsection{6.4.2\hspace{0.2cm}Counters and accumulators}
+\subsubsubsection{6.4.2\hspace{0.2cm}计数器和累加器}
 
 One of the simplest thread-safe objects is a humble counter or its more general form, an accumulator. The counter simply counts some events that can occur on any of the threads. All threads may need to increment the counter or access the current value, so there is potential for a race condition. 
 
@@ -81,7 +81,7 @@ Compared to the earlier implementation of the spinlock, the meaning of the atomi
 
 One obvious advantage of the pointer spinlock is that, as long as it provides the only way to access the guarded object, it is not possible to accidentally create a race condition and access the shared data without a lock. The second advantage is that this lock slightly outperforms the regular spinlock more often than not. Whether or not the spinlock also outperforms the atomic operation depends on the hardware as well. The same benchmark yields very different results on different processors:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/3.jpg}\\
 Figure 6.3 – Performance of a shared count increment: regular spinlock, pointer spinlock, lock-free (compare-and-swap, or CAS), and wait-free (atomic) for different hardware systems (a) and (b)
@@ -91,7 +91,7 @@ As a rule, the more recent processors handle locks and busy waiting better, and 
 
 The average time it takes to execute an operation (or its inverse, the throughput) is the metric that we are mainly concerned with in most HPC systems. However, this is not the only possible metric used to gauge the performance of concurrent programs. For example, if the program runs on a mobile device, the power consumption may be of greater importance. The total CPU time used by all threads is a reasonable proxy for the average power consumption. The same benchmark we used to measure the average real time of the counter increment can be used to measure the CPU time as well:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/4.jpg}\\
 Figure 6.4 – Average CPU time used by different implementations of the thread-safe counter
@@ -140,7 +140,7 @@ The thread safety and memory visibility guarantees should be documented for each
 
 Let us now return to what may be the main "hidden" accomplishment in this section. We learned about thread-safe counters, but along the way, we came up with an algorithm to seemingly violate the first rule of writing multi-threaded code: any time two or more threads access the same memory location and at least one of these threads is writing, all accesses must be locked (or atomic). We did not lock the shared array, we allow arbitrary data in its elements (so it's probably not atomic), and we got away with it! The approach we used to avoid data races turns out to be the cornerstone of almost every data structure designed specifically for concurrency, and we will now take time to better understand and generalize it.
 
-\subsubsubsection{6.4.3\hspace{0.2cm}Publishing protocol}
+\subsubsubsection{6.4.3\hspace{0.2cm}发布协议}
 
 The general problem we are trying to solve is a very common one in data structure design and, by extension, the development of concurrent programs: one thread is creating new data, and the rest of the program must be able to see this data when it is ready, but not before. The former thread is often called the writer thread or the producer thread. All the other threads are reader or consumer threads.
 
@@ -183,13 +183,13 @@ The consumer threads must read the root pointer atomically and with an acquire b
 
 The atomic reads and writes used to implement the publishing protocol should not be, of course, scattered throughout the code. We should implement a publishing pointer class to encapsulate this functionality. In the next section, we will see a simple version of such a class.
 
-\subsubsubsection{6.4.4\hspace{0.2cm}Smart pointers for concurrent programming}
+\subsubsubsection{6.4.4\hspace{0.2cm}并发编程的智能指针}
 
 The challenge of concurrent (thread-safe) data structures is how to add, remove, and change the data in a way that maintains certain thread safety guarantees. The publishing protocol, which gives us a way to release new data to all threads, is usually the first step in adding new data to any such data structure. Thus, it should come as no surprise that the first class we will learn about is a pointer that encapsulates this protocol.
 
 \hspace*{\fill} \\ %插入空行
 \noindent
-\textbf{Publishing pointer}
+\textbf{发布指针}
 
 Here is a basic publishing pointer that also includes the functionality of a unique, or owning, pointer (so we can call it a thread-safe unique pointer):
 
@@ -243,7 +243,7 @@ BENCHMARK_MAIN();
 
 Running this benchmark gives us an idea of how fast the dereferencing of our lock-free publishing pointer is:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/5.jpg}\\
 Figure 6.5 – The performance of the publishing pointer (consumer threads)
@@ -251,7 +251,7 @@ Figure 6.5 – The performance of the publishing pointer (consumer threads)
 
 The result should be compared with dereferencing a raw pointer, which we can also do on multiple threads:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/6.jpg}\\
 Figure 6.6 – The performance of the raw pointer, for comparison with Figure 6.5
@@ -269,7 +269,7 @@ Sometimes we want a pointer that manages both the creation and the deletion of t
 
 \hspace*{\fill} \\ %插入空行
 \noindent
-\textbf{Atomic shared pointer}
+\textbf{原子共享指针}
 
 If we cannot guarantee that there is a known point in the program where the data can be safely deleted, we have to keep track of how many consumer threads hold valid pointers to the data. If we want to delete this data, we have to wait until there is only one pointer to it in the entire program; then, it is safe to delete the data and the pointer itself (or at least reset it to null). This is a typical job for a shared pointer that does reference counting: it counts how many pointers to the same object are still out there in the program; the data is deleted by the last such pointer.
 
@@ -299,7 +299,7 @@ The major downside of this approach, compared to the C++20 atomic shared pointer
 
 It should be noted that, while convenient, std::shared\_ptr is not a particularly efficient pointer, and the atomic accesses make it even slower. We can compare the speed of publishing an object using the thread-safe publishing pointer from the last section versus the shared pointer with explicit atomic accesses:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/7.jpg}\\
 Figure 6.7 – The performance of the atomic shared publishing pointer (consumer threads)
