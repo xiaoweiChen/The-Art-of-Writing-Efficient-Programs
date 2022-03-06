@@ -1,14 +1,14 @@
-In the last chapter, we learned about the fundamental factors that affect the performance of concurrent programs. Now it is time to put this knowledge to practical use and learn about developing high-performance concurrent algorithms and data structures for thread-safe programs.
+上一章中，我们了解了影响并发程序性能的基本因素。现在是时候将这些知识用于实际，并学习如何为线程安全的程序开发高性能并发算法和数据结构。
 
-On the one hand, to take full advantage of concurrency, one must take a high-level view of the problem and the solution strategy: data organization, work partitioning, sometimes even the definition of what constitutes a solution are the choices that critically affect the performance of the program. On the other hand, as we have seen in the last chapter, the performance is greatly impacted by low-level factors such as the arrangement of the data in the cache, and even the best design can be ruined by poor implementation. These low-level details are often difficult to analyze, hard to express in code, and require very careful coding. This is not the kind of code you want to be scattered around in your program, so the encapsulation of the tricky code is a necessity. We will have to give some thought to the best way to encapsulate this complexity.
+一方面，要充分利用并发性，必须以高阶视角看待问题和解决方案策略:选择数据组织、工作分区，有时甚至是解决方案的定义都是对程序性能产生重大影响。另一方面，性能受到底层因素的极大影响，比如缓存中数据的排列，即使是最好的设计也可能被糟糕的实现所破坏。这些底层的细节常常难以分析，难以用代码表达，并且需要非常仔细的编码。我们不期望这些代码散落的到处都是，因此必须对它们进行封装，所以需要考虑封装这种复杂性的最佳方式。
 
-In this chapter, we're going to cover the following main topics:
+本章将讨论以下内容:
 
 \begin{itemize}
-\item Efficient concurrency
-\item Use of locks, pitfalls of locking, and an introduction to lock-free programming
-\item Thread-safe counters and accumulators
-\item Thread-safe smart pointers
+\item 高效的并发性
+\item 锁的使用、锁的缺陷，以及无锁编程的介绍
+\item 线程安全的计数器和累加器
+\item 线程安全的智能指针
 \end{itemize}
 
 
