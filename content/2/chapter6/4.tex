@@ -44,17 +44,17 @@
 
 \subsubsubsection{6.4.2\hspace{0.2cm}计数器和累加器}
 
-One of the simplest thread-safe objects is a humble counter or its more general form, an accumulator. The counter simply counts some events that can occur on any of the threads. All threads may need to increment the counter or access the current value, so there is potential for a race condition. 
+最简单的线程安全对象是简单的计数器或累加器，计数器只是计算在线程上可能发生的一些事件。所有线程都可能需要修改计数器或访问当前值，因此存在竞争条件。
 
-To be of value, we need the strong thread safety guarantee here: the weak guarantee is trivial; reading a value that nobody is changing is always thread-safe. We have already seen the available options for the implementation: a lock of some kind, an atomic operation (when one is available), or a lock-free CAS loop.
+弱线程安全保证无法满足我们的要求，这里需要强线程安全保证。从而确保读取没有更改的值总是线程安全的。我们已经看到了实现的可用选项:某种锁、原子操作(当有原子操作时)或无锁CAS循环。
 
-The performance of a lock varies with the implementation, but a spinlock is, in general, preferred. The wait time for a thread that did not get immediate access to the counter is going to be very short. So, it does not make sense to incur the cost of putting the thread to sleep and waking it up later. On the other hand, the amount of CPU time wasted because of the busy waiting (polling the spinlock) is going to be negligible, most likely just a few instructions.
+锁的性能因实现的不同而不同，通常首选自旋锁。没有立即访问计数器的线程的等待时间将非常短，因此将线程置于睡眠状态，并在稍后将其唤醒的成本没什么意思。另一方面，由于繁忙等待(轮询自旋锁)而浪费的CPU时间可以忽略不计，很可能只需要几条指令。
 
-The atomic instruction delivers good performance, but the choice of operations is rather limited: in C++, you can atomically add to an integer but not, for example, multiply it. This is enough for a basic counter but may be insufficient for a more general accumulator (the accumulating operation does not have to be limited to a sum). However, if one is available, you just cannot beat the simplicity of an atomic operation.
+原子指令提供了良好的性能，但操作的选择相当有限:在C++中，可以原子地对整数进行加法，但不能做另一些事，例如：对整数进行乘法。这对于简单的计数器来说已经足够了，但是对于累加器来说可能还不够(累加操作可能有多个结果)。但是，如果有一种方法可用，那么它没有原子操作简单。
 
-The CAS loop can be used to implement any accumulator, regardless of the operation we need to use. However, on most modern hardware, it is not the fastest option and is outperformed by a spinlock (see Figure 6.2).
+CAS循环可用于实现累加器，而不考虑我们需要使用的操作。然而，在大多数现代硬件上，性能比自旋锁的性能更好(参见图6.2)，但并不是最快的选择。
 
-The spinlock can be further optimized for the case when it is used to access a single variable or a single object. Instead of a generic flag, we can make the lock itself be the only reference to the object it is guarding. The atomic variable is going to be a pointer, not an integer, but otherwise, the locking mechanism remains unchanged. The lock() function is non-standard because it returns the pointer to the counter:
+当使用自旋锁访问单个变量或单个对象时，可以进一步优化自旋锁。我们可以让锁成为保护的对象的唯一引用，而不是通用标志。原子变量是指针，而不是整数，除此之外，锁定机制保持不变。因为\texttt{lock()}函数返回指向计数器的指针，所以是非标准的:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -77,33 +77,33 @@ class PtrSpinlock {
 };
 \end{lstlisting}
 
-Compared to the earlier implementation of the spinlock, the meaning of the atomic variable is "inverted:" the lock is available if the atomic variable p\_ is not null, otherwise it is taken. All the optimizations we have done for the spinlock are applicable here as well and look exactly the same, so we are not going to repeat them. Also, to be complete, the class needs a set of deleted copy operations (locks are non-copyable). It may be movable if the ability to transfer the lock and the responsibility to release it to another object is desirable. If the lock also owns the object it is pointing to, the destructor should delete it (this combines the functionality of a spinlock and a unique pointer in a single class).
+与之前的自旋锁实现相比，原子变量的含义是“颠倒”:如果原子变量\texttt{p\_}不为空，则该锁可用，否则为空。我们为自旋锁做的所有优化在这里也适用，看起来完全相同，所以我们不打算重复。另外，这个类需要一组删除复制操作(锁是不可复制的)。如果需要将锁转移，并将其释放给另一个对象，则该锁可以移动。如果锁拥有它所指向的对象，析构函数应该删除它(这结合了自旋锁和单类中唯一指针的功能)。
 
-One obvious advantage of the pointer spinlock is that, as long as it provides the only way to access the guarded object, it is not possible to accidentally create a race condition and access the shared data without a lock. The second advantage is that this lock slightly outperforms the regular spinlock more often than not. Whether or not the spinlock also outperforms the atomic operation depends on the hardware as well. The same benchmark yields very different results on different processors:
+指针自旋锁的第一个优点是，提供了访问保护对象的唯一方式，这就不可能创建竞争条件，并在没有锁的情况下访问共享数据。第二个优点是，锁的性能通常略优于常规自旋锁，自旋锁是否优于原子操作也取决于硬件。相同的基准测试在不同的处理器上会出现非常不同的结果:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/3.jpg}\\
-Figure 6.3 – Performance of a shared count increment: regular spinlock, pointer spinlock, lock-free (compare-and-swap, or CAS), and wait-free (atomic) for different hardware systems (a) and (b)
+图6.3 - 共享计数增量的性能:不同硬件系统(a)和(b)的常规自旋锁、指针自旋锁、无锁(比较-交换，或CAS)和无等待(原子)
 \end{center}
 
-As a rule, the more recent processors handle locks and busy waiting better, and it is more likely that the spinlock delivers better performance on the latest hardware (in Figure 6.3, system b uses Intel X86 CPUs that are one generation behind those in system a).
+通常，越新的处理器处理锁和繁忙等待的性能越好，而且自旋锁在最新的硬件上提供的性能也越好(图6.3中，系统\textit{b}使用的Intel X86 CPU比系统\textit{a}的CPU晚一代)。
 
-The average time it takes to execute an operation (or its inverse, the throughput) is the metric that we are mainly concerned with in most HPC systems. However, this is not the only possible metric used to gauge the performance of concurrent programs. For example, if the program runs on a mobile device, the power consumption may be of greater importance. The total CPU time used by all threads is a reasonable proxy for the average power consumption. The same benchmark we used to measure the average real time of the counter increment can be used to measure the CPU time as well:
+执行一个操作所需的平均时间(或者相反的，吞吐量)是我们在大多数HPC系统中主要关注的指标。然而，这并不是用来衡量并发程序性能的唯一的指标。例如，如果程序在移动设备上运行，那么功耗可能更重要。所有线程使用的CPU总时间根据平均功耗的进行合理的调整。我们用于测量计数器增量平均实时时间的基准测试，同样也可以用来测量CPU时间:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/4.jpg}\\
-Figure 6.4 – Average CPU time used by different implementations of the thread-safe counter
+图6.4 - 线程安全的计数器——不同实现使用的平均CPU时间
 \end{center}
 
-The bad news here is that no matter the implementation, the cost of accessing the shared data by multiple threads at once increases exponentially with the number of threads, at least when we have many threads (note that the y axis scale in Figure 6.4 is logarithmic). However, the efficiency varies greatly between the implementations, and, at least for the most efficient implementations, the exponential rise does not really kick in until at least eight threads. Note that the results will, again, vary from one hardware system to another, so the choice must be made with your target platform in mind and only after the measurements have been done.
+这里的坏消息是，无论采用哪种实现，多个线程同时访问共享数据的成本都会随着线程数量的增加呈指数增长，至少在有很多线程的情况下是这样的(请注意，图6.4中的y轴比例是对数的)。然而，不同的实现之间的效率差别很大，对于最高效的实现来说，在8个线程之后才会出现指数级的增长。请注意，不同硬件系统的结果也会有所不同，所以必须根据目标平台进行选择，并且只有在完成测试后才能选择。
 
-Whatever the chosen implementation, a thread-safe accumulator or a counter should not expose it but encapsulate it in a class. One reason is to provide the clients of the class with a stable interface while retaining the freedom to optimize the implementation.
+无论选择何种实现，线程安全的累加器或计数器都不应将其公开，而应将其封装在类中。原因之一是为类的客户端提供稳定的接口，同时保留优化实现的自由度。
 
-The second reason is more subtle, and it has to do with the exact guarantees the counter provides. So far, we have focused on the counter value itself, making sure that it is modified and accessed by all threads without any races. Whether or not this is enough depends on how we use the counter. If all we want is to count some events, and nothing else depends on the value of the counter, then we only care that the value itself is correct. On the other hand, if what we are counting is, say, the number of elements in an array, then we are dealing with a data dependency. Let's say that we have a large pre-allocated array (or a container that can grow without disturbing the elements already in it), and all threads are computing new elements to be inserted into this array.  The counter counts the number of elements that are computed and inserted into the array and can be used by other threads. In other words, if a thread reads the value N from the counter, it must be assured that the first N elements of the array are safe to read (which implies that no other thread is modifying them anymore). But the array itself is neither atomic nor protected by a lock. To be sure, we could have protected the access to the entire array by a lock, but this is probably going to kill the performance of the program: if there are many elements already in the array but only one thread can read them at any time, the program might as well be single-threaded. On the other hand, we know that any constant, immutable data is safe to read from multiple threads without any locks. We just need to know where the boundary between the immutable and the changing data is, and that is exactly what the counter is supposed to provide. The key issue here is the memory visibility: we need a guarantee that any changes to the first N elements of the array become visible to all threads before the value of the counter changes from N-1 to N.
+第二个原因更微妙，与计数器提供的保证有关。目前为止，我们关注的是计数器本身，确保所有线程都可以对其进行修改和访问，而不存在任何竞争。这是否足够使用，取决于我们如何使用计数器。如果我们想要的只是计算一些事件，而其他东西都不依赖于计数器的值，那么我们只关心值本身是否正确就好。另一方面，如果计数的是数组中的元素数量，那么我们处理的是数据依赖关系。假设有一个大型的预分配数组(或者一个容器，可以在不影响现有元素的情况下增长)，所有线程都在计算要插入到这个数组中的新元素。计数器对进行计算的元素进行计数，并将值插入数组，可以由其他线程使用。换句话说，如果一个线程从计数器中读取值N，必须确保数组的前N个元素是安全读取的(这意味着没有其他线程修改它们)。但是数组本身既不是原子的，也不受锁的保护。我们可以通过锁来保护对整个数组的访问，但这可能会降低程序的性能。如果数组中已经有很多元素，任何时候只有一个线程可以读取它们，那么程序就可能是单线程的。另一方面，我们知道从多个线程读取任何常量、不可变数据都是安全的，不需要任何锁。我们只需要知道不可变数据和变化数据之间的边界在哪里，而这正是计数器应该提供的。这里的关键问题是内存可见性:需要保证在计数器的值从N-1更改为N之前，对数组前N个元素的更改对所有线程都可见。
 
-We studied memory visibility in the previous chapter when we discussed the memory model. At the time, it might  have appeared to be a largely theoretical matter, but not anymore. From the last chapter, we know that the way we control the visibility is by restricting the memory order or by using memory barriers (two different ways to talk about the same thing). The key difference between a count and an index in a multi-threaded program is that the index provides an additional guarantee: if the thread that increments the index from N-1 to N had completed the initialization of the array element N before it incremented the index, then any other thread that reads the index and gets the value of N (or greater) is guaranteed to see at least N fully initialized and safe to read elements in the array (assuming no other thread writes into these elements, of course). This is a non-trivial guarantee, do not easily dismiss it: multiple threads are accessing the same location in memory (the array element N) without any locking, and one of these threads is writing into this location, and yet, the access is safe, there is no data race. If we could not arrange for this guarantee using the shared index, we would have to lock all accesses to the array, and only one thread would be able to read it at any time. Instead, we can use this atomic index class:
+前一章讨论内存模型时已经研究过内存可见性，那时这还是一个理论问题，但现在不是了。从上一章中，我们知道控制可见性的方法是通过限制内存序或使用内存栅栏(同一件事的两种不同的方式)。在多线程程序中，计数和索引的区别在于，索引提供了额外的保证:如果将索引从N-1增加到N的线程在增加索引之前已经完成了数组元素N的初始化，然后其他线程读取索引并获得N(或更大)的值，保证至少有N个元素完全初始化，并且可以安全地读取数组中的元素(假设没有其他线程写入这些元素)。这是一个重要的保证，不要轻易放弃:多个线程正在访问内存中的相同位置(数组元素N)而没有任何锁，其中一个线程正在写入这个位置，访问是安全的，没有数据竞争。若不能使用共享索引来确认这种保证，则需要锁定对数组的所有访问，并且在任何时候只有一个线程能够读取它。相反，我们可以使用这个原子索引类:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -121,7 +121,7 @@ class AtomicIndex {
 };
 \end{lstlisting}
 
-The only difference between the index at the count is in the memory visibility guarantees; the count offers none:
+唯一不同的索引在计数是在内存可见性保证，计数不提供:
 
 \begin{lstlisting}[style=styleCXX]
 class AtomicCount {
