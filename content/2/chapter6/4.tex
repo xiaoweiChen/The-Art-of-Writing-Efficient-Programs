@@ -136,62 +136,62 @@ class AtomicCount {
 };
 \end{lstlisting}
 
-The thread safety and memory visibility guarantees should be documented for each of the classes, of course. Whether or not there is a performance difference between the two depends on the hardware. On an X86 CPU, there is none because the hardware instructions for atomic increment and atomic read have the "index-like" memory barriers whether we request them or not. On ARM CPUs, relaxed (or no-barrier) memory operations are noticeably faster. But, regardless of the performance, clarity and intent matter and should not be forgotten: if a programmer uses an index class that explicitly offers the memory order guarantees but does not index anything with it, every reader will wonder what is going on and where is that subtle and hidden place in the code that uses these guarantees. By using the interfaces with the correct set of documented guarantees, you signal to your readers what your intent was when writing this code.
+当然，每个类的线程安全和内存可见性保证都应该有相应的文档存在。两者之间是否存在性能差异取决于硬件。而在X86 CPU上没有区别，因为是请求还是不请求，用于原子增量和原子读取的硬件指令都有“类索引”的内存栅栏存在。在ARM CPU上，自由(或无障碍)内存操作明显更快。但是，不管性能、清晰度和问题是什么，都不应该忘记:如果开发者使用一个索引类，其会显式地提供了内存序保证，但没有索引任何东西，每个读者都会想知道发生了什么，以及使用这些保证的代码中技巧和位置在哪里。通过正确的文档保证集的接口，就可以向读者表明编写这段代码的意图。
 
-Let us now return to what may be the main "hidden" accomplishment in this section. We learned about thread-safe counters, but along the way, we came up with an algorithm to seemingly violate the first rule of writing multi-threaded code: any time two or more threads access the same memory location and at least one of these threads is writing, all accesses must be locked (or atomic). We did not lock the shared array, we allow arbitrary data in its elements (so it's probably not atomic), and we got away with it! The approach we used to avoid data races turns out to be the cornerstone of almost every data structure designed specifically for concurrency, and we will now take time to better understand and generalize it.
+现在回到本节中的“隐藏”成就。我们学习了线程安全的计数器，但在此过程中，提出了一种算法，似乎违反了编写多线程代码的第一条规则:任何时候两个或多个线程访问相同的内存位置，访问必须带锁(或原子的)。我们没有锁定共享数组，允许在其元素中包含任意数据(所以它可能不是原子的)，而且还成功了!我们用来避免数据竞争的方法是为并发设计的数据结构的基础，现在再花些时间更好地理解和概括它。
 
 \subsubsubsection{6.4.3\hspace{0.2cm}发布协议}
 
-The general problem we are trying to solve is a very common one in data structure design and, by extension, the development of concurrent programs: one thread is creating new data, and the rest of the program must be able to see this data when it is ready, but not before. The former thread is often called the writer thread or the producer thread. All the other threads are reader or consumer threads.
+我们试图解决的问题是，在数据结构设计和并发程序开发中非常常见的问题:线程正在创建新数据，程序的其余部分只能够在数据准备好时看到这些数据。创建数据的线程通常称为写线程或生产者线程，其他线程都是读取线程或消费者线程。
 
-The most obvious solution is to use a lock and follow the rule of avoiding the data races to the letter. If multiple threads (check) must access the same memory location (check) and at least one thread is writing at this location (exactly one thread in our case – check), then all threads must acquire a lock before accessing this memory location for either reading or writing. The downside of this solution is the performance: long after the producer is done and no more writing happens, all the consumer threads keep locking each other out of reading the data concurrently. Now, read-only access does not require any locking at all, but the problem is, we need to have a guaranteed point in the program such that all the writing happens before this point and all the reading happens after this point. Then we can say that all consumer threads operate in a read-only environment and do not need any locking. The challenge is to guarantee that boundary between reading and writing: remember that, unless we do some sort of synchronization, memory visibility is not guaranteed: just because the writer has finished modifying the memory doesn't mean the reader sees the final state of that memory. The locks include the appropriate memory barriers, as we have seen earlier; they border the critical section and ensure that any operation executed after the critical section will see all the changes to the memory that happened before or during the critical section. But now we want to get the same guarantee without the locks.
+最简单的解决方案是使用锁，并严格遵守避免数据竞争的规则。如果多个线程(检查)必须访问相同的内存位置(检查)，并且至少有一个线程在这个位置进行写操作(我们的例子中正好是一个线程——检查)，那么所有线程在访问这个内存位置进行读写操作之前都必须获得锁。这种解决方案的缺点在于性能:生产者完成并且不再发生写操作之后很长一段时间，所有的消费者线程都会互相锁定，从而不能并发地读取数据。现在，只读访问根本不需要锁，但我们需要在程序中有一个保证点，这样所有的写操作都发生在这一点之前，所有的读操作都发生在这一点之后。那么可以说，所有的使用者线程都在只读环境中操作，不需要任何锁。挑战在于保证读写之间的边界，除非我们进行了某种同步，否则内存的可见性是不能保证的:仅仅因为写入器已经完成了对内存的修改，并不意味着读取器可以看到内存的最终状态。锁包括适当的内存栅栏，它们为临界区设置边界，并确保在临界区之后执行的任何操作都将看到在临界区之前或期间发生的所有内存更改。但现在我们想在没有锁的情况下，获得同样的保证。
 
-The lock-free solution to this problem relies on a very specific protocol for passing information between the producer and the consumer threads:
+这个问题的无锁解决方案依赖于非常特殊的协议，从而可以在生产者和消费者线程之间传递信息:
 
 \begin{itemize}
 \item 
-The producer thread prepares the data in a memory that is not accessible to other threads. It could be the memory allocated by the producer threads, or it could be pre-allocated memory, but the important point is that the producer is the only thread with a valid reference to this memory, and that valid reference is not shared with other threads (there may be a way for other threads to access this memory, but that would be a bug in the program, similar to indexing an array out of bounds). Since there is only one thread accessing the new data, no synchronization is required. As far as the other threads are concerned, the data simply does not exist.
+生产者线程在内存中准备时，其他线程无法访问的数据。可以是由生产者线程分配的内存，也可以是预分配的内存。这里，生产者是唯一对该内存有有效引用的线程，而该有效引用不会与其他线程共享(可能其他线程有访问该内存的方法，但这将引起程序的错误，类似于索引数组超出边界)。因为只有一个线程访问新数据，所以不需要同步。至于其他线程，这些数据根本看不到。
 
 \item 
-All consumer threads must use a single shared pointer for any access to the data, which we call the root pointer, and this pointer is initially null. It remains null while the producer thread is constructing the data. Again, from the point of view of the consumer threads, there is no data at this time. More generally, the "pointer" does not need to be an actual pointer: any kind of handle or reference can be used as long as it gives access to the memory location and can be set to a predetermined invalid value. For example, if all new objects are created in a pre-allocated array, the "pointer" could, in fact, be an index into the array, and the invalid value could be any value greater or equal to the array size.
+所有的消费者线程都必须使用一个共享指针来访问数据，称之为\textit{根指针}，这个指针最初是空的。在生产线程构造数据时，它保持为空。所以，从消费者线程的角度来看，目前没有数据。更一般地说，“指针”不需要是一个实际的指针:任何类型的句柄或引用都可以用，只要是允许访问内存位置，并且可以设置为一个预定的无效值。如果所有的新对象都是在预先分配的数组中创建的，那么“指针”实际上可以是数组的索引，无效值可以是大于或等于数组长度的任何值。
 
 \item 
-The key to the protocol is that the only way for the consumer to access the data is through the root pointer, and this pointer remains null until the producer is ready to reveal, or publish, the data. The act of publishing the data is very simple: the producer must atomically store the correct memory location of the data in the root pointer, and this change must be accompanied by the release memory barrier.
+协议的关键在于，消费者访问数据的唯一方式是通过\textit{根指针}，在生产者准备显示或发布数据之前，根指针保持为空。发布数据的过程非常简单:生产者必须在根指针中存储数据的正确内存位置，并且这个改变必须伴随着内存释放屏障。
 
 \item 
-The consumer thread can, at any time, query the root pointer, again atomically. If the query returns null, then there is no data (as far as the consumer is concerned), and the consumer thread should wait or, ideally, do some other work. If the query returns a non-null value, then the data is ready, and the producer will not change it anymore. The query must be done with the acquire memory barrier, which, in combination with the release barrier on the producer side, guarantees that the new data is visible when the change of the pointer value is observed.
+协议的关键在于，消费者访问数据的唯一方式是通过\textit{根指针}，在生产者准备显示或发布数据之前，\textit{根指针}保持为空。发布数据的过程非常简单:生产者必须在\textit{根指针}中存储数据的正确内存位置，并且这个改变必须伴随着内存栅栏的释放。
 \end{itemize}
 
-This process is sometimes called the publishing protocol because it allows the producer thread to publish information for other threads to consume in a way that guarantees no data races. As we said, the publishing protocol can be implemented using any handle that gives access to the memory as long as this handle can be changed atomically. Pointers are the most common handle, of course, followed by array indices.
+这个过程有时称为\textbf{发布协议}，因为它允许生产者线程以一种保证没有数据竞争的方式发布信息，供其他线程使用。发布协议可以使用任何允许访问内存的句柄来实现，只要这个句柄可以进行原子性修改。当然，指针是最常用的句柄，后面是数组下标。
 
-The data that is being published can be simple or complex; it doesn't matter. It does not even have to be a single object or a single memory location: the object that the root pointer points to can itself contain pointers to more data. The key elements of the publishing protocol are as follows:
+发布的数据可以是简单的，也可以是复杂的，这都无所谓。它甚至不必是单个对象或单个内存位置:\textit{根指针}所指向的对象本身可以包含指向多个数据的指针。发布协议的关键点为:
 
 \begin{itemize}
 \item
-All consumers access a particular set of data through one root pointer. The only way to gain access to the data is to read a non-null value of the root pointer.
+所有消费者都通过\textit{根指针}访问一组特定的数据。访问数据的唯一方法是读取\textit{根指针}的非空值。
 
 \item
-The producer can prepare the data any way it wants, but the root pointer remains null: the producer has its own reference to the data that is local to this thread.
+生产者可以以任何它想要的方式准备数据，这是\textit{根指针}仍然是空的:生产者可以对线程本地的数据进行引用。
 
 \item 
-When the producer wants to publish the data, it sets the root pointer to the correct address atomically and with a release barrier. After the data is published, the producer cannot change it (neither can anyone else).
+当生产者想要发布数据时，会自动设置\textit{根指针}指向正确的地址，并释放栅栏。数据发布后，生产者不能改变它(其他线程也不能)。
 
 \item 
-The consumer threads must read the root pointer atomically and with an acquire barrier. If they read a non-null value, they can read the data accessible through the root pointer.
+消费者线程必须以原子的方式读取\textit{根指针}，并获取栅栏。如果读取非空值，则可以通过\textit{根指针}读取可访问的数据。
 
 \end{itemize}
 
-The atomic reads and writes used to implement the publishing protocol should not be, of course, scattered throughout the code. We should implement a publishing pointer class to encapsulate this functionality. In the next section, we will see a simple version of such a class.
+当然，用于实现发布协议的原子读写不应该分散在代码中，应该实现一个发布指针类来封装这个功能。下一节中，我们将看到此类的一个简单版本。
 
 \subsubsubsection{6.4.4\hspace{0.2cm}并发编程的智能指针}
 
-The challenge of concurrent (thread-safe) data structures is how to add, remove, and change the data in a way that maintains certain thread safety guarantees. The publishing protocol, which gives us a way to release new data to all threads, is usually the first step in adding new data to any such data structure. Thus, it should come as no surprise that the first class we will learn about is a pointer that encapsulates this protocol.
+并发(线程安全)数据结构的挑战是，如何以线程安全的方式添加、删除和更改数据。发布协议为我们提供了一种向所有线程发布新数据的方法，它通常是向任何此类数据结构添加新数据的第一步。因此，我们首先来了解如何将协议的指针封装入类。
 
 \hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{发布指针}
 
-Here is a basic publishing pointer that also includes the functionality of a unique, or owning, pointer (so we can call it a thread-safe unique pointer):
+下面是一个发布指针，包含了\texttt{unique\_ptr}(或拥有指针)的功能(所以可以称它为线程安全的\texttt{unique\_ptr}):
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -222,9 +222,9 @@ class ts_unique_ptr {
 };
 \end{lstlisting}
 
-Of course, this is a very bare-bones design; a complete implementation should support a custom deleter, a move constructor and assignment operator, and maybe a few more features, similar to std::unique\_ptr. By the way, the standard does not guarantee that accessing the pointer value stored in a std::unique\_ptr object is atomic or that the necessary memory barriers are used, so the standard unique pointer cannot be used to implement the publishing protocol.
+当然，这是一个非常简单的设计。完整的实现应该支持一个自定义删除器，移动构造函数和赋值操作符，也许还有更多的特性，类似于\texttt{std::unique\_ptr}。顺便说一下，标准不能保证访问存储在\texttt{std::unique\_ptr}对象中的指针值是原子的，或者使用了必要的内存栅栏，所以\texttt{std::unique\_ptr}不能用来实现发布协议。
 
-By now, it should be clear to the reader what our thread-safe unique pointer offers: the key functions are publish() and get(), and they implement the publishing protocol. Note that the publish() method does not delete the old data; it is assumed that the producer thread calls publish() only once and only on a null pointer. We could add an assert for that, and it may be a good idea to do so in a debug build, but we are also concerned with the performance. Speaking of performance, a benchmark shows that the single-threaded dereferencing of our publishing pointer takes the same time as that of a raw pointer or of std::unique\_ptr. The benchmark is not complicated:
+现在，应该清楚我们的线程安全\texttt{unique\_ptr}提供了什么。关键函数是\texttt{publish()}和\texttt{get()}，它们实现了发布协议。注意，\texttt{publish()}方法不会删除旧数据，假设生产者线程只调用一次\texttt{publish()}，并且只调用一个空指针。我们可以为此添加一个断言，在调试版本中这样做可能是一个好主意，但我们也关心性能问题。说到性能，基准测试显示，对发布指针进行单线程解引用的时间与原始指针或\texttt{std::unique\_ptr}的解引用时间相同。基准测试并不复杂:
 
 \begin{lstlisting}[style=styleCXX]
 struct A { … arbitrary object for testing … };
@@ -241,25 +241,25 @@ BENCHMARK(BM_ptr_deref)->Threads(1)->UseRealTime();
 BENCHMARK_MAIN();
 \end{lstlisting}
 
-Running this benchmark gives us an idea of how fast the dereferencing of our lock-free publishing pointer is:
+运行这个基准测试可以让我们了解对无锁发布指针的解引用有多快:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/5.jpg}\\
-Figure 6.5 – The performance of the publishing pointer (consumer threads)
+图6.5 - 发布指针(消费者线程)的性能
 \end{center}
 
-The result should be compared with dereferencing a raw pointer, which we can also do on multiple threads:
+结果应该与对原始指针的解引用进行比较，在多线程中也可以这样做:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/6.jpg}\\
-Figure 6.6 – The performance of the raw pointer, for comparison with Figure 6.5
+图6.6 - 原始指针的性能，与图6.5进行比较
 \end{center}
 
-The performance numbers are very close. We can also compare the speed of publishing, but, usually, the consumer side is more important: each object is published only once but then accessed many times.
+性能数据非常接近。我们还可以比较发布的速度，但消费者端更重要:每个对象只发布一次，然后进行多次访问。
 
-It is equally important to understand what the publishing pointer does not do. First of all, there is no thread safety in the construction of the pointer. We have assumed that both the producer and the consumer threads share access to the already constructed pointer, which is initialized to null. Who constructed and initialized the pointer? Usually, in any data structure, there is a root pointer through which the entire data structure can be accessed; it was initialized by whatever thread constructed the initial data structure. Then there are pointers that serve as a root for some data element and are themselves contained in another data element. For now, imagine a simple singly linked list where the "next" pointer of every list element is the root for the next element, and the head of the list is the root for the entire list. The thread that produces an element of the list must, among other things, initialize the "next" pointer to null. Then, another producer can add a new element and publish it. Note that this deviates from the general rule that the data, once published, is immutable. This is OK, however, because all changes to the thread-safe unique pointer are atomic. One way or another, it is critical that no thread can access the pointer while it is being constructed (this is a very common restriction, most constructions are not threadsafe, even the question of their thread safety is ill-posed since the object does not exist until it is constructed, so no guarantees can be given).
+了解发布指针不做什么同样重要。首先，在指针的构造中没有线程安全问题。我们假设生产者和消费者线程共享对构造好的指针，这个指针初始化为空。谁来构造并初始化了指针？通常，在数据结构中，都有一个\textit{根指针}，通过它可以访问整个数据结构，它由构造初始数据结构的线程初始化。还有一些指针，可作为某些数据元素的根，本身包含在另一个数据元素中。现在，想象一个简单的单链表，其中每个列表元素的“next”指针是下一个元素的根，而列表的头是整个列表的根。生成列表元素的线程必须将“next”指针初始化为空。然后，另一个生产者可以添加一个新元素并发布它。请注意，这偏离了数据发布后就不可变的规则。但是，这里可以这样做，因为对线程安全\texttt{unique\_ptr}的更改都是原子的。无论如何，没有线程可以在指针构造的时候进行访问非常关键(这是一个非常常见的限制，大多数构造都不是线程安全的，因为对象在它被构造之前是不存在的，所以不能保证)。
 
 The next thing our pointer does not do is this: it does not offer any synchronization for multiple producer threads. If two threads attempt to publish their new data elements through the same pointer, the results are undefined, and there is a data race (some consumer threads will see one set of data, and others will see different data). If there is more than one producer thread that operates on a particular data structure, they must use another mechanism for synchronization.
 
