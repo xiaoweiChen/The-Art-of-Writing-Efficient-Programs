@@ -261,23 +261,25 @@ BENCHMARK_MAIN();
 
 了解发布指针不做什么同样重要。首先，在指针的构造中没有线程安全问题。我们假设生产者和消费者线程共享对构造好的指针，这个指针初始化为空。谁来构造并初始化了指针？通常，在数据结构中，都有一个\textit{根指针}，通过它可以访问整个数据结构，它由构造初始数据结构的线程初始化。还有一些指针，可作为某些数据元素的根，本身包含在另一个数据元素中。现在，想象一个简单的单链表，其中每个列表元素的“next”指针是下一个元素的根，而列表的头是整个列表的根。生成列表元素的线程必须将“next”指针初始化为空。然后，另一个生产者可以添加一个新元素并发布它。请注意，这偏离了数据发布后就不可变的规则。但是，这里可以这样做，因为对线程安全\texttt{unique\_ptr}的更改都是原子的。无论如何，没有线程可以在指针构造的时候进行访问非常关键(这是一个非常常见的限制，大多数构造都不是线程安全的，因为对象在它被构造之前是不存在的，所以不能保证)。
 
-The next thing our pointer does not do is this: it does not offer any synchronization for multiple producer threads. If two threads attempt to publish their new data elements through the same pointer, the results are undefined, and there is a data race (some consumer threads will see one set of data, and others will see different data). If there is more than one producer thread that operates on a particular data structure, they must use another mechanism for synchronization.
+指针没有做的事是，没有为多个生产者线程提供同步。如果两个线程试图通过同一个指针发布新数据，结果是未定义的，并且存在数据竞争(一些消费者线程将看到一组数据，而其他线程将看到不同的数据)。如果有多个生产者线程操作特定的数据结构，必须使用一种机制进行同步。
 
-Finally, while our pointer implements a thread-safe publishing protocol, it does nothing to safely "un-publish" and delete the data. It is an owning pointer, so when it is deleted, so is the data it points to. However, any consumer thread can access the data using the value it had acquired earlier, even after the pointer is deleted. The issues of data ownership and lifetime must be handled in some other way. Ideally, we would have a point in the program where the entire data structure or some subset of it is known to be no longer needed; no consumer thread should try to access this data or even retain any pointers to it. At that point, the root pointer and anything accessible through it can be safely deleted. Arranging for such a point in the execution is a different matter entirely; it is often controlled by the overall algorithm.
+最后，虽然我们的指针实现了线程安全的发布协议，但没有执行安全的“取消发布”和删除数据。它是拥有指针，因此当删除时，所指向的数据也会删除。但是，任何消费者线程都可以使用删除之前获得的值。数据所有权和生命周期的问题必须处理。理想情况下，程序中应该有一个点，在这个点上，我们知道整个数据结构或不再需要某个子集了。任何消费者线程都不应该访问这些数据，甚至不应该保留指向它的指针。此时，\textit{根指针}和其指向的内容都可以安全的删除。在执行过程中如何安排这样一个环节，就是是另外一件事情了，通常由整体算法控制。
 
-Sometimes we want a pointer that manages both the creation and the deletion of the data in a thread-safe way. In this case, we need a thread-safe shared pointer.
+有时，希望指针能够以线程安全的方式同时管理数据的创建和删除。本例中，我们需要一个线程安全的共享指针。
 
 \hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{原子共享指针}
 
-If we cannot guarantee that there is a known point in the program where the data can be safely deleted, we have to keep track of how many consumer threads hold valid pointers to the data. If we want to delete this data, we have to wait until there is only one pointer to it in the entire program; then, it is safe to delete the data and the pointer itself (or at least reset it to null). This is a typical job for a shared pointer that does reference counting: it counts how many pointers to the same object are still out there in the program; the data is deleted by the last such pointer.
+如果不能保证程序中有已知的点可以安全地删除数据，就必须清楚有多少消费者线程持有有效的数据指针。如果想要删除这个数据，必须等到在整个程序中只有一个指针指向它时，再安全地删除数据和指针本身(或至少将其重置为空)。这是进行引用计数共享指针的工作模式:计算程序中有多少指向同一对象的指针，在没有对该指针的引用时，将该指针删除。
 
-When talking about thread-safe shared pointers, it is vitally important to understand precisely what guarantees are required from the pointer. The C++ standard shared pointer, std::shared\_ptr, is often referred to as thread-safe. Specifically, it offers the following guarantee: if multiple threads operate on different shared pointers that all point to the same object, then the operations on the reference counter are thread safe even if two threads cause the counter to change at the same time. For example, if one thread is making a copy of its shared pointer while another thread is deleting its shared pointer and the reference count was N before these operations started, the counter will go up to N+1, then back to N (or down first, then up, depending on the actual order of execution) and in the end will have the same value N. The intermediate value could be either N+1 or N-1, but there is no data race, and the behavior is well defined, including the final state. This guarantee implies that the operations on the reference counter are atomic; indeed, the reference counter is an atomic integer and the implementation used fetch\_add() to atomically increment or decrement it.
+讨论线程安全的共享指针时，理解指针需要什么保证非常重要。C++标准共享指针\texttt{std::shared\_ptr}通常是线程安全的。具体来说，它提供了以下保证:如果多个线程操作指向同一对象的不同共享指针，那么对引用计数器的操作是线程安全的，即使两个线程导致计数器同时改变。若一个线程正在复制它的共享指针，而另一个线程正在删除它的共享指针，并且在这些操作开始之前引用计数是N，计数器将上升到N+1，然后回到N(或先下降，然后上升，中间值可以是N+1或N-1，但不存在数据竞争，并且行为很明确，包括最终状态。这个保证意味着引用计数器上的操作是原子的。实际上，引用计数器是一个原子整数，实现时使用\texttt{fetch\_add()}对其进行原子递增或递减。
 
-This guarantee applies as long as no two threads share access to the same shared pointer. How to get each thread its own shared pointer is a separate issue: since all shared pointers pointing to the same object must be created from the very first such pointer, these pointers had to have been passed from one thread to another at some point in time. For simplicity, let us assume, for a moment, that the code that made copies of the shared pointer is protected by a mutex. If two threads access the same shared pointer, then all bets are off. For example, if one thread is trying to copy the shared pointer while another thread is resetting it at the same time, the results are undefined. In particular, the standard shared pointer cannot be used to implement the publishing protocol. However, once the copies of the shared pointer have been distributed to all threads (possibly under lock), the shared ownership is maintained, and the deletion of the object is handled in a thread-safe manner. The object will be deleted once the last shared pointer that points to it is deleted. Note that, since we agreed that each particular shared pointer is never handled by more than one thread, this is completely safe. If, during the execution of the program, the time comes when there is only one shared pointer that owns our object, then there is also only one thread that can access this object. Other threads cannot make copies of this pointer (we don't let two threads share the same pointer object) and don't have any other way to get a pointer to the same object, so the deletion will proceed effectively single-threaded. This is all well and good, but what if we cannot guarantee that two threads won't try to access the same shared pointer? The first example of such access is our publishing protocol: the consumer threads are reading the value of the pointer while the producer thread may be changing it. We need the operations on the shared pointer itself to be atomic. In C++20, we can do just that: it lets us write std::atomic<std::shared\_ptr<T>>. Note that the early proposals featured a new class, std::atomic\_shared\_ptr<T>, instead. In the end, this is not the path that was chosen.
+只要没有多个线程共享访问同一个共享指针，这个保证就适用。如何获得每个线程自己的共享指针是另外一个问题:因为所有指向同一对象的共享指针必须以第一个这样的指针进行创建，这些指针必须在某个时间点从一个线程传递到另一个线程。简单起见，让我们暂时假设，复制共享指针的代码受到互斥锁的保护。如果两个线程访问同一个共享指针，那么所有的猜测都是多余的。若一个线程试图复制共享指针，同时另一个线程正在重置它，结果是未定义的。特别是，标准共享指针不能用于发布协议的实现。然而，当共享指针的副本分发到线程(可能处于锁定状态)中，共享的所有权就会得到保护，对象的删除将以线程安全的方式处理。当最后一个指向该对象的共享指针删除时，该对象也会删除。请注意，由于每个特定的共享指针都不会由超过一个线程处理，所以这是完全安全的。如果，在程序执行期间，当只有一个共享指针拥有对象时，那么也只有一个线程可以访问这个对象。其他线程不能复制这个指针(不让两个线程共享同一个指针对象)，并且没有任何其他方法可以获得指向同一个对象的指针，所以删除操作将以单线程的方式进行。
 
-If you do not have a C++20-compliant compiler and the corresponding standard library or cannot use C++20 in your code, you can still do atomic operations on std::shared\_ptr, but you must do so explicitly. In order to publish the object using the pointer p\_ that is shared between all threads, the producer thread must do this:
+这种方式很好，但是如果两个线程会访问同一个共享指针呢？这种访问的例子就是我们的发布协议:消费者线程正在读取指针的值，而生产者线程可能正在更改它，这样就需要共享指针本身的操作是原子的。在C++20中，可以这样做，这里允许我们写\texttt{std::atomic<std::shared\_ptr<T>>}。注意，早期的建议写一个新类代替\texttt{std::atomic\_shared\_ptr<T>}。不过，这也不是我们最终选择的方法。
+
+如果没有兼容C++20的编译器和相应的标准库，或者不能在代码中使用C++20的话，仍可以在\texttt{std::shared\_ptr}上执行原子操作，但需要显式地做。为了使用在所有线程之间共享的指针\texttt{p\_}发布对象，生产者线程必须这样做:
 
 \begin{lstlisting}[style=styleCXX]
 std::shared_ptr<T> p_;
@@ -287,7 +289,7 @@ std::atomic_store_explicit(
 	&p_, std::shared_ptr<T>(data), std::memory_order_release);
 \end{lstlisting}
 
-On the other hand, to acquire the pointer, the consumer thread must do this:
+另一方面，为了获得指针，消费者线程必须这样做:
 
 \begin{lstlisting}[style=styleCXX]
 std::shared_ptr<T> p_;
@@ -295,19 +297,19 @@ const T* data = std::atomic_load_explicit(
 	&p_, std::memory_order_acquire).get();
 \end{lstlisting}
 
-The major downside of this approach, compared to the C++20 atomic shared pointer, is that there is no protection against accidental non-atomic access. It is up to the programmer to remember to always use atomic functions to operate on the shared pointer.
+与C++20原子共享指针相比，这种方法的主要缺点是无法防止意外的非原子访问。开发者应该记住始终使用原子函数来操作共享指针。
 
-It should be noted that, while convenient, std::shared\_ptr is not a particularly efficient pointer, and the atomic accesses make it even slower. We can compare the speed of publishing an object using the thread-safe publishing pointer from the last section versus the shared pointer with explicit atomic accesses:
+虽然方便，但\texttt{std::shared\_ptr}并不是一个特别有效的指针，并且原子访问使它变得更慢。我们可以比较上一节中使用线程安全的发布指针和使用显式原子访问共享指针发布对象的速度:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/7.jpg}\\
-Figure 6.7 – The performance of the atomic shared publishing pointer (consumer threads)
+图6.7 - 原子共享发布指针的性能(消费者线程)
 \end{center}
 
-Again, the numbers should be compared with those from Figure 6.5: the publishing pointer is 60 times faster on one thread, and the advantage increases with the number of threads. Of course, the whole point of the shared pointer is that it provides shared resource ownership, so naturally, it takes more time to do more work. The point of the comparison is to show the cost of this shared ownership: if you can avoid it, your program will be much more efficient.
+同样，应该将这些数字与图6.5中的数字进行比较:发布指针在一个线程上要快60倍，而且这种优势会随着线程的数量变多而增加。当然，共享指针的全部意义在于提供了共享资源的所有权。因此，共享指针需要更多的时间来完成更多的工作。比较的重点是显示这种共享所有权的成本:如果可以避免，程序的效率会更高。
 
-Even if you need shared ownership (and there are some concurrent data structures that are really hard to design without it), usually, you can do much better if you design your own reference-counted pointer with limited functionality and optimal implementation. One very common approach is to use intrusive reference counting. An intrusive shared pointer stores its reference count in the object it points to. When designed for a specific object, such as a list node in our particular data structure, the object is designed with the shared ownership in mind and contains a reference counter. Otherwise, we can use a wrapper class for almost any type and augment it with a reference counter:
+即使需要共享所有权(如果没有共享所有权，有些并发数据结构很难设计)，通常，如果使用有限的功能和最佳的实现设计自己的引用计数指针，则可以做得更好。一种非常常见的方法是使用侵入引用计数。侵入式共享指针将其引用计数存储在指向的对象中。当为特定对象(如特定数据结构中的列表节点)设计时，对象在设计时需要考虑到共享所有权，并包含引用计数器。否则，几乎可以对任何类型使用包装器类，并使用引用计数器进行扩展:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -329,21 +331,21 @@ template <typename T> struct Wrapper {
 };
 \end{lstlisting}
 
-When decrementing the reference count, it is important to know when it reaches 0 (or was 1 before decrementing): the shared pointer must then delete the object.
+当减少引用计数时，重要的是要知道何时达到0(或在减少之前是1):共享指针必须删除对象。
 
-The implementation of even the simplest atomic shared pointer is quite lengthy; a very rudimentary example can be found in the sample code for this chapter. Again, this example contains only the bare minimum necessary for the pointer to correctly perform several tasks such as publishing an object and accessing the same pointer concurrently by multiple threads. The aim of the example is to make it easier to understand the essential elements of implementing such pointer (and even then, the code is several pages long).
+即使是最简单的原子共享指针的实现也相当冗长，在本章的示例代码中可以找到一个非常简单的示例。同样，这个示例只包含指针正确执行几个任务所需的最小值，例如：发布对象和由多个线程并发地访问同一个指针。这个例子的目的是让我们更容易理解实现这类指针所需的基本元素(即使这样，代码也有几页长)。
 
-In addition to using an intrusive reference counter, an application-specific shared pointer can forgo other features of std::shared\_ptr. For example, many applications do not require a weak pointer, but there is an overhead for supporting it even if it's never used. A minimalistic reference-counted pointer can be several times more efficient than the standard one:
+除了使用侵入式引用计数器外，特定于应用的共享指针可以放弃\texttt{std::shared\_ptr}的其他特性，例如：许多应用程序不需要弱指针。一个极简的引用计数指针可以比标准指针高效几倍:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter6/images/8.jpg}\\
-Figure 6.8 – The performance of a custom atomic shared publishing pointer (consumer threads)
+图6.8 - 自定义原子共享发布指针(消费者线程)的性能
 \end{center}
 
-It is similarly more efficient for assignment and reassignment of the pointer, atomic exchange of two pointers, and other atomic operations on the pointer. Even this shared pointer is still much less efficient than a unique pointer, so again, if you can manage the data ownership explicitly, without reference-counting, do so.
+同样，对于指针的赋值和重赋值、两个指针的原子交换以及指针上的其他原子操作，它的效率更高。这个共享指针比唯一指针的效率低得多，若可以显式地管理数据所有权，则不需要引用计数。
 
-We now have the two key building blocks of almost any data structure: we can add new data and publish it (reveal it to other threads), and we can track the ownership, even across threads (although it comes at a price).
+现在，我们了解了数据结构的两个关键构建块，可以添加新数据并发布它(向其他线程显示)，并需要跟踪其所有权，甚至是跨线程(尽管这需要付出巨大代价)。
 
 
 
