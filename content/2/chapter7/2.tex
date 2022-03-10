@@ -1,11 +1,11 @@
 
-Before we begin learning about thread-safe data structures, we have to know what they are. If this seems like a simple question – data structures that can be used by multiple threads at once – you have not given the question enough thought. I cannot overstate how important it is to ask this question every time you start designing a new data structure or an algorithm to be used in a concurrent program. If this sentence puts you on guard and gives you pause, there is a good reason for it: I have just implied that the thread-safe data structure has no single definition that suits every need and every application. This is indeed the case, and is a very important point to understand.
+在开始学习线程安全的数据结构之前，我们必须知道它们是什么。如果这看起来像是一个简单的问题——多个线程可以同时使用的数据结构——那么你对这个问题的认识还远远不够。当开始设计并发程序中使用的新数据结构或算法时，就知道这个问题是多么的重要了，以至于怎么强调都不为过。如果这句话让你感到警惕，并停下来思考，那最好了。我刚刚暗示线程安全的数据结构没有一个明确定义适合每种需求和应用程序，事实也如此。
 
-\subsubsubsection{7.2.1\hspace{0.2cm}The best kind of thread safety}
+\subsubsubsection{7.2.1\hspace{0.2cm}线程安全的最佳方式}
 
-Let's start with something that should be obvious but is often forgotten in practice: a very general principle of designing for high performance is that doing zero work is always faster than doing some work. For the subject at hand, this general principle can be narrowed down to do you need any kind of thread-safety for this data structure? Ensuring thread safety, whatever form it takes, implies some amount of work that will need to be done by the computer. Ask yourself, do I really need it? Can I arrange the computation so that each thread has its own set of data to operate on?
+让我们从一些简单的，但在实践中经常遗忘的开始:高性能设计的一个原则是，不做事总是比做事快。当前，这个原则可以缩小为:对于数据结构，是否需要线程安全？确保线程安全，意味着需要由计算机完成一些工作。问问自己，真的需要它吗？是否可以对计算进行调度，使每个线程都有自己的数据集进行操作？
 
-A simple example is the thread-safe counter we used in the previous chapter. If you need all threads to see the current value of the counter at all times, then it was the right solution. However, let's say that all we need is to count some event that happens on multiple threads, such as searching for something in a large set of data that has been divided between the threads. A thread does not need to know the current value of the count to do the search. Of course, it would need to know the latest value of the count to increment it, but that is true only if we try to increment the single shared count on all threads, like this:
+一个例子是我们在前一章中使用的线程安全计数器。如果需要所有线程始终看到计数器的当前值，那么这就是正确的解决方案。但当所需要的只是计算在多个线程上发生的事件，例如：在分配给多个线程的一组大数据中搜索某些内容。线程在执行搜索时不需要知道计数的当前值。当然，需要知道计数的最新值来增加它，这是正确的，只有在所有线程上增加单个共享计数时，才会出问题，就像这样:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -20,17 +20,17 @@ for ( … counting loop … ) { // On each thread
 }
 \end{lstlisting}
 
-The performance of the counting itself is dismal, as can be seen in a benchmark where we do nothing but count (no search):
+计数的性能非常差，可以看到在基准测试中，我们只做计数(不搜索):
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/1.jpg}\\
-Figure 7.1 – Counting on multiple threads does not scale if the count is shared
+图7.1 - 如果计数是共享的，那么对多个线程的计数不会改变
 \end{center}
 
-The scaling of the counting is actually negative: it takes longer to get to the same value of the count on two threads than on one, despite our best efforts to use a wait-free count with the minimal memory order requirements. Of course, if the search is very long compared to the counting, then the performance of the count is irrelevant (but the search code itself may present the same choice of doing some work on a global data or a per-thread copy, so consider this an instructive example).
+计数的改变实际上是负的:在两个线程上获得相同的计数值要比在一个线程上花费更长的时间(尽管我们尽了最大努力使用无等待的计数，同时使用最快的内存序)。当然，如果搜索比计数要长，那么计数的性能就无关紧要了(但搜索代码本身也可以在全局数据上做一些事，或者在每个线程的副本上做一些事，所以这是一个有指导意义的例子)。
 
-Assuming we only care about the value of the count at the very end of the computation, a much better solution is, of course, to maintain local counts on each thread and increment the shared count only once:
+假设我们只关心计算结束时的计数值，一个更好的解决方案是，在每个线程上保持本地计数，并且只增加共享计数一次:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -49,29 +49,29 @@ std::lock_guard<std::mutex> L(M);
 count += local_count;
 \end{lstlisting}
 
-To highlight just how unimportant the shared count increment is now, we are going to use the basic mutex; usually, a lock is a safer choice as it is easier to understand (so, harder to make bugs), although, in the case of a count, an atomic integer actually yields simpler code.
+为了强调共享计数增量现在不重要的，我们将使用互斥锁对其进行保护。通常，锁是更安全的选择，因为它更容易理解(因此，更难制造Bug)，尽管在计数的情况下，原子整数实际上会让代码更简单。
 
-If each thread increments the local count many times before it reaches the end and has to increment the shared count, the scaling is near-perfect:
+如果每个线程在到达结束之前多次增加本地计数，并且必须对共享计数进行增加的操作，那么这种改变几乎完美:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/2.jpg}\\
-Figure 7.2 – Counting on multiple threads scales perfectly with per-thread counts
+图7.2 - 计数在多个线程上完美地与每个线程的计数
 \end{center}
 
-So the best kind of thread safety is the one that is guaranteed by the fact that you don't access the data structure from multiple threads. Often, this arrangement comes at the cost of some overhead: for example, each thread maintains a container or a memory allocator whose size grows and shrinks repeatedly. You can avoid any locking whatsoever if you don't release the memory to the main allocator until the end of the program. The price will be that the unused memory on one thread is not made available to other threads, so the total memory use will be the sum of the peak uses of all threads, even if these moments of peak use occur at different times. Whether or not this is acceptable depends on the details of the problem and the implementation: it is something you have to consider for every program.
+因此，最好的线程安全是，即不需要多个线程访问共享数据。通常，这种安排会以一些开销为代价的，例如：每个线程维护一个容器或内存分配器，其大小会不断地改变。如果在程序结束之前不将内存释放给主分配程序，就可以避免锁定。代价是一个线程上未使用的内存不能提供给其他线程使用，因此总的内存使用将是所有线程的峰值使用的总和，即使这些峰值使用时刻发生在不同的时间。这是否可以接受取决于问题的细节和实现:这是每个开发者都必须考虑的问题。
 
-You could say that this entire section is a cop-out when it comes to thread safety. It is, from a certain point of view, but it happens so often in practice that a shared data structure is used where it is not necessary, and the performance gain can be so significant that this point needs to be made. Now it is time to move on to the real thread safety, where a data structure must be shared between threads.
+当涉及到线程安全时，可以说这个方案选择了逃避。从某种角度来看，确实如此，但在实践中经常出现这样的情况:在不需要共享数据结构的地方使用共享数据结构，并且性能提高非常显著，因此需要强调这一点。现在是时候来看看真正的线程安全了，其中数据结构必须在线程之间共享。
 
-\subsubsubsection{7.2.2\hspace{0.2cm}The real thread safety}
+\subsubsubsection{7.2.2\hspace{0.2cm}真正的线程安全}
 
-Let's assume that we really need to access a particular data structure from multiple threads at the same time. Now we have to talk about thread safety. But there is still not enough information to determine what this thread safety means. We have already discussed in the previous chapter the strong and weak thread-safety guarantees. We will see in this chapter that even that partitioning is not enough, but it puts us on the right track: instead of talking about general thread safety, we should be describing the set of guarantees provided by the data structure with regard to concurrent access.
+假设我们确实需要同时从多个线程访问特定的数据结构，现在就必须讨论线程安全了。但现在还是没有足够的信息来确定线程安全意味着什么。我们已经在前一章中讨论了强线程和弱线程安全保证。本章中，即使这样分区也不够，所以我们不应该讨论一般的线程安全，而是应该描述数据结构提供并发访问的保证。
 
-As we have seen, the weak (but usually easy to provide) guarantee is that multiple threads can read the same data structure as long as it remains unchanged. The strongest guarantee is, obviously, that any operation can be done by any number of threads at any time, and the data structure remains in a well-defined state. This guarantee is often both expensive and unnecessary. Your program may require such a guarantee from some but not all operations supported by the data structure. There may be other simplifications, such as the number of threads accessing the data structure at once may be limited.
+正如我们所看到的，弱(但通常很容易提供)保证只要数据结构保持不变，多个线程就可以读取相同的数据结构。显然，最有力的保证是，任意数量线程可以随时执行任何操作，并且数据结构保持在良好定义的状态。这种保证通常既昂贵又不必要。程序可能需要数据结构支持的某些(但不是所有)操作提供这样的保证。还有其他的简化版本，比如：限制访问数据结构的线程数量。
 
-As a rule, you want to provide as few guarantees as necessary to make your program correct and no more: additional thread-safety features are often very expensive and create overhead even when they are not used.
+作为一个规则，想要提供尽可能少的保证来保证程序是正确的，而不是更多:线程安全特性通常非常昂贵，甚至不使用时也会产生开销。
 
-With this in mind, let's start exploring concrete data structures and see what it takes to provide different levels of thread-safety guarantees.
+考虑到这一点，让我们开始研究具体的数据结构，并看看如何提供不同级别的线程安全。
 
 
 
