@@ -1,13 +1,13 @@
 
-One of the simplest data structures from the point of view of concurrency is the stack. All operations on the stack deal with the top element, so there is (conceptually, at least) a single location that needs to be guarded against races.
+从并发性的角度来看，\textbf{堆栈}是最简单的数据结构之一。堆栈上的所有操作都处理顶部元素，因此(至少在概念上)需要保护一个位置以防止竞争。
 
-The C++ standard library offers us the std::stack container, so it makes a good starting point. All C++ containers, including the stack, offer the weak thread-safety guarantee: a read-only container can be safely accessed by many threads. In other words, any number of threads can call any const methods at the same time as long as no thread calls any non-const methods. While this sounds easy, almost simplistic, there is a subtle point here: there must be some kind of synchronization event accompanied by a memory barrier between the last modification of the object and the portion of the program where it is considered read-only. In other words, write access is not really done until all threads execute a memory barrier: the writer must, as a minimum, do a release, while all readers must acquire. Any stronger barrier will work as well, and so will a lock, but every thread must take this step.
+C++标准库为我们提供了\texttt{std::stack}容器，可以将该容器作为一个起点。所有C++容器，都提供了弱线程安全:多个线程可以安全地访问只读容器。换句话说，只要没有线程调用非\texttt{const}函数，任何数量的线程都可以同时调用任何\texttt{const}方法。虽然这听起来很简单，几乎过于简单，但这里有一个问题:在最后一次修改和只读的部分之间，必须存在某种同步。换句话说，所有线程在内存栅栏之前执行，写访问并没有真正完成:写线程至少必须释放内存，而读线程必须获取内存。任何强栅栏都可以工作，锁也可以，但每个线程都必须迈出这一步。
 
-\subsubsubsection{7.3.1\hspace{0.2cm}Interface design for thread safety}
+\subsubsubsection{7.3.1\hspace{0.2cm}线程安全的接口设计}
 
-Now, what if at least one thread is modifying the stack, and we need a stronger guarantee? The most straightforward way to provide one is by guarding every member function of the class with a mutex. This can be done at the application level, but such implementation does not enforce the thread safety and is, therefore, error-prone. It is also hard to debug and analyze because the lock is not associated with the container. 
+现在，如果多个线程在修改堆栈，则需要更强的保证，那该怎么办？提供互斥锁的最直接的方法，用互斥锁保护类的每个成员函数。这可以在应用程序级别完成，但是这样的实现并不是强线程安全，很容易出错。因为锁与容器没有关联，也很难进行调试和分析。
 
-A better option is to wrap the stack class with our own, like this:
+更好的选择是用自己的类包装堆栈类:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -26,9 +26,9 @@ template <typename T> class mt_stack {
 };
 \end{lstlisting}
 
-Note that we could use inheritance instead of encapsulation. Doing so would make it easier to write the constructors of mt\_stack: we would need only one using statement. However, using public inheritance exposes every member function of the base class std::stack, so if we forget to wrap one of them, the code will compile but will call the unguarded member function directly. Private (or protected) inheritance avoids this problem but presents other dangers. Some of the constructors would need to be reimplemented: for example, the move constructor would need to lock the stack that is being moved from, so it needs a custom implementation anyway. Several other constructors would be dangerous to expose without a wrapper because they read or modify their arguments. Overall, it is safer if we have to write every constructor we want to provide. This is consistent with the very general rule of C++; prefer composition over inheritance.
+注意，可以使用继承而不是封装。这样做会使编写\texttt{mt\_stack}的构造函数更容易，只需要一个\texttt{using}语句。但是，使用公共继承会公开基类\texttt{std::stack}的每个成员函数，若忘记包装其中一个，代码将编译，将直接调用未保护的成员函数。私有(或受保护的)继承避免了这个问题，但会带来其他危险。有些构造函数需要重新实现，例如：移动构造函数需要锁定正在被移动的堆栈，因此需要自定义实现。在没有包装器的情况下，公开其他几个构造函数十分危险，因为它们会读取或修改参数。总的来说，必须重写想要提供的每个构造函数，这样比较安全。这与C++的建议是一致的：组合优于继承(\textit{prefer composition over inheritance})。
 
-Our thread-safe or multi-threaded stack (that's what mt stands for) now has the push functionality and is ready to receive data. We just need the other half of the interface, the pop. We can certainly follow the preceding example and wrap the pop() method, but this is not enough: the STL stack uses three separate member functions to remove elements from the stack. pop() removes the top element but returns nothing, so if you want to know what's on top of the stack, you have to call top() first. It is undefined behavior to call either of those if the stack is empty, so you have to call empty() first and check the result. OK, we can wrap all three methods, but this gives us nothing at all. In the following code, assume that all member functions of the stack are guarded by a lock:
+我们的线程安全或多线程堆栈(就是\textit{mt}的意思)现在有了\textit{push}功能，并准备接收数据。我们只需要逆操作\textit{pop}。我们当然可以按照前面的例子包装\texttt{pop()}，但这还远远不够：STL堆栈使用三个独立的成员函数从堆栈中删除元素。\texttt{pop()}删除了顶部元素，但没有任何返回.所以想知道堆栈顶部是什么，必须首先使用\texttt{top()}。如果堆栈为空，那么使用这两种方法中的任何一个都会导致未定义行为，所以必须首先使用\texttt{empty()}检查结果。我们可以包装这三个方法，这里先不展示。下面的代码中，假设堆栈的所有成员函数都由一个锁保护:
 
 \begin{lstlisting}[style=styleCXX]
 mt_stack<int> s;
@@ -40,11 +40,11 @@ if (!s.empty()) {
 }
 \end{lstlisting}
 
-Each member function is perfectly thread-safe and perfectly useless in a multi-threaded context: the stack may be non-empty one moment – the moment we happen to call s.empty() – but become empty the next, before we call s.top(), because another thread could remove the top element in the meantime.
+每个成员函数都是线程安全的，但在多线程上下文中完全无用:堆栈可能在某一刻(碰巧使用\texttt{s.empty()}的那一刻)非空，但在下一刻(调用\texttt{s.top()}之前)就变成空的了，因为在此期间另一个线程可以删除顶部的元素。
 
-This may very well be the most important lesson from the entire book: in order to provide usable thread-safe functionality, the interface must be chosen with thread safety in mind. More generally, it is not possible to add thread safety on top of an existing design. Instead, the design must be done with thread safety in mind. The reason is this: you may choose to provide certain guarantees and invariants in your design that are impossible to maintain in a concurrent program. For example, std::stack provides the guarantee that if you call empty() and it returns false, you can safely call top() as long as you don't do anything else to the stack between these two calls. There is no practically useful way to maintain this guarantee in a multi-threaded program.
+这可能是整本书最重要的内容了。为了提供可用的线程安全的功能，在选择接口时必须考虑线程安全，但不能在现有的设计上添加线程安全特性。而在进行设计时，必须考虑到线程安全。因为可以选择在设计中提供某些保证和不变量，这些在并发程序中不可维护，例如：\texttt{std::stack}保证调用\texttt{empty()}是安全的，并返回false，这样就可以安全地调用\texttt{top()}，只要在这两个调用之间不做任何其他的堆栈操作就好。在多线程程序中，没有特别好的方法来履行这种承诺。
 
-Fortunately, since we are writing our own wrapper class anyway, we are not constrained to use the interface of the wrapped class verbatim. So, what should we do instead? Clearly, the entire pop operation should be a single member function: it should remove the top element from the stack and return it to the caller. One complication is what to do when the stack is empty. We have multiple options here. We could return a pair of the value and a Boolean flag that indicates whether the stack was empty (the value would have to be default-constructed in this case). We could return the Boolean alone and pass the value by reference (it remains unchanged if the stack is empty). In C++17, the natural solution is to return std::optional, as shown in the following code. It's a perfect fit for the job of holding a value that may not exist:
+幸运的是，由于我们正在编写自己的包装器类，所以不需要逐个使用包装类的接口。那么，我们应该怎么做呢？显然，整个\texttt{pop}操作是一个成员函数，应该从堆栈中删除顶部元素，并将其返回给调用者。问题是当堆栈为空时该做什么？有多种选择。可以返回一对值和一个布尔标志，该标志指示堆栈是否为空(在这种情况下，该值必须有默认构造)。也可以单独返回布尔值，并通过引用传递该值(如果堆栈为空，则该值保持不变)。在C++ 17中，解决方案是返回\texttt{std::optional}，如以下代码所示。它非常适合持有可能并不存在的值:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -67,15 +67,15 @@ template <typename T> class mt_stack {
 };
 \end{lstlisting}
 
-As you can see, the entire operation of popping the element from the stack is now protected by a lock. The key property of this interface is that it is transactional: each member function takes the object from one known state to another known state.
+如你所见，将元素从堆栈中弹出的整个操作现在都受到锁的保护。这个接口是事务性的:每个成员函数将对象从一个已知状态转到另一个已知状态。
 
-If the object has to transition through some intermediate states that are not sufficiently defined, such as the state after calling empty() but before calling pop(), then these states must be hidden from the caller. The caller is instead presented with a single atomic transaction: either the top element is returned, or the caller is informed that there isn't one. This ensures the correctness of the program; now, we can look at the performance.
+如果对象必须转换到一些中间状态，比如使用\texttt{empty()}之后，并在使用\texttt{pop()}之前的状态，这些状态必须对使用者不可见。相反，向使用者呈现的是单个原子事务:要么返回顶部的元素，要么通知调用者不能进行该操作，这确保了程序的正确性。现在，我们来看看性能。
 
-\subsubsubsection{7.3.2\hspace{0.2cm}Performance of mutex-guarded data structures}
+\subsubsubsection{7.3.2\hspace{0.2cm}使用互斥的性能}
 
-How well does our stack perform? Given that every operation is locked from start to finish, we should not expect the calls to the stack member function to scale at all. At best, all threads will execute their stack operations serially, but, in reality, we should expect some overhead from the locking. We can measure this overhead in a benchmark if we compare the performance of the multi-threaded stack with that of std::stack on a single thread.
+堆栈的性能如何？假设每个操作从开始到结束都是锁定的，那就不要对堆栈成员函数的性能有什么期待。最好的情况下线程都将串行地执行堆栈操作，但在实际中，我们应该预计到锁会带来一些开销。如果要比较多线程堆栈和普通\texttt{std::stack}的性能，我们可以在基准测试中进行对比。
 
-To simplify the benchmark, you may choose to implement a single-threaded non-blocking wrapper around std::stack that presents the same interface as our mt\_stack. Beware that you cannot benchmark just by pushing on the stack: your benchmark will probably run out of memory.  Similarly, you cannot reliably benchmark the pop operation unless you want to measure the cost of popping from an empty stack. If the benchmark runs long enough, you have to combine both push and pop. The simplest benchmark may look like this:
+为了简化基准测试，可以选择在\texttt{std::stack}上实现单线程的非阻塞包装器，该包装器提供与\texttt{mt\_stack}相同的接口。注意，不能仅通过推入堆栈来进行基准测试，这样基准测试可能会将内存耗尽。类似地，无法可靠地对弹出操作进行基准测试，除非想测量从空堆栈弹出的耗时。如果基准测试运行的时间足够长，就必须将推和弹结合起来。最简单的基准可以是这样的:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -93,45 +93,45 @@ void BM_stack(benchmark::State& state) {
 }
 \end{lstlisting}
 
-When running multi-threaded, there is a chance that some of the pop() operations will happen while the stack is empty. This may be realistic for the application for which you are designing the stack. Also, since the benchmark gives us only an approximation of the performance of the data structure in the real application, it may not matter. For a more accurate measurement, you would probably have to emulate the realistic sequence of push and pop operations produced by your application. Anyway, the results should look something like this:
+当运行多线程时，有可能在堆栈为空时进行\texttt{pop()}操作。对于处于设计阶段的堆栈来说，这可能是现实的。此外，由于基准测试仅向我们提供了真实应用程序中数据结构性能的近似值，其中的差异可以忽略。为了获得更精确的测量值，必须模拟应用程序，并执行真实的\texttt{push}和\texttt{pop}操作序列。结果应该是这样的:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/3.jpg}\\
-Figure 7.3 – Performance of a mutex-guarded stack
+图7.3 - 锁栈——使用互斥锁——的性能
 \end{center}
 
-Note that the "item" here is a push followed by a pop, so the value of "items per second" shows how many data elements we can send through the stack every second. For comparison, the same stack without any locks performs more than 10 times faster on a single thread:
+注意这里的“item”是“一个push，后面跟着一个pop”操作，所以“items per second”的值显示了每秒钟可以通过堆栈发送多少数据。为了进行比较，没有锁的堆栈在单个线程上的执行速度要比使用互斥锁快10倍多:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/4.jpg}\\
-Figure 7.4 – Performance of std::stack (compare with Figure 7.3)
+图7.4 - \texttt{std::stack}的性能(与图7.3相比)
 \end{center}
 
-As we can see, the simplest implementation of the stack using a mutex has rather poor performance. However, you should not be in a rush to find or design some clever threadsafe stack, at least not yet. The first question you should ask is, does it matter? What does the application do with the data on the stack? If, say, each data element is a parameter for a simulation that takes several seconds, it probably doesn't matter how fast the stack is. On the other hand, if the stack is at the heart of some real-time transaction processing system, its speed is likely the key to the performance of the entire system.
+如我们所见，使用互斥对象实现的堆栈性能相当差。但是，不要急于找到或设计一些聪明的线程安全堆栈，至少现在还不需要。这时，应该问的第一个问题是，这是咋回事？应用程序如何处理堆栈上的数据？例如，如果每个数据元素都需要耗时几秒钟模拟一个参数，那么堆栈的速度就不重要了。另一方面，如果堆栈位于某些实时事务处理系统的核心，那么它的速度可能是整个系统性能的关键。
 
-By the way, the results will likely be similar for any other data structure such as list, deque, queue, and tree, where the individual operations are much faster than the operations on the mutex. But before we can try to improve the performance, we have to consider exactly what kind of performance our application requires.
+顺便说一下，结果可能与其他数据结构类似，如列表、双端队列、队列和树。其中，单个操作要比对互斥锁的操作快得多。但是，在尝试改进性能之前，我们必须准确地了解应用程序需要什么样的性能。
 
-\subsubsubsection{7.3.3\hspace{0.2cm}Performance requirements for different uses}
+\subsubsubsection{7.3.3\hspace{0.2cm}不同的性能需求}
 
-For the rest of this chapter, let's assume that the performance of the data structures matters in your application. Now, can we see the fastest stack implementation already? Again, not yet. We also need to consider the use model; in other words, what do we do with the stack and what exactly needs to be fast.
+本章的其余部分中，我们会假设数据结构的性能在应用程序中很重要。现在，可以来聊聊最快的堆栈实现了吗？还没到那个时候。我们还需要考虑使用的模型。换句话说，我们该如何处理堆栈，以及什么才是真正需要加速的东西。
 
-For example, as we have just seen, the key reason for the poor performance of the mutex-guarded stack is that its speed is essentially limited by the mutex itself. Benchmarking the stack operations is almost the same as benchmarking locking and unlocking the mutex. One way to improve the performance would be to improve the implementation of the mutex or use another synchronization scheme. Another way is to use the mutex less often; this way requires that we redesign the client code.
+正如刚才看到的，互斥锁堆栈性能较差的关键原因是，速度基本上受到互斥锁的限制，对堆栈操作进行基准测试几乎与对互斥锁的锁定和解锁进行基准测试结果相同。提高性能的一种方法是改进互斥锁的实现，或者使用另一种同步方案。另一种方法是少使用互斥锁，这要求我们重新设计客户端代码。
 
-For example, very often, the caller has multiple items that must be pushed onto the stack. Similarly, the caller may be able to pop several elements at once from the stack and process them. In this case, we can implement a batch push or a batch pop using an array or another container to copy multiple elements to and from the stack at once. Since the overhead of locking is large, we can expect that pushing, say, 1,024 elements on the stack with one lock/unlock operation is faster than pushing each one under a separate lock. Indeed, the benchmark shows this to be the case:
+例如，使用者通常有多个必须压入堆栈的项。类似地，使用者可以一次从堆栈中弹出几个元素并进行处理。这种情况下，可以使用数组或容器来实现批量推送或批量弹出，以便一次从堆栈中复制多个元素。由于锁定的开销很大，我们可以用锁定/解锁操作在堆栈上一次性推入1024个元素，这样就比用锁时一个一个推入元素来的快。事实上，基准测试也反映了这一点:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/5.jpg}\\
-Figure 7.5 – Performance of the batch stack operations (1,024 elements per lock)
+图7.5 - 批处理堆栈操作的性能(每个锁1,024个元素)
 \end{center}
 
-We should be very clear about what this technique does and does not accomplish: it reduces the overhead of the locking if the critical section is much faster than the lock operations themselves. It does not make the locked operations scale. Furthermore, by making the critical section longer, we force the threads to wait longer on the lock. This is fine if all threads are mostly trying to access the stack (this is why the benchmark is getting faster). But if, in our application, the threads are mostly doing other computations and only occasionally access the stack, the longer wait will likely degrade the overall performance. To answer definitively whether batch push and batch pop are beneficial, we would have to profile them in a more realistic context.
+我们应该非常清楚这种方式可以做哪些事，不能做哪些事:若临界区内的操作比锁操作本身快得多，就该减少锁的开销，但不能锁定操作的规模。此外，通过延长停留在临界区的时间，迫使线程在锁上等待更长时间。如果所有线程都尝试访问堆栈(这就是基准测试变得更快的原因)，那么没问题。但是，若在我们的应用程序中，线程主要是执行其他计算，只是偶尔访问堆栈，那么较长的等待可能会降低整体性能。为了明确地回答批量\texttt{push}和批量\texttt{pop}是否对性能有益，我们必须在更真实的环境中对它们进行分析。
 
-There are other scenarios where the search for a more limited, application-specific solution can yield performance gains far above what any improved implementation of a general solution can do. For example, this scenario is common in some applications: a single thread pushed a lot of data on the stack upfront, and then multiple threads remove the data from the stack and process it, and maybe push more data onto the stack. In this case, we can implement an unlocked push to be used only in the single-threaded context for the upfront push. While the responsibility is on the caller to never use this method in a multi-threaded context, the unlocked stack is so much faster than the locked one that it may be worth the complexity.
+其他一些场景中，寻找更有限的、特定于应用程序的解决方案，可以获得远高于通用解决方案的改进实现所能获得的性能收益。例如，这种场景在某些应用程序中很常见:单个线程将大量数据提前\texttt{push}到堆栈上，然后多个线程将数据从堆栈中删除并处理，可能还会将更多数据\texttt{push}到堆栈上。这种情况下，可以实现解锁的\texttt{push}，只在前置\texttt{push}的单线程中使用。虽然使用者的责任是永远不要在多线程中使用这个方法，但解锁的堆栈比锁定的堆栈快得多，因此这里的复杂性可能是值得的。
 
-More complex data structures offer a variety of use models, but even the stack can be used by more than simple push and pop. We can also look at the top element without deleting it. The std::stack provides the top() member function, but, once again, it is not transactional, so we have to create our own. It is very similar to the transactional pop() function, only without removing the top element:
+更复杂的数据结构提供了各种各样的使用模型，但即使是堆栈也可以使用，而不仅仅是简单的\texttt{push}和\texttt{pop}。我们也可以查看顶部的元素而不删除。\texttt{std::stack}提供了\texttt{top()}成员函数，但它不是事务性的，所以我们必须创建自己的函数。它非常类似于事务性的\texttt{pop()}函数，只是不移除顶部的元素:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -192,7 +192,7 @@ template <typename T> class rw_stack {
 
 Unfortunately, our benchmark shows that the performance of the call to top() by itself does not scale even with the read-write lock:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/6.jpg}\\
 Figure 7.6 – Performance of the stack with std::shared\_mutex; read-only operations
@@ -200,7 +200,7 @@ Figure 7.6 – Performance of the stack with std::shared\_mutex; read-only opera
 
 Even worse, the performance of the operations that need the unique lock is degraded even more compared to the regular mutex:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/7.jpg}\\
 Figure 7.7 – Performance of the stack with std::shared\_mutex; write operations
@@ -212,7 +212,7 @@ The longer critical section observation is of great importance: if our stack ele
 
 Despite the setback we have suffered with the read-write lock, we are on the right track with the idea of a more efficient implementation. But before we can design one, we have to understand in more detail what exactly each of the stack operations does and what are the possible data races at each step that we must guard against.
 
-\subsubsubsection{7.3.4\hspace{0.2cm}Stack performance in detail}
+\subsubsubsection{7.3.4\hspace{0.2cm}堆栈性能详情}
 
 As we try to improve the performance of the thread-safe stack (or any other data structure) beyond that of the simple lock-guarded implementation, we have to first understand in detail the steps involved in each operation and how they may interact with other operations executed on different threads. The main value of this section is not the faster stack but this analysis: it turns out that these low-level steps are common to many data structures. Let's start with the push operation. Most stack implementations are built on top of some array-like container, so let's view the top of the stack as a contiguous block of memory:
 
@@ -270,7 +270,7 @@ We could keep track of which elements are real and which ones are holes, but thi
 
 At this point in our design, we must pause the deep dive into the implementation details and again review the more general approach to the problem. There are two steps that we must do: generalize the conclusions from our deeper understanding of the details of the stack implementations and do some performance estimates to get a general idea about what solutions are likely to yield performance improvements. We will start with the latter.
 
-\subsubsubsection{7.3.5\hspace{0.2cm}Performance estimates for synchronization schemes}
+\subsubsubsection{7.3.5\hspace{0.2cm}同步方案的性能评估}
 
 Our first attempt at a very simple stack implementation without a lock yielded some interesting solutions for special cases but no general solution. Before we spend much more time building a complex design, we should try to estimate how likely is it that it is going to be more efficient than the simple lock-based one.
 
@@ -335,7 +335,7 @@ Figure 7.13 – Performance estimate for a hypothetical stack with a single CAS 
 
 Based on the estimates in Figure 7.13, there is a chance that, for a large number of threads, we can come up with something better than a simple lock-based stack. We are going to continue with our efforts to develop a lock-free stack. There are two reasons for it: first of all, this effort is ultimately going to pay off on some hardware. Second, the basic elements of this design will be seen later in many other data structures, and the stack offers us a simple test case for learning about them.
 
-\subsubsubsection{7.3.6\hspace{0.2cm}Lock-free stack}
+\subsubsubsection{7.3.6\hspace{0.2cm}无锁的堆栈}
 
 Now that we have decided to try and outperform a simple lock-based implementation, we need to consider the lessons we have learned from our exploration of the push and pop operations by themselves. Each operation is very simple by itself, but the interaction of the two is what creates complexity. This is a very common situation: it is much harder to correctly synchronize producer and consumer operations running on multiple threads than it is to handle only producers or only consumers. Remember this when designing your own data structures: if your application allows for any kind of limitation on the operations you need to support, such as producers and consumers are separate in time, or there is a single producer (or consumer) thread, you can almost certainly design a faster data structure for these limited operations.
 
