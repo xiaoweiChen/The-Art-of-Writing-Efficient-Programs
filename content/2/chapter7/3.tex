@@ -153,11 +153,11 @@ template <typename T> class mt_stack {
 };
 \end{lstlisting}
 
-Note that, to allow the lookup-only function, top(), to be declared const, we had to declare the mutex as mutable. This should be done with caution: the convention for multi-threaded programs is that, following the STL, all const member functions are safe to call on multiple threads as long as no non-const member functions are called. This generally implies that const methods do not modify the object, that they are truly read-only. The mutable data members violate this assumption. As a minimum, they should not represent the logical state of the object: they are only implementation details. Then, care should be taken to avoid any race conditions when modifying them. The mutex satisfies both of these requirements.
+注意，为了允许只进行查找\texttt{top()}声明为\texttt{const}，这里必须将互斥量声明为\texttt{mutable}。这样做时要小心:多线程程序的约定是遵循STL，只要不调用非\texttt{const}成员函数，所有\texttt{const}成员函数都可以安全地在多个线程上使用。这意味着\texttt{const}函数不会修改对象是只读的，而可变数据成员违背了这个假设。至少，它们不应该表示对象的逻辑状态。然后，在修改时应该小心避免竞争条件。互斥锁满足这两个要求。
 
-Now we can consider different use patterns. In some applications, the data is pushed on the stack and popped from it. In others, the top stack element may need to be examined many times between each push and pop. Let's focus on the latter case first. Examine the code for the top() method again. There is an obvious inefficiency here: because of the lock, only one thread can read the top element of the stack at any moment. But reading the top element is a non-modifying (read-only) operation. If all threads did that and no thread tried to modify the stack at the same time, we would not need the lock at all, and the top() operation would scale perfectly. Instead, it has a performance similar to that of the pop() method.
+现在可以考虑不同的使用模式。在某些应用程序中，数据\texttt{push}入堆栈，再从中\texttt{pop}出。其他情况下，堆顶元素可能需要在每次\texttt{push}和\texttt{pop}之间检查多次。我们先关注后一种情况，而后再次检查\texttt{top()}的代码。这里有一个明显的低效存在:由于锁的存在，在任何时刻只有一个线程可以读取栈顶元素。但是读取顶部元素是一个非修改(只读)操作。如果所有线程都这样做，并且没有线程同时尝试修改堆栈，那么根本就不需要锁。但现在，它的性能与\texttt{pop()}一样。
 
-The reason we cannot omit lock in top() is that we cannot be sure that another thread is not calling push() or pop() at the same time. But even then, we do not need to lock two calls to top() against each other; they can proceed simultaneously. Only the operations that modify the stack need to be locked. There is a type of lock that provides such functionality; it is most commonly called a read-write lock. Any number of threads can take the read lock, and these threads do not impede each other. However, the write lock can be taken by only one thread and only if no other thread holds the read lock. In C++, the terminology is different (but the functionality is exactly the same): the reader threads use the shared lock (any number of shared locks on the same mutex can exist at the same time), but the writer threads need the unique lock (only one such lock can exist on a given mutex). An attempt to take the shared lock will block if another thread holds a unique lock already; similarly, an attempt to take the unique lock will block if another thread holds any lock on the same mutex. With the shared mutex, we can implement the stack with exactly the kind of locking we need; the top() method uses the shared lock, so any number of threads can execute it simultaneously, but the push() and pop() methods require the unique lock:
+不能在\texttt{top()}中省略锁的原因是，不能确定另一个线程在同一时间没有使用\texttt{push()}或\texttt{pop()}。但即使这样，也不需要对\texttt{top()}的两次锁定，它们可以同时进行。只有修改堆栈的操作需要锁定。有一种类型的锁提供这样的功能，通常被称为\textbf{读写锁}。任何数量的线程都可以获得读锁，并且这些线程之间不会互相影响。但是，写锁只能由一个线程获得，而且只有在没有其他线程持有读锁的情况下才能获取。在C++中，术语不同(但功能完全相同):读线程使用共享锁(同一个互斥对象上的共享锁可以同时存在)，但写线程需要唯一锁(给定的互斥对象上只能存在一个这样的锁)。如果另一个线程已经持有唯一的锁，那么获取共享锁的尝试将会阻塞。同样，若另一个线程持有同一个互斥对象上的锁，那么获取唯一锁的尝试将会阻塞。有了共享互斥锁，就可以用我们需要的那种锁来实现堆栈。\texttt{top()}使用了共享锁，因此任意数量的线程都可以同时执行，但\texttt{push()}和\texttt{pop()}则需要唯一锁:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename T> class rw_stack {
@@ -190,27 +190,27 @@ template <typename T> class rw_stack {
 };
 \end{lstlisting}
 
-Unfortunately, our benchmark shows that the performance of the call to top() by itself does not scale even with the read-write lock:
+不幸的是，我们的基准测试显示，使用\texttt{top()}的性能即使在读写锁下也不会改变:
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/6.jpg}\\
-Figure 7.6 – Performance of the stack with std::shared\_mutex; read-only operations
+图7.6 - 使用\texttt{std::shared\_mutex}的栈性能——只读操作
 \end{center}
 
-Even worse, the performance of the operations that need the unique lock is degraded even more compared to the regular mutex:
+更糟糕的是，与普通互斥锁相比，唯一锁的性能下降得更厉害::
 
 %\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/7.jpg}\\
-Figure 7.7 – Performance of the stack with std::shared\_mutex; write operations
+图7.7 - 使用\texttt{std::shared\_mutex}栈的性能——写入操作
 \end{center}
 
-Comparing Figures 7.6 and 7.7 with the earlier measurements in Figure 7.4, we can see that the read-write lock did not give us any improvement at all. This conclusion is far from universal: the performance of different mutexes depends on the implementation and the hardware. However, in general, the more complex locks, such as the shared mutex, will have more overhead than the simple locks. Their target application is different: if the critical section itself took much longer (say, milliseconds instead of microseconds) and most threads executed read-only code, there would be great value in not locking the read-only threads against each other, and the overhead of a few microseconds would be much less noticeable.
+将图7.6和7.7与图7.4中早期测量值进行比较，可以看到读写锁并没有带来任何改进。这个结论并不普遍，因为不同互斥体的性能取决于实现和硬件。然而，更复杂的锁，比如共享互斥锁，会比简单锁有更多的开销。它们的目标程序是不同的:如果临界区内的操作花费的时间长得多(比如，毫秒而不是微秒)，并且大多数线程执行只读代码，那么不锁定只读线程将会有很大的价值，而且几微秒的操作开销将会少得多。
 
-The longer critical section observation is of great importance: if our stack elements were much larger and very expensive to copy, the performance of the locks would matter less compared to the cost of copying the large objects, and we would start to see scaling. However, assuming our overall goal is to make the program fast, rather than showing off a scalable stack implementation, we would optimize the entire application by eliminating the expensive copying altogether and using a stack of pointers instead.
+观察更长的临界段是非常重要的:如果堆栈元素较大，并且复制的代价非常昂贵，那么与复制大对象的代价相比，锁的性能就不重要了。但是，假设我们的总体目标是使程序快速，而不是展示可扩展的堆栈实现，我们将通过消除昂贵的复制，并使用指针堆栈来优化整个应用程序。
 
-Despite the setback we have suffered with the read-write lock, we are on the right track with the idea of a more efficient implementation. But before we can design one, we have to understand in more detail what exactly each of the stack operations does and what are the possible data races at each step that we must guard against.
+尽管读写锁遇到了挫折，但我们正确的走在实现更高效应用的路上。在设计之前，我们必须更详细地了解每个堆栈操作的作用，以及在每个步骤中必须避免可能出现的数据竞争。
 
 \subsubsubsection{7.3.4\hspace{0.2cm}堆栈性能详情}
 
