@@ -214,69 +214,69 @@ template <typename T> class rw_stack {
 
 \subsubsubsection{7.3.4\hspace{0.2cm}堆栈性能详情}
 
-As we try to improve the performance of the thread-safe stack (or any other data structure) beyond that of the simple lock-guarded implementation, we have to first understand in detail the steps involved in each operation and how they may interact with other operations executed on different threads. The main value of this section is not the faster stack but this analysis: it turns out that these low-level steps are common to many data structures. Let's start with the push operation. Most stack implementations are built on top of some array-like container, so let's view the top of the stack as a contiguous block of memory:
+在尝试提高线程安全堆栈(或其他数据结构)的性能(不是简单的锁保护实现)时，必须详细了解每个操作所涉及的步骤，以及它们如何与在不同线程上与其他操作交互。本节的目标不是更快的堆栈，而进行分析。因为底层步骤在许多数据结构中都有，这里我们从推操作开始。大多数堆栈实现都是建立在类似数组的容器上，所以我们把堆栈的顶部看作是一个连续的内存块:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/8.jpg}\\
-Figure 7.8 – Top of the stack for push operation
+图7.8 - 栈顶的\texttt{push}操作
 \end{center}
 
-There are N elements on the stack, so the element count is also the index of the first free slot where the next element would go. The push operation must increment the top index (which is also the element count) from N to N+1 to reserve its slot and then construct the new element in the slot N. Note that this top index is the only part of the data structure where the threads doing push can interact with each other: as long as the index increment operation is thread-safe, only one thread can see each value of the index. The first thread to execute the push advances the top index to N+1 and reserves the Nth slot, the next thread increments the index to N+2 and reserves the N+1st slot, and so on. The key point here is that there is no race for the slots themselves: only one thread can get a particular slot, so it can construct the object there without any danger of another thread interfering with it.
+堆栈上有N个元素，所以元素计数也是下一个元素要去的空闲槽索引。\texttt{push}操作必须将\texttt{top}索引(也是元素计数)从N增加到N+1，以保留槽位，然后在槽位N中构造新元素。注意，这个\texttt{top}索引是执行\texttt{push}操作的线程。只要索引增量操作是线程安全的，那么只有一个线程可以看到索引的值。执行\texttt{push}操作的第一个线程将顶部索引提升到N+1，并保留第N个槽位，下一个线程将索引增加到N+2，并保留第N+1个槽位，以此类推。这里的关键是插槽不存在竞争，因为只有一个线程可以获得特定的插槽，因此它可以在那里构造对象，而不会有其他线程进行干扰。
 
-This suggests a very simple synchronization scheme for the push operations: all we need is a single atomic value for the top index:
+这就为\texttt{push}操作提供了非常简单的同步方案，所需要的只是栈顶索引是原子值:
 
 \begin{lstlisting}[style=styleCXX]
 std::atomic<size_t> top_;
 \end{lstlisting}
 
-A push operation atomically increments this index and then constructs the new element in the array slot indexed by the old value of the index:
+\texttt{push}操作会自动增加这个索引，然后在数组槽中构造新元素(按索引的旧值索引):
 
 \begin{lstlisting}[style=styleCXX]
 const size_t top = top_.fetch_add(1);
 new (&data[top]) Element(… constructor arguments … );
 \end{lstlisting}
 
-Again, there is no need to protect the construction step from other threads. The atomic index is all we need to make the push operations thread-safe. By the way, this is true if we use an array as the stack memory. If we use a container such as std::deque, we cannot simply construct a new element over its memory: we have to call push\_back to update the size of the container, and that call is not thread-safe even if the deque does not need to allocate more memory. For this reason, data structure implementations that go beyond basic locks usually also have to manage their own memory. Speaking of memory, we have assumed so far that the array has space to add more elements, and we do not run out of memory. Let's stick with this assumption for now.
+同样，不需要保护构造步骤。要让\texttt{push}操作线程安全，我们只需要原子索引即可。顺便说一下，如果使用数组作为堆栈内存，也没问题。若使用\texttt{std::deque}这样的容器，就不能简单地在内存上构造一个新元素了，这里需要使用\texttt{push\_back}来更新容器，而且这个操作不是线程安全的，即\texttt{deque}可能不需要分配更多的内存。由于这个原因，不在锁管理下数据结构，通常需要自己管理内存。说到内存，到目前为止，我们假设数组有足够的空间添加更多的元素，并且不会耗尽内存。现在我们继续坚持这个假设。
 
-What we have so far is a very efficient way to implement a thread-safe push operation in a particular case: multiple threads may be pushing data onto the stack, but nobody is reading it until all push operations are done.
+现在，我们在特定情况下实现线程安全的\texttt{push}操作，是一种非常高效的方式:多个线程会将数据推送到堆栈上，但在所有的\texttt{push}操作完成之前不能读取数据。
 
-The same idea works if we have a stack with elements already pushed onto it, and we need to pop them (and no more new elements are added). Figure 7.8 works for this scenario as well: a thread atomically decrements the top count and then returns the top element to the caller:
+若有一个堆栈，其中已经有了元素，我们需要弹出它们(并且没有添加更多的新元素)，也可以使用相同的方法。图7.8也适用于这种场景:一个线程自动减少\texttt{top}计数，然后返回\texttt{top}元素:
 
 \begin{lstlisting}[style=styleCXX]
 const size_t top = top_.fetch_sub(1);
 return std::move(data[top]);
 \end{lstlisting}
 
-The atomic decrement guarantees that only one thread can access each array slot as the top element. Of course, this works only as long as the stack is not empty. We could change the top element index from an unsigned to a signed integer; then, we would know that the stack is empty when the index becomes negative.
+原子自减保证了只有一个线程可以访问顶部元素的数组槽。当然，这只在堆栈不是空的情况下才有效。我们可以将顶部元素的索引从无符号改为有符号整数，当索引为负时，我们就知道堆栈为空。
 
-This is, again, a very efficient way to implement thread-safe pop operation under very special conditions: the stack is already populated, and no new elements are added. In this case, we also know how many elements are on the stack, so it is fairly easy to avoid an attempt to pop the empty stack.
+这也是在非常特殊的条件下，实现线程安全的\texttt{pop}操作的一种非常有效的方式:堆栈已经填充，并且没有添加新元素。本例中，我们还需要知道堆栈上有多少元素，因此可以避免弹出空堆栈。
 
-In some specific applications, this may be of some value: if the stack is first populated by multiple threads without any pops and there is a clearly defined point in the program where it switches from adding data to removing it, then we have a great solution for each half of the problem. But let's continue to a more general case.
+一些特定的应用程序中，这可能是有价值的:若堆栈由多个线程填充，没有任何弹出，并且在程序中有明确定义的点，从添加数据切换到删除数据，那么就存在一个很好的解决方案。不过，现在我们想继续讨论更一般的情况。
 
-Our very efficient push operation is, unfortunately, of no help when it comes to reading from the stack. Let's consider again how we would implement the operation that pops the top element. We have the top index, but all it tells us is how many elements are currently being constructed; it says nothing about the location of the last element whose construction is completed (element N-3 in Figure 7.9):
+不幸的是，高效的\texttt{push}操作对于从栈中读取数据毫无帮助。让我们考虑如何实现弹出顶部元素的操作。我们有顶部索引，但它只告诉我们当前有多少元素正在构造。没有提到构造最后一个元素的位置(图7.9中的元素N-3):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/9.jpg}\\
-Figure 7.9 – Top of the stack for push and pop operations
+图7.9 - \texttt{push}和\texttt{pop}操作栈的顶部
 \end{center}
 
-Of course, the thread that does the push and, therefore, the construction, knows when it's done. Perhaps what we need is another count that shows how many elements are fully constructed. Alas, if only it was that simple. In Figure 7.9, let's assume that thread A is constructing the element N-2 and that thread B is constructing the element N-1. Obviously, thread A was the first to increment the top index. But it doesn't mean it will also be the first to complete the push. Thread B may finish the construction first. Now, the last constructed element on the stack has the index N-1, so we could advance the constructed count to N-1 (note that we jumped over element N-2, which is still in the middle of the construction). Now we want to pop the top element; no problem, the element N-1 is ready, and we can return it to the caller and remove it from the stack; the constructed count is now decremented to N-2. Which element should we pop next? The element N-2 is still not ready, but nothing in our stack warns us about it. We have only one count for completed elements, and its value is N-1. Now we have a data race between the thread that constructs a new element on the stack and the thread that tried to pop it.
+当然，执行\texttt{push}和构造操作的线程，知道什么时候完成构造。也许我们需要的是另一个计数，显示有多少元素完成构造。唉，要是有那么简单就好了。图7.9中，假设线程A正在构造元素N-2，而线程B正在构造元素N-1。显然，线程A是第一个增加顶索引的。但这并不意味着它也是第一个完成\texttt{push}操作的，也许线程B可以先完成构造。现在，堆栈上最后一个构造的元素的索引是N-1，所以可以将构造计数提升到N-1(注意，我们跳过了仍在构造中的元素N-2)。现在我们想要弹出顶部元素。没问题，因为元素N-1已经准备好了，所以可以把它返回给使用者，并从堆栈中移除，构造计数现在减少到N-2。接下来我们应该弹出哪个元素？元素N-2仍然没有准备好，但堆栈中没有任何警告。我们只有一个完成元素的计数，它的值是N-1。现在，在堆栈上构造新元素的线程和试图弹出新元素的线程之间出现了数据竞争。
 
-Even without this race, there is another problem: we just popped the element N-1, which was the right thing to do at the time. But while that was happening, a push was requested on thread C. Which slot should be used? If we use slot N-1, we risk overwriting the same element that is currently being accessed by thread A. If we use slot N, then, once all the operations are completed, we have a hole in the array: the top element is N, but the next one is not N-1: it was already popped, and we have to jump over it. Nothing in this data structure tells us that we must do so.
+即使没有竞争，还有另一个问题:只是弹出元素N-1，这在当时是正确的做法。但是，当线程C请求了一个\texttt{push}时，应该使用哪个插槽？如果使用槽位N-1，则可能会覆盖线程A当前访问的元素。如果我们使用槽位N，当所有的操作都完成，数组中就会出现一个洞:顶部的元素是N，但下一个元素不是N-1，N-1已经弹出，我们必须跳过它。据结构没有告诉我们必须这样做。
 
-We could keep track of which elements are real and which ones are holes, but this is becoming more and more complex (and doing it in a thread-safe manner will require additional synchronization that will reduce performance). Also, leaving many array slots unused wastes memory. We could attempt to reuse the holes for new elements pushed on the stack, but at this point, the elements are no longer stored consecutively, the atomic top count no longer works, and the whole structure begins to resemble a list. By the way, if you think that a list would be a great way to implement a thread-safe stack, wait until you see what it takes to implement a thread-safe list later in this chapter.
+我们可以跟踪哪些元素是实数，哪些元素是洞，但这些问题会将场面弄得越来越复杂(以线程安全的方式进行将需要额外的同步，这会降低性能)。另外，留下许多未使用的数组槽会浪费内存。我们可以尝试为\texttt{push}堆栈的新元素重用已空闲的槽，但这时元素不再连续存储，原子顶部计数不再工作，整个结构开始类似于一个链表。顺便说一下，如果认为链表是实现线程安全堆栈的好方法，在本章后面会看到如何实现线程安全的链表。
 
-At this point in our design, we must pause the deep dive into the implementation details and again review the more general approach to the problem. There are two steps that we must do: generalize the conclusions from our deeper understanding of the details of the stack implementations and do some performance estimates to get a general idea about what solutions are likely to yield performance improvements. We will start with the latter.
+在设计上，我们必须暂停深入研究实现细节，并再次检查解决问题的更一般方法。必须完成两个步骤:从对堆栈实现细节的更深入理解中总结出结论，并进行性能估计，以大致了解哪些解决方案可能会带来性能上的改进。我们先从后者开始。
 
 \subsubsubsection{7.3.5\hspace{0.2cm}同步方案的性能评估}
 
-Our first attempt at a very simple stack implementation without a lock yielded some interesting solutions for special cases but no general solution. Before we spend much more time building a complex design, we should try to estimate how likely is it that it is going to be more efficient than the simple lock-based one.
+我们第一次尝试在没有锁的情况下实现一个简单的堆栈，也产生了一些有趣的解决方案，但并没有通用的解决方案。在花更多的时间构建一个复杂的设计之前，应该试着评估其比基于锁的设计，更有效率的可能性有多大。
 
-Of course, this may seem like circular reasoning: in order to estimate the performance, we must first have something to estimate. But we don't want to do the complex design without at least some assurances that the effort will pay off, the assurances that require a performance estimate.
+当然，这看起来像是循环推理:为了估计性能，我们必须首先对一些东西进行评估。但是我们不想浪费时间进行复杂的设计，所以才需要进行性能评估。
 
-Fortunately, we can fall back on the general observations we learned earlier: the performance of concurrent data structures depends largely on how many shared variables are accessed concurrently. Let's assume that we can come up with a clever way to implement the stack with a single atomic counter. It is reasonable to assume that every push and pop will have to do at least one atomic increment or decrement of this counter (unless we are doing batch operations, but we already know that they are faster). We can get a reasonable performance estimate if we make a benchmark that combines push and pop on the single-threaded stack with an atomic operation on a shared atomic counter. There is no synchronization going on, so we have to use a separate stack for every thread to avoid race conditions:
+幸运的是，我们可以参考前面观察的结果:并发数据结构的性能，很大程度上取决于并发访问多少共享变量。假设我们可以想出一种聪明的方法，用一个原子计数器来实现堆栈。我们可以合理地假设，每次\texttt{push}和\texttt{pop}都必须对这个计数器进行至少一次原子递增或递减操作(除非正在进行批处理操作)。如果将单线程堆栈上的\texttt{push}和\texttt{pop}与共享原子计数器上的原子操作结合起来进行基准测试，可以得到一个合理的性能评估。因为没有同步，所以我们必须为每个线程使用单独的堆栈，以避免竞争条件:
 
 \begin{lstlisting}[style=styleCXX]
 std::atomic<size_t> n;
@@ -297,53 +297,53 @@ void BM_stack0_inc(benchmark::State& state) {
 }
 \end{lstlisting}
 
-Here, st\_stack is a stack wrapper that presents the same interface as our lock-based mt\_stack but without any locks. The real implementation is going to be somewhat slower because the stack top is also shared between threads, but this will give us an estimate from above: it is highly unlikely that any implementation that is actually threadsafe will outperform this artificial benchmark. What do we compare the results to? The benchmark of the lock-based stack in Figure 7.3 shows the performance of the lock-based stack to be between 30M push/pop operations per second on one thread and 3.1M on 8 threads. We also know the baseline performance of the stack without any locks to be about 485M operations per second (Figure 7.4). On the same machine, our performance estimate with a single atomic counter yields these results:
+这里，\texttt{st\_stack}是堆栈包装器，提供了与基于锁的\texttt{mt\_stack}相同的接口，但不使用任何锁。实际表现会稍微慢一些，因为堆栈顶部在线程之间共享，但这将会是对上面实现的评估:任何真正线程安全的实现都不太可能比这个基准测试的性能更好。那我们用什么来比较结果呢？图7.3中基于锁的堆栈基准展示了堆栈的性能，在一个线程上每秒进行30M次\texttt{push/pop}操作，在8个线程上每秒进行3.1M的\texttt{push/pop}操作。在没有任何锁的情况下，堆栈的基线性能大约是每秒\texttt{485M}个操作(图7.4)。在同一台机器上，我们使用单个原子计数器进行性能评估，结果如下:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/10.jpg}\\
-Figure 7.10 – Performance estimate of a hypothetical stack with a single atomic counter
+图7.10 - 性能评估——使用单个原子计数器的堆栈
 \end{center}
 
-The result seems like a mixed bag: even under optimal conditions, our stack is not going to scale. Again, this is primarily because we are testing a stack of small elements; if the elements were large and expensive to copy, we would see scaling because multiple threads can copy data at the same time. But the earlier observation stands: if copying data becomes so expensive that we need many threads to do it, we are better off using a stack of pointers and not copying any data at all.
+结果看起来很复杂:即使在最优条件下，我们的堆栈性能也不会改变。同样，这主要是因为测试的是一堆小元素;如果元素很大，且复制成本很高，就会看到性能的扩展，因为多个线程可以同时复制数据。但早期的观察是正确的:如果复制数据变得非常昂贵，我们需要很多线程来完成它，最好使用指针堆栈，从而不用复制任何数据。
 
-On the other hand, the atomic counter is much faster than the mutex-based stack. Of course, this is an estimate from above, but it suggests that a lock-free stack has some possibilities. However, so does the lock-based stack: there are more efficient locks than std::mutex when we need to lock very short critical sections. We had already seen one such lock in Chapter 6, Concurrency and Performance, when we implemented a spinlock. If we use this spinlock in our lock-based stack, then, instead of Figure 7.2, we get these results:
+另一方面，原子计数器要比基于互斥锁的堆栈快得多。当然，这是上面的评估，但它表明无锁堆栈存在一些可能性。然而，基于锁的堆栈也是如此:当需要锁定非常小的临界区时，有比\texttt{std::mutex}更高效的锁。当我们实现自旋锁后(我们已经在第6章中看到过一个这样的锁)，并在基于锁的堆栈中使用这个自旋锁，那么，与图7.2不同，我们得到以下结果:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/11.jpg}\\
-Figure 7.11 – Performance of the spinlock-based stack
+图7.11 - 基于自旋锁堆栈的性能
 \end{center}
 
-Comparing this result with Figure 7.10 paints a very depressing picture: we are not going to come up with a lock-free design that can outperform a simple spinlock. The reason that the spinlock can outperform an atomic increment in some cases has to do with the relative performance of different atomic instructions on this particular hardware; we should not read too much into it.
+将这个结果与图7.10进行比较，会得出一幅非常令人沮丧的结果:我们想不出一个能比一个简单的自旋锁更好的无锁设计。某些情况下，自旋锁的性能优于原子增量的原因，与不同的原子指令在特定硬件上的相对性能有关。所以这里，我们不应该对此过度解读。
 
-We could try to do the same estimate with an atomic exchange or compare-and-swap instead of the atomic increment. As you learn more about designing thread-safe data structures, you will get a sense of which synchronization protocol is likely to be useful and what operations should go into the estimate. Also, if you work with particular hardware, you should run simple benchmarks to determine which operations are more efficient on it. All results so far were obtained on X86-based hardware. If we run the same estimates on a large ARM-based server designed specifically for HPC applications, we get a very different outcome. The benchmark of a lock-based stack yields these results:
+我们可以尝试用原子交换或比较-交换代替原子增量来完成相同的评估测试。随着了解了更多关于设计线程安全数据结构的知识，还将了解到哪些同步协议可能是有用的，以及应该在评估中加入哪些操作。此外，如果使用特定的硬件，应该运行简单的基准来确定哪些操作在该硬件上更高效。目前，所有的结果都是在基于x86的硬件上获得的。如果在专门为HPC应用程序设计的基于ARM的大型服务器上运行相同的评估测试，我们会得到非常不同的结果。基于锁的堆栈的基准测试结果如下所示:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/12.jpg}\\
-Figure 7.12 – Performance of the lock-based stack on an ARM HPC system
+图7.12 - 基于锁的堆栈在ARM HPC系统上的性能
 \end{center}
 
-The ARM systems typically have a much larger number of cores than X86 systems, while the performance of a single core is lower. This particular system has 160 cores on two physical processors, and the performance of the lock drops significantly when the program runs on both CPUs. The estimate for the upper limit of the lock-free stack performance should be done with a compare-and-swap instruction instead of the atomic increment (the latter is particularly inefficient on these processors).
+ARM系统通常比x86系统有更多的内核，而单个内核的性能较低。这个特定的系统在两个物理处理器上有160个核，当程序在两个CPU上运行时，锁的性能会显著下降。对无锁堆栈性能上限的估计应该使用比较-交换指令来完成，而不是使用原子增量(后者在这些处理器上的效率特别低)。
 
 \hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/13.jpg}\\
-Figure 7.13 – Performance estimate for a hypothetical stack with a single CAS operation (ARM processors)
+图7.13 —— 堆栈中CAS操作的性能评估(ARM处理器)
 \end{center}
 
-Based on the estimates in Figure 7.13, there is a chance that, for a large number of threads, we can come up with something better than a simple lock-based stack. We are going to continue with our efforts to develop a lock-free stack. There are two reasons for it: first of all, this effort is ultimately going to pay off on some hardware. Second, the basic elements of this design will be seen later in many other data structures, and the stack offers us a simple test case for learning about them.
+根据图7.13中的评估，对于大量的线程，我们有可能想出比简单的基于锁的堆栈更好的方法。我们将继续努力开发一个无锁堆栈，原因有二:首先，这种努力最终会在某些硬件上得到回报。其次，这个设计的基本元素将在许多其他数据结构中看到，并且堆栈提供了一个简单的测试用例进行学习。
 
 \subsubsubsection{7.3.6\hspace{0.2cm}无锁的堆栈}
 
-Now that we have decided to try and outperform a simple lock-based implementation, we need to consider the lessons we have learned from our exploration of the push and pop operations by themselves. Each operation is very simple by itself, but the interaction of the two is what creates complexity. This is a very common situation: it is much harder to correctly synchronize producer and consumer operations running on multiple threads than it is to handle only producers or only consumers. Remember this when designing your own data structures: if your application allows for any kind of limitation on the operations you need to support, such as producers and consumers are separate in time, or there is a single producer (or consumer) thread, you can almost certainly design a faster data structure for these limited operations.
+既然我们已经决定尝试，并超越一个简单的基于锁的实现，那么需要考虑一下从\texttt{push}和\texttt{pop}操作本身的探索中获得的经验教训。每一个操作本身都很简单，但两者的交叉使用却增加了复杂性。这是一种非常常见的情况:在多个线程上正确地同步生产者和消费者操作，要比只处理生产者或消费者操作困难得多。在设计自己的数据结构时请记住这一点:如果应用程序允许对需要支持的操作进行类型限制，例如生产者和消费者在时间上是分开的，或者有一个生产者(或消费者)线程，那么肯定可以为这些有限的操作，设计一个更快的数据结构。
 
-Assuming that we need a fully generic stack, the essence of the problem of the producerconsumer interaction can be understood on a very simple example. Again, we assume that the stack is implemented on top of an array or an array-like container, and the elements are stored consecutively. Let's say that we have N elements currently on the stack. The producer thread P is executing the push operation, and the consumer thread C is executing the pop operation at the same time. What should be the outcome? While it is tempting to try to come up with a wait-free design (like we did for only consumers or only producers), any design that allows both threads to proceed without waiting is going to break our fundamental assumption about how the elements are stored: the thread C has to either wait for the thread P to complete the push or return the current top element, N. Similarly, the thread P has to either wait for the thread C to complete or construct a new element in the slot N+1. If neither thread waits, the result is a hole in the array: the last element has the index N+1, but there is nothing stored in the slot N, so we must somehow skip it when we pop data from the stack.
+假设需要一个完全通用的堆栈，生产者-消费者交互问题的本质可以通过一个简单的例子来理解。同样，假设堆栈是在数组或类似数组的容器之上实现，并且元素是连续存储。假设堆栈上现在有N个元素，生产者线程P正在执行\texttt{push}操作，同时消费者线程C正在执行\texttt{pop}操作。结果是什么？虽然我们很想尝试一种无等待的设计(就像我们为仅消费者或仅生产者所做的那样)，但任何允许两个线程在不等待的情况下进行的设计，都将打破我们关于元素如何存储的假设:线程C必须等待线程P完成\texttt{push}操作，或者返回当前的顶部元素N。类似地，线程P必须等待线程C完成\texttt{push}操作，或者在槽N+1中构造一个新元素。如果两个线程都没有等待，那数组中就出现了一个空洞:最后一个元素的索引是N+1，但槽位N中没有存储任何内容，所以当从堆栈中弹出数据时，必须以某种方式跳过它。
 
-It looks like we have to give up the idea of the wait-free stack implementation and make one of the threads wait for the other one to complete its operation. We also have to deal with the possibility of the empty stack when the top index is zero and a consumer thread attempts to further decrement it. A similar problem occurs at the upper bound of the array when the top index points to the last element and a producer thread needs another slot.
+看起来必须放弃无等待堆栈实现的想法，让其中一个线程等待另一个线程完成它的操作。我们还必须处理当顶部索引为0，且消费者线程试图进一步减少它时堆栈为空的可能性。当顶部索引指向最后一个元素时，在数组的上界也会出现类似的问题，而生产者线程需要另一个槽。
 
-Both of these problems require a bounded atomic increment operation: perform the increment (or decrement) unless the value equals the specified bound. There is no readymade atomic operation for this in C++ (or on any mainstream hardware available today), but we can implement it using compare-and-swap (CAS) as follows:
+这两个问题都需要一个有界的原子自增操作:除非值等于指定值，才进行自增(或自减)。在C++中(或主流硬件上)没有现成的原子操作，但可以使用比较-交换(CAS)来实现，如下所示:
 
 \begin{lstlisting}[style=styleCXX]
 std::atomic<int> n_ = 0;
@@ -358,18 +358,18 @@ int bounded_fetch_add(int dn, int maxn) {
 }
 \end{lstlisting}
 
-This is a typical example of how CAS operation is used to implement a complex lock-free atomic operation:
+这是一个典型的例子，说明如何使用CAS操作实现一个复杂的无锁原子操作:
 
 \begin{enumerate}
-\item Read the current value of the variable.
-\item Check the necessary conditions. In our case, we verify that the increment would not give us the value outside of the specified bounds [0, maxn). If the bounded increment fails, we signal it to the caller by returning -1 (this is an arbitrary choice; usually, there is a specific action to be performed for the out-of-bounds case).
-\item Atomically replace the value with the desired result if the current value is still equal to what we read earlier.
-\item If step 3 failed, the current value has been updated, check it again, and repeat steps 3 and 4 until we succeed.
+\item 读取变量的当前值。
+\item 检查必要的条件。本例中，我们验证了增量不会给指定边界外的值[0, maxn]。如果有界增量失败，我返回-1(通常，对于越界的情况，需要执行特定的操作)。
+\item 如果当前值等于前面读取的值，则会原子地将该值替换为所需的结果。
+\item 如果步骤3失败，则当前值已更新，请再次检查它，并重复步骤3和4，直到成功。
 \end{enumerate}
 
-While this may seem to be a kind of lock, there is a fundamental difference: the only way the CAS comparison can fail on one thread is if it succeeded (and the atomic variable was incremented) on another thread, so any time there is a contention for the shared resource, at least one thread is guaranteed to make forward progress.
+虽然这看起来像是一种锁，但与锁有一个根本的区别:CAS比较在一个线程上失败的唯一原因是它在另一个线程上成功了(并且原子变量增加了)，所以出现共享资源争用时，至少有一个线程可以保证取得进展。
 
-There is one more important observation that often makes all the difference between a scalable implementation and a very inefficient one. The CAS loop, as written, is very hostile to the scheduling algorithms of most modern operating systems: the thread that loops unsuccessfully also consumes more CPU time and will be given higher priority. This is the exact opposite of what we want: we want the thread that is currently doing the useful work to run faster. The solution is for a thread to yield the scheduler after a few unsuccessful CAS attempts. This is accomplished by a system call that is OS-dependent, but C++ has a system-independent API via the call to std::this\_thread::yield(). On Linux, usually one can get better performance by calling the nanosleep() function to sleep for the minimum possible time (1 nanosecond) every few iterations of the loop:
+还有一个更重要的观察结论，它常常决定了可扩展的实现和非常低效的实现之间的差别。如前所述，CAS循环对大多数现代操作系统的调度算法非常不利:不能成功循环的线程会消耗更多的CPU时间，并将赋予更高的优先级。这与我们想要的完全相反，我们希望当前正在做有用工作的线程运行得更快。解决方案是让一个线程在尝试了几次不成功的CAS之后生成调度。这是通过依赖于操作系统的系统调用来完成的，但是C++有一个系统独立的API，通过\texttt{std::this\_thread::yield()}进行。在Linux上，可以通过每隔几次循环调用\texttt{nanosleep()}进行休眠，从而获得尽可能短的时间(1纳秒)来获得更好的性能:
 
 \begin{lstlisting}[style=styleCXX]
 int i = 0;
@@ -382,22 +382,23 @@ while ( … ) {
 }
 \end{lstlisting}
 
-The same approach can be used to implement much more complex atomic transactions, such as stack push and pop operations. But first, we have to figure out what atomic variables are needed. For the producer threads, we need the index of the first free slot in the array. For the consumer threads, we need the index of the last fully constructed element. This is all the information we need about the current state of the stack, assuming we do not allow "holes" in the array:
+同样的方法也可以用于实现更复杂的原子事务，比如堆栈\texttt{push}和\texttt{pop}操作，但我们必须先弄清楚需要哪些原子变量。对于生产者线程，我们需要数组中第一个空闲槽的索引。对于消费者线程，我们需要最后一个完成构造的元素的索引。这是我们需要的关于堆栈当前状态的所有信息，并不允许数组中有“洞”:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/2/chapter7/images/14.jpg}\\ Figure 7.14 – Lock-free stack: c\_ is the index of the last fully constructed element, and p\_ is the index of the first free slot in the array
+\includegraphics[width=0.9\textwidth]{content/2/chapter7/images/14.jpg}\\ 
+图7.14 —— 无锁堆栈:\texttt{c\_}是最后一个完成构造的元素的索引，\texttt{p\_}是数组中第一个空闲槽的索引
 \end{center}
 
-First of all, neither push nor pop can proceed if the two indices are currently not equal: different counts imply that either a new element is being constructed or the current top element is being copied out. Any stack modification in this state may lead to the creation of holes in the array.
+首先，如果两个索引当前不相等，\texttt{push}和\texttt{pop}都不能进行:不同的计数意味着要么构造一个新元素，要么是复制当前顶部元素。在这种状态下的堆栈修改都可能导致数组中出现空洞。
 
-If the two indices are equal, then we can proceed. To do the push, we need to atomically increment the producer index p\_ (bounded by the current capacity of the array). Then we can construct the new element in the slot we just reserved (indexed by the old value of p\_). Then we increment the consumer index c\_ to indicate that the new element is available to the consumer threads. Note that another producer thread could grab the next slot even before the construction is completed, but we would have to wait until all new elements are constructed before we allow any consumer thread to pop an element. Such an implementation is possible, but it is more complex, and it tends to favor the currently executed operation: if a push is currently in progress, a pop has to wait, but another push can proceed without delay. The result is likely to be a swarm of push operations executing while all consumer threads are waiting (the effect is similar if a pop operation is in progress; it favors another pop).
+如果两个索引相等，我们就可以继续。为了执行\texttt{push}操作，需要自动增加生产者索引\texttt{p\_}(受数组当前容量限制)。然后，可以在刚才保留的槽中构造新元素(以旧的\texttt{p\_}值为索引)。然后，增加消费者索引\texttt{c\_}，表示新元素对消费者线程可用。注意，另一个生产者线程甚至可以在构造完成之前获取下一个插槽，但必须等到所有新元素都构造好之后，才允许消费者线程弹出元素。这样的实现是可能的，但它更复杂，而且倾向于当前执行的操作:如果当前正在进行\texttt{push}，则\texttt{pop}必须等待，但另一个\texttt{push}可以立即进行。结果很可能是，当所有消费者线程都在等待时，一堆\texttt{push}操作正在执行(如果\texttt{pop}操作正在进行，效果类似)。
 
-The pop is implemented similarly, only we first decrement the consumer index c\_ to reserve the top slot, and then decrement p\_ after the object is copied or moved from the stack.
+\texttt{pop}的实现与此类似，只是首先递减消费索引\texttt{c\_}以保留顶部的位置，然后递减\texttt{p\_}从堆栈中复制或移动对象。
 
-There is just one more trick we have to learn, and that is how to manipulate both counts atomically. For example, we said earlier that a thread has to wait for the two indices to become equal. How can this be accomplished? If we read one index atomically and then the other index, also atomically, there is a chance that the first index has changed since we read it. We have to read both indices in a single atomic operation. The same is true for other operations on the indices. C++ allows us to declare an atomic struct of two integers; however, we must be careful: very few hardware platforms have a double CAS instruction that operates on two long integers atomically, and even then, it is usually very slow. The better solution is to pack both values into a single 64-bit word (on a 64-bit processor). The hardware atomic instructions such as load or compare-and-swap do not really care how you are going to interpret the data they read or write: they just copy and compare 64-bit words. You can later treat these bits as a long or a double or a pair of ints (the atomic increment is, of course, different, which is why you cannot use it on a double value).
+我们还需要学习一个技巧，那就是如何在原子上处理这两个数。例如，线程必须等待两个索引值相等。如何做到这一点？如果以原子的方式读取一个索引，然后以原子的方式读取另一个索引，那么第一个索引有可能在读取后发生了变化。我们必须在一个原子操作中读取两个索引，对索引的其他运算也是如此。C++允许我们声明由两个整数组成的原子结构体，但必须小心:很少有硬件平台有双CAS指令以原子的方式对两个长整数进行操作，即使这样可行，通常也会非常慢。更好的解决方案是将两个值打包到一个64位字中(在64位处理器上)。诸如load或compare-and-swap之类的硬件原子指令并不关心它们读或写的数据，只是复制和比较64位的数据。稍后可以将这些位作为long、double或一对int来处理(当然，原子增量只能是整数，这就是为什么不能将其用于double值的原因)。
 
-Now, all that is left is to convert the preceding algorithm into code:
+现在，剩下的就是将前面的算法转换成代码:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -423,11 +424,11 @@ template <typename T> class mt_stack {
 };
 \end{lstlisting}
 
-The two indices are 32-bit integers packed into a 64-bit atomic value. The method equal() may look strange, but its purpose will become evident in a moment. It returns true if the two indices are equal; otherwise, it updates the stored index values from the specified atomic variable. This follows the CAS pattern we have seen earlier: if the desired condition is not met, read the atomic variable again.
+这两个索引是装入64位原子值的32位整数。\texttt{equal()}可能看起来很奇怪，但是它的目的很快就会展现出来。如果两个下标相等，则返回true;否则，将从指定的原子变量更新存储的索引值。这遵循了我们前面看到的CAS模式:如果需要的条件没有满足，就再次读取原子变量。
 
-Note that we can no longer build our thread-safe stack on top of the STL stack: the container itself is shared between threads, and the push() and pop() operations on it are not thread-safe without locking even if the container is not growing. For simplicity, in our example, we used a deque that was initialized with a large enough number of default-constructed elements. As long as we don't call any container member functions, we can operate on different elements of the container from different threads independently. Remember that this is just a shortcut to avoid dealing with memory management and thread safety at the same time: in any practical implementation, you don't want to default-construct all the elements upfront (and the element type may not even have a default constructor). Often, high-performance concurrent software systems have their own custom memory allocators anyway. Otherwise, you can also use an STL container of a dummy type of the same size and alignment as the stack element type, but with a simple constructor and destructor (the implementation is simple enough and is left as an exercise to the reader).
+注意，我们不能再在STL堆栈的基础上构建线程安全的堆栈:容器本身在线程之间共享，即使容器没有增长，其上的\texttt{push()}和\texttt{pop()}操作也不是线程安全的。简单起见，我们使用了一个\texttt{deque}，该\texttt{deque}初始化时使用了足够多的默认构造元素。只要不调用容器成员函数，就可以在不同的线程独立地操作不同的元素。这只是避免同时处理内存管理和线程安全的一种方式:在任何实际实现中，都不希望默认构造所有元素(元素类型甚至可能没有默认构造函数)。通常，高性能并发软件系统都有自己的自定义内存分配器。要不，也可以使用与堆栈元素类型相同大小和对齐方式的虚拟STL容器，但使用简单的构造函数和析构函数(实现起来不难，留给读者作为练习)。
 
-The push operation implements the algorithm we discussed earlier: wait for the indices to become equal, advance the producer index p\_, construct the new object, and advance the consumer index c\_ when done:
+\texttt{push}操作实现了之前讨论过的算法:等待索引相等，推进生产者索引\texttt{p\_}，构造新的对象，当完成时推进消费者索引\texttt{c\_}:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -449,9 +450,9 @@ void push(const T& v) {
 }
 \end{lstlisting}
 
-The last CAS operation should never fail unless there is a bug in our code: once the calling thread successfully advanced p\_, no other thread can change either value until the same thread advanced c\_ to match (as we already discussed, there is an inefficiency in that, but fixing it comes at the cost of much higher complexity). Also, note that, for brevity, we omitted the call to nanosleep() or yield() inside the loop, but it is essential in any practical implementation.
+最后的CAS操作应该永远不会失败，除非我们的代码中有一个Bug:当调用线程成功地推进了\texttt{p\_}，其他线程就不能更改这两个值，直到同一个线程推进了\texttt{c\_}以匹配(这是一种低效，但修复它的代价是更高的复杂性)。另外，请注意，为了简便起见，我们省略了在循环中对\texttt{nanosleep()}或\texttt{yield()}的调用，但这在实际实现这个系统调用都是必不可少的。
 
-The pop operation is similar, only it first decrements the consumer index c\_ and then, when it is done removing the top element from the stack, decrements p\_ to match c\_:
+\texttt{pop}操作类似，首先递减消费者索引\texttt{c\_}，然后从堆栈中移除顶部元素时，递减\texttt{p\_}以匹配\texttt{c\_}:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -475,43 +476,43 @@ std::optional<T> pop() {
 }
 \end{lstlisting}
 
-Again, the last compare-and-swap should not fail if the program is correct.
+同样，如果程序正确，最后的compare-and-swap也不会失败。
 
-The lock-free stack is one of the simplest lock-free data structures possible, and it is already fairly complex. The testing required to validate that our implementation is correct is not straightforward: in addition to all the single-threaded unit tests, we have to validate that there are no race conditions. This task is made much easier by the sanitizer tools such as the Thread Sanitizer (TSAN) available in recent GCC and CLANG compilers. The advantage of these sanitizers is that they detect potential data races, not just the data races that actually happen during the test (in a small test, the chances to observe two threads accessing the same memory incorrectly at the same time are rather slim).
+无锁堆栈是可能的最简单的无锁数据结构之一，而且它相当复杂。验证我们的实现是否正确所需的测试并不简单:除了所有的单线程单元测试之外，还必须验证是否存在条件竞争。在最新的GCC和CLANG编译器中，可以使用诸如线程杀毒器(TSAN)之类的工具，这使得这项任务变得更加容易。这些工具的优点是，可以检测潜在的数据竞争，而不仅仅是测试期间实际发生的数据竞争(在小型测试中，观察到两个线程同时不正确地访问同一内存的机会非常小)。
 
-After all our effort, what is the performance of the lock-free stack? As expected, on X86 processors, it does not outperform the spinlock-based version:
+经过我们的努力，无锁堆栈的性能如何？如预期的那样，在x86处理器上，它的性能还是不敌基于自旋锁的版本:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/15.jpg}\\ 
-Figure 7.15 – Performance of the lock-free stack on X86 CPU (compare with Figure 7.11)
+图7.15 —— x86 CPU上无锁堆栈的性能(与图7.11相比)
 \end{center}
 
-For comparison, the spinlock-guarded stack can execute about 70M operations per second on the same machine. This is consistent with the expectations we had after the performance estimates in the previous section. The same estimates, however, suggested that the lock-free stack may be superior on ARM processors. The benchmark confirms that our efforts were not wasted:
+为了进行比较，自旋锁保护的堆栈可以在同一台机器上每秒执行大约70M个操作。这与我们在前一节的性能评估之后的预期一致。然而，同样的评估表明，无锁堆栈可能优于ARM处理器。基准测试证明了我们的努力没有白费:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/16.jpg}\\ 
-Figure 7.16 – Performance of the lock-free stack on ARM CPU (compare with Figure 7.12)
+图7.16 - ARM CPU上无锁堆栈的性能(与图7.12相比)
 \end{center}
 
-While the single-threaded performance of the lock-based stack is superior, the lock-free stack is much faster if the number of threads is large. The advantage of the lock-free stack becomes even greater if the benchmark includes a large fraction of top() calls (that is, many threads read the top element before one thread pops it) or if the producer and consumer threads are distinct (some threads call only push(), while other threads call only pop()).
+基于锁的堆栈单线程性能更好，如果线程数量大，则无锁堆栈的速度要快得多。如果基准测试包含大量的\texttt{top()}调用(也就是说，许多线程在一个线程抛出顶层元素之前读取了它)，或者如果生产者和消费者线程是不同的(一些线程只使用\texttt{push()}，而其他线程只使用\texttt{pop()})，那么无锁堆栈的优势就会变得更大。
 
-To conclude this section, we have explored the different implementations of a thread-safe stack data structure. To understand what is required for thread safety, we had to analyze each operation separately, as well as the interaction of multiple concurrent operations. The following are the lessons that we learned:
+为了结束本节，我们研究了线程安全堆栈数据结构的不同实现。为了理解线程安全需要什么，我们必须分别分析每个操作，以及多个并发操作的交互。以下是我们从中得到的经验:
 
 \begin{itemize}
 \item 
-With a good lock implementation, a lock-guarded stack offers reasonable performance and is much simpler than the alternatives.
+有了好的锁实现，锁保护的堆栈提供了合理的性能，并且比其他选择简单得多。
 
 \item 
-Any application-specific knowledge about the limitations on the use of the data structure should be exploited to gain performance cheaply. This is not the place to develop generic solutions, quite the opposite: implement as few features as you can and try to gain performance advantages from the restrictions.
+关于数据结构使用，限制的特定于应用程序的信息，都应该用来以较低的成本获得较好的性能。但这不是开发通用解决方案的地方，恰恰相反:实现尽可能少的特性，并试图从限制中获得性能优势。
 
 \item 
-A generic lock-free implementation is possible but, even for a data structure, that is as simple as a stack, it is quite complex. Sometimes, this complexity may even be justified.
+通用的无锁实现是可能的，但即使对于像堆栈这样简单的数据结构，也相当复杂。有时，这种复杂性甚至是合理的。
 
 \end{itemize}
 
-So far, we have skirted the issue of memory management: it is hidden behind the vague allocate more memory when the stack runs out of capacity. We will need to come back to that later. But first, let's explore more different data structures.
+目前为止，我们已经回避了内存管理的问题:当堆栈耗尽容量时，它隐藏在分配更多内存的后面。我们稍后会再回到这个问题上的。这里，先让我们探索一下其他的数据结构。
 
 
 
