@@ -1,7 +1,7 @@
 
-The next data structure we are going to consider is the queue. It is again a very simple data  structure, conceptually an array that is accessible from both ends: the data is added to the  end of the array and removed from the beginning of it. There are some very important  differences between the queue and the stack when it comes to implementation. There are  also many similarities, and we will refer to the previous section frequently. 
+继续下一个数据结构——队列，是一个非常简单的数据结构，可以从两端访问的数组:数据添加到数组的末尾，从数组的开头删除数据。实现时，队列和堆栈有一些重要的区别，也有很多相似之处，接下来的内容中，我们会经常将队列和堆栈进行对比。
 
-Just like the stack, the STL has a queue container, std::queue, and it has the exact  same problem when it comes to concurrency: the interface for removing elements is  not transactional, it requires three separate member function calls. If we wanted to use std::queue with a lock to create a thread-safe queue, we would have to wrap it just like we did with the stack:
+就像堆栈一样，STL也有队列容器\texttt{std::queue}，当涉及到并发性时，也有相同的问题:删除元素的接口不是事务性的，需要三个独立的成员函数共同完成。如果想要使用带有锁的\texttt{std::queue}创建一个线程安全的队列，就必须像对待堆栈那样对其进行包装:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -28,47 +28,47 @@ template <typename T> class mt_queue {
 };
 \end{lstlisting}
 
-We decided to use the spinlock right away (a simple benchmark can confirm that it is again faster than a mutex). The front() method, if desired, can be implemented similarly to the pop() method, only without removing the front element. The basic benchmark again measured the time it takes to push an element onto the queue and pop it back. Using the same X86 machine we did in the last section, we can obtain these  numbers:
+我们决定使用自旋锁(基准测试可以确认它比互斥锁快)。\texttt{front()}的实现方式与\texttt{pop()}相似，只是不需要删除头部元素。基准测试会测量将一个元素推入队列，并将其弹出所花费的时间。使用我们在上一节中做测试的x86机器，我们可以得到以下的数字:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/17.jpg}\\
-Figure 7.17 – Performance of a spinlock-guarded std::queue
+图7.17 - 由自旋锁保护的\texttt{std::queue}性能
 \end{center}
 
-For comparison, on the same hardware, std::queue without any locks delivers about 280M items per second (an item is a push and a pop, so we measure how many elements we can send through the queue per second). So far, the picture is very similar to what we have seen earlier for the stack. To do better than the lock-guarded version, we have to try to come up with a lock-free implementation.
+为了进行比较，在相同的硬件上，没有任何锁的\texttt{std::queue}每秒可以发送280M个元素(一个item表示\texttt{push}和\texttt{pop}，所以这里测量的是每秒可以通过队列吞吐多少个元素)。到目前为止，与堆栈的情况非常相似。为了比锁保护的版本更好，必须来尝试无锁实现。
 
-\subsubsubsection{7.4.1\hspace{0.2cm}Lock-free queue}
+\subsubsubsection{7.4.1\hspace{0.2cm}无锁队列}
 
-Before we dive into designing a lock-free queue, it is important to do a detailed analysis of each transaction, just like we did for the stack. Again, we will assume that the queue is built on top of an array or an array-like container (and we will defer the questions about what happens when the array is full). Pushing elements onto the queue looks just like it does for the stack: 
+开始设计无锁队列之前，要对每个事务进行详细的分析，就像对堆栈那样。同样，我们将假设队列建立在一个数组或类似数组的容器上(我们将推迟讨论关于数组满时会发生的问题)。将元素推入队列看起来就像堆栈一样:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/18.jpg}\\
-Figure 7.18 – Adding elements to the back of the queue (producer's view)
+图7.18 - 添加元素到队列的后面(生产者视角)
 \end{center}
 
-All we need is the index of the first empty slot in the array. Removing elements from the queue, however, is quite different from the same operation on the stack. You can see this  in Figure 7.19 (compare it with Figure 7.9):
+我们只需要数组中第一个空槽的下标。然而，从队列中删除元素与在堆栈上的相同操作有很大的不同。可以在图7.19中看到(与图7.9比较):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/19.jpg}\\
-Figure 7.19 – Removing elements from the front of the queue (consumer's view)
+图7.19 - 从队列前面移除元素(消费者视角)
 \end{center}
 
-The elements are removed from the front of the queue, so we need the index of the first element that has not been removed yet (the current front of the queue), and that index is also advanced. 
+元素从队列的头部删除，因此需要尚未删除的第一个元素的索引(队列的当前前面)。
 
-Now we come to the crucial difference between the queue and the stack: in the stack, both producer and consumer operate on the same location: the top of the stack. We have seen the consequences of this: once the producer started to construct a new element at the top of the stack, the consumer has to wait for it to complete. The pop operation cannot return the last constructed element without leaving a hole in the array, and it can't return the element being constructed until the construction is done.
+现在我们来看看队列和堆栈之间的区别:堆栈中，生产者和消费者都在同一个位置上操作:堆栈的顶部。我们已经看到了这样做的后果:若生产者开始在堆栈顶部构造新元素，消费者就必须等待其完成。\texttt{pop}操作不能返回最后一个构造的元素，而不会在数组中留下一个空洞，而且在构造完成之前，不能返回正在构造的元素。
 
-The situation is very different for the queue. As long as the queue is not empty, the producers and the consumers do not interact at all. The push operation does not need to know what the front index is, and the pop operation does not care where the back index is as long as it's somewhere ahead of the front. The producers and the consumers are not competing for access to the same memory location. 
+对于队列来说，情况就不同了。只要队列不是空的，生产者和消费者就根本不会交互。\texttt{push}操作不需要知道头部的索引是什么，而\texttt{pop}操作不关心尾部的索引在哪里。生产者和消费者不会对同一内存位置的访问进行竞争。
 
-Whenever we have the case that there are several different ways to access the data structure and they (mostly) do not interact with each other, the general suggestion is to first consider the scenario where these roles are assigned to different threads. The further simplification can be to start with the case of one thread of each kind; in our case, it means one producer thread and one consumer thread. 
+当遇到这样的情况，即有几种不同的方式来访问数据结构，并且它们(大多数)不相互交互。建议是首先考虑将这些角色分配给不同线程的场景，进一步的简化使用每一种线程的方式。我们的例子中，其意味着一个生产者线程和一个消费者线程。 
 
-Since only the producer needs access to the back index, and there is only one producer thread, we don't even need an atomic integer for this index. Similarly, the front index is just a regular integer. The only time the two threads interact with each other is when the queue becomes empty. For that, we need an atomic variable: the size of the queue. The producer constructs the new element in the first empty slot and advances the back index (in any order, there is only one producer thread). Then, it increments the size of the queue to reflect the fact that the queue now has one more element ready to be taken from it. 
+因为只有生产者需要访问返回索引，而且只有一个生产者线程，所以不需要为这个索引使用原子整数。类似地，前面的索引只是普通的整数。两个线程唯一相互交互的时候是队列变为空的时候。为此，需要一个原子变量，表示队列的大小。生产者在第一个空槽中构造新元素，并向前推进返回索引(可以以任何顺序，因为只有一个生产者线程)。然后，增加队列的大小，以反映队列现在有元素可以取出。 
 
-The consumer must operate in reverse order: first, check the size to make sure the queue is not empty. Then the consumer can take the first element from the queue and advance the front index. Of course, there is no guarantee that the size does not change between the time it is checked and the time the front element is accessed. But it does not cause any problems: there is only one consumer thread, and the producer thread can only increment the size. 
+消费者必须按相反的顺序操作:首先，检查队列大小，确保队列不为空。然后消费者可以从队列中获取第一个元素，并推进队列头部的索引。当然，不能保证在检查和访问头部元素时，队列大小不会改变。但这也不会引起任何问题:只有一个消费者线程，而生产者线程只能增加队列大小。
 
-While exploring the stack, we deferred the issue of adding more memory to the array and assumed that we somehow know the maximum capacity of the stack and will not exceed it (we could also make the push operation fail if that capacity is exceeded). For the queue, the same assumption is not enough: as the elements are added and removed from the queue, both the front and the back indices advance and will eventually reach the end of the array. Of course, at this point, we have the first elements of the array unused, so the simplest solution is to treat the array as a circular buffer and use modulo arithmetic for array indices:
+在探索堆栈的过程中，我们没讨论向数组添加更多内存的问题，并假设我们知道堆栈的最大容量，并且不会超过(如果超过了该容量，也可以使\texttt{push}操作失败)。对于队列，同样的假设就不够了:随着元素的添加和从队列中删除，前面和后面的索引都会移动，并最终到达数组的末尾。当然，数组的第一个元素未使用，所以最简单的解决方案是将数组视为循环缓冲区，并对数组下标使用取模运算:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -109,7 +109,7 @@ std::atomic<size_t> size_;
 };
 \end{lstlisting}
 
-This queue requires a special benchmark because of the constraints we accepted on its design: one producer thread and one consumer thread:
+队列需要一个特殊的基准测试，因为在设计上受了一些限制:一个生产者线程和一个消费者线程:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -134,39 +134,39 @@ BENCHMARK(BM_queue_prod_cons)->Arg(1)->Threads(2)
 BENCHMARK_MAIN();
 \end{lstlisting}
 
-For comparison, we should benchmark our lock-guarded queue under the same conditions (performance of the locks is generally sensitive to the exact nature of the contention between threads). On the same X86 machine, the two queues perform at roughly the same throughput of 100M integer elements per second. On the ARM processor, the locks are relatively more expensive, in general, and our queue is no exception:
+为了进行比较，应该在相同的条件下对锁保护的队列进行基准测试(锁的性能通常对线程间争用的确切性质敏感)。同一台x86机器上，两个队列的吞吐量大致相同，为每秒100M个整数元素。在ARM处理器上，锁相对来说更耗时，我们的队列也不例外:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/20.jpg}\\
-Figure 7.20 – Performance of a lock-based versus a lock-free queue of integers on ARM
+图7.20 - ARM上基于锁的整数队列与无锁整数队列的性能对比
 \end{center}
 
-However, even on X86, our analysis is not yet complete. In the previous section, we mentioned that if the stack elements are large, copying them takes relatively longer than the thread synchronization (locking or atomic operations). We could not make much use of it because most of the time, one thread still had to wait for the other thread to complete the copy, so the alternative was suggested: a stack of pointers, with the actual data stored elsewhere. The downside is that we need another thread-safe container to store this data (although often, the program needs to store it somewhere anyway). This is still a viable suggestion for the queue, but now we have another alternative. As we have already mentioned, the producer and consumer threads in the queue do not wait for each other: their interaction ends after the size is checked. It stands to reason that, if the data elements are large, the lock-free queue will have an advantage because both threads can copy the data at the same time and the contention between the threads, or the time when two threads are competing for access to the same memory location (the lock or the atomic value), is much shorter. To do such a benchmark, we just need to create a queue of large objects, such as a struct with a large array in it. As expected, the lock-free queue now performs faster, even on the X86 hardware:
+然而，即使是在x86上，我们的分析也不完整。前一节中，若堆栈元素很大，那么复制所需的时间要长于线程同步(锁定或原子操作)。我们不能充分利用使用这个堆栈，因为大多数时候，一个线程仍然需要等待另一个线程完成复制，所以提出了替代方案:指针堆栈，将实际数据存储在其他地方。缺点是，需要另一个线程安全的容器来存储这些数据(尽管程序通常需要将其存储在某个地方)。对于队列来说，这仍然是可行的建议，但现在我们有了另一个选择。正如我们已经提到的，队列中的生产者和消费者线程不会互相等待:它们的交互在检查大小后结束。如果数据元素很大，那么无锁队列就有优势，因为两个线程可以同时复制数据，并且比起线程之间竞争的时间要短得多。要进行这样的基准测试，只需要创建一个大型对象队列，比如一个包含大型数组的结构体。即使是在x86硬件上，也如预期的一样，无锁队列执行的更快:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/21.jpg}\\
-Figure 7.21 – Performance of a lock-based versus a lock-free queue of large elements on X86
+图7.21 - x86上基于锁的队列与无锁队列的性能对比
 \end{center}
 
-Even with the restrictions we have imposed, this is a very useful data structure: this queue can be used for transferring data between a producer and a consumer thread when we know an upper bound on the number of elements we can enqueue or can handle the situation when the producer has to wait before pushing more data. The queue is very efficient; even more important for some applications is the fact that it has very low and predictable latency: the queue itself is not just lock-free but wait-free. One thread never has to wait for the other unless the queue is full. By the way, if the consumer has to do certain processing on each data element it takes from the queue and starts falling behind until the queue fills up, one common approach is to have the producer process the elements it could not enqueue. This serves to delay the producer thread until the consumer can catch up (this method is not suitable for every application since it can process data out of order, but quite often, it works).
+即使有强加的限制，这也是非常有用的数据结构:当知道可以排队的元素数量的上限时，这个队列可以用于在生产者和消费者线程之间传输数据，或者处理生产者在推送更多数据之前等待的情况。队列非常高效，更重要的是它具有非常低的、可预测的延迟:队列本身不仅没有锁，而且也没有等待。一个线程永远不需要等待另一个线程，除非队列已满。顺便说一下，如果消费者必须对队列中获取的每个数据元素进行处理，并且开始消费能力小于队列增加的速度，这样队列会填满。这时，常见的方法是让生产者自己处理不能入队的元素。这将延迟生产者线程，直到消费者能够赶上生产的速率(这种方法并不适用于每个程序，因为会无序地处理数据，但通常这样做非常高效)。
 
-The generalization of our queue for the case of many producer or consumer threads is going to make the implementation more complex. The simple wait-free algorithm based on atomic size no longer works even if we make the front and back indices atomic: if multiple consumer threads read a non-zero value of size, this is no longer sufficient for all of them to proceed. With multiple consumers, the size can decrease and become zero after it was checked by one thread and found to be non-zero (it just means that the other threads popped all remaining elements after the first thread tested the size, but before it tried to access the front of the queue).
+对于许多生产者或消费者线程的情况，队列的泛化将使实现更加复杂。基于原子大小的无等待算法不再工作，即使我们使前端和后端索引原子化:如果多个消费者线程读取一个非零的值，这不再足以让其他线程继续。对于多个使用者，当一个线程检查发现非零时，大小可以减少，并变为零(这只是意味着在第一个线程测试大小之后，但在它尝试访问队列前端之前，其他线程弹出了剩余的所有元素)。
 
-One general solution is to use the same technique we used for the stack: pack the front and back indices into a single 64-bit atomic word and access them both atomically using compare-and-swap. The implementation is similar to that of the stack; the reader who understood the code in the previous section is well-prepared to implement this queue. There are other lock-free queue solutions that can be found in the literature; this chapter should give you sufficient background to understand, compare, and benchmark these implementations.
+通用的解决方案是使用与堆栈相同的技术:将\texttt{front}和\texttt{back}索引打包到一个64位原子类型中，并使用比较-交换以原子方式访问。其实现类似于堆栈的实现，理解了上一节中的代码的读者已经可以来实现这个队列了。在文献中还可以找到其他无锁队列解决方案，本章将提供足够的背景知识来理解、比较和基准测试这些实现。
 
-Implementing a complex lock-free data structure correctly is a time-consuming project that requires skill and attention. It is good to have some performance estimates before the implementation is complete, so we can know whether the effort is likely to pay off. We have already seen one approach to benchmarking the code that does not yet exist: a simulated benchmark that combines the operations on a non-thread-safe datastructure (local to eachthread) with the operations on shared variables (locks or atomic data). The goal is to come up with a computationally equivalent code fragment that can be benchmarked; it is never going to be perfect, but if we have an idea for a lock-free queue with three atomic variables and a compare-and-swap operation on each one, and we discover that the estimated benchmark is several times slower than the spinlock-guarded queue, the work of implementing the real queue is unlikely to pay off.
+正确地实现复杂的无锁数据结构是很耗时的工作，需要技能和注意力。完成实现之前需要进行一些性能评估，这样就可以知道努力是否可能得到回报。我们已经看到了一种对还不存在的代码进行基准测试的方法:模拟基准测试，将非线程安全数据结构(每个线程的本地)上的操作与共享变量(锁或原子数据)上的操作结合在一起。其目标是提出计算等效的代码，可以进行基准测试;不过，这样不会完美，如果有一个无锁队列的想法，它有三个原子变量，每个原子变量上都有比较和交换操作，并且发现评估的基准要比自旋锁保护的队列慢好几倍，那么实现出来的队列就不太可能有好的回报。
 
-The second way to benchmark partially implemented code is to construct benchmarks that avoid certain corner cases that we have not yet implemented. For example, if you expect the queue to not be empty most of the time, and your initial implementation does not handle the case of the empty queue, you should benchmark that implementation and restrict the benchmark so the queue never gets empty. This benchmark will tell you if you are on the right track: it will show what performance you can expect in the typical case of the non-empty queue. We had actually taken this approach already when we deferred handling of the case when the stack or the queue runs out of memory. We simply assumed that it's not going to happen very often and constructed the benchmark to avoid this case.
+对部分实现的代码进行基准测试的第二种方法是构造基准测试，以避免我们尚未实现的某些极端情况。例如，如果希望队列在大部分时间内不为空，并且初始实现不处理空队列的情况，那么应该对该实现进行基准测试，并限制基准测试，以便队列永远不会为空。这个基准测试将表明我们是否在正确的轨道上:它将显示在非空队列情况下期望的性能。实际上，当堆栈或队列耗尽内存时，我们已经采用了这种方法。我们只是简单地假设这种情况不会经常发生，并构建了基准测试来避免这种情况。
 
-There is yet another type of concurrent data structure implementation that can often be very efficient. We are going to learn about this technique next.
+还有另一种类型的并发数据结构实现，使用起来通常很高效。我们接下要来了解一下。
 
-\subsubsubsection{7.4.2\hspace{0.2cm}Non-sequentially consistent data structures}
+\subsubsubsection{7.4.2\hspace{0.2cm}顺序不一致的数据结构}
 
-Let's first revisit the simple question, what is a queue? Of course, we know what a queue is: it's a data structure such that the element added first is also retrieved first. Conceptually, and in many implementations, this is guaranteed by the order in which the elements are added to the underlying array: we have an array of queued elements, new entries are added to the front, while the oldest ones are read from the back.
+首先回到最开始的问题，什么是队列？当然，我们知道队列是什么，是一种数据结构，首先添加的元素先检索。许多实现中，元素添加到底层数组的顺序保证了这一点:我们有一个队列元素的数组，新元素添加到前面，而老元素从后面读取。
 
-But let's examine closely if this definition still holds for a concurrent queue. The code that is executed when an element is read from the queue looks something like this:
+让我们仔细检查一下这个定义是否仍然适用于并发队列。当从队列中读取一个元素时，执行如下代码:
 
 \begin{lstlisting}[style=styleCXX]
 T pop() {
@@ -177,59 +177,57 @@ T pop() {
 }
 \end{lstlisting}
 
-The return value may be wrapped in std::optional or passed by reference; it doesn't matter. The point is, the value is read from the queue, the back index is decremented, and the control returns to the caller. In a multi-threaded program, the thread can be preempted at any moment. It is entirely possible that if we have two threads, A and B, and thread A reads the oldest element from the queue, it is thread B that completes execution of pop() first and returns its value to the caller. Thus, if we enqueue two elements X and Y, in that order, and have multiple threads dequeue them and print their values, the program prints Y then X. The same kind of reordering can happen when multiple threads push elements onto the queue. The end result is that even if the queue itself maintains a strict order (if you were to pause the program and examine the array in memory, the elements are in the right order), the order of dequeued elements as observed by the rest of the program is not guaranteed to be exactly the order in which they were enqueued.
+返回值可以包装在\texttt{std::optional}中或通过引用传递，这无所谓。关键是，从队列中读取值，减少返回索引，并将元素值返回给调用者。在多线程程序中，线程可以在任何时候进行抢占。如果有两个线程A和B，并且线程A从队列中读取最老的元素，那么有可能是线程B首先完成\texttt{pop()}，并将其值返回给调用者。因此，如果按顺序将两个元素X和Y放入队列，并且有多个线程将它们取出并打印它们的值，那么程序将打印Y，然后打印X。当多个线程将元素推入队列时，也会发生同样的重新排序。最终的结果是，即使队列本身保持严格的顺序(如果暂停程序并检查内存中的数组，元素顺序正确)，程序其余部分退出队列的元素的顺序不能保证与进入队列的顺序完全一致。
 
-Of course, the order is not entirely random either: even in a concurrent program, a stack looks very different from a queue. The order of the data retrieved from a queue is approximately the order in which the values were added; significant rearrangements are rare (they happen when one thread is, for some reason, delayed for a significant time).
+当然，顺序也不是完全随机的:即使在并发程序中，堆栈看起来也与队列不同。从队列中检索到的数据的顺序与添加值的顺序大致相同，重大的重排很少发生(由于某种原因，当一个线程延迟了很长时间时，就会发生重大的重排)。
 
-There is another very important property that is still preserved by our queue: sequential consistency. A sequentially consistent program produces the output that is identical to the output of a program where operations from all threads are executed one at a time (without any concurrency), and the order of the operations executed by any particular thread is not changed. In other words, the equivalent program takes the sequences of operations executed by all threads and interleaves them but does not reshuffle them. 
+队列仍然会保留的属性:顺序一致性。顺序一致的程序产生的输出与所有线程一次执行一个操作(没有任何并发性)的程序的输出相同，任何特定线程执行操作的顺序都不会改变。换句话说，等价的程序接受所有线程执行的操作序列，并交叉执行，但不重新排序。
 
-Sequential consistency is a convenient property to have: it is much easier to analyze the behavior of such programs. For example, in the case of the queue, we have the guarantee that if two elements X and Y were enqueued by thread A, X first, then Y, and they happen to be both dequeued by thread B, they will come out in the correct order. On the other hand, we can argue that, in practice, it doesn't really matter: the two elements may be dequeued by two different threads, in which case they can appear in any order, so the program has to be able to handle it. 
+顺序一致性是一种方便的属性:分析这类程序的行为要容易得多。例如，在队列的情况下，线程A将两个元素X和Y入队，X先入队，然后是Y，并且线程B会将它们弹出队列，并且它们将以正确的顺序出现。另一方面，我们认为:这两个元素可能由两个不同的线程弹出队列，在这种情况下，它们可以以任何顺序出现，所以程序必须能够处理这样的情况。
 
-If we are willing to give up sequential consistency, this opens up a whole new approach to designing concurrent data structures. Let's explore it on the example of a queue. The basic idea is this: instead of a single queue thread-safe queue, we can have several single-threaded sub-queues. Each thread must atomically acquire exclusive ownership of one of these sub-queues. The simplest way to implement this is with an array of atomic pointers to the sub-queues, as shown in Figure 7.22. To acquire the ownership and, at the same time, prevent any other thread from getting access to the queue, we atomically exchange the sub-queue pointer with null.
+如果放弃顺序一致性，就为设计并发数据结构开辟了一种全新的方法。让我们以队列为例来探讨，其基本思想是:可以有几个单线程子队列，而非单个线程安全队列。每个线程必须以原子的方式获得这些子队列中的所有权。最简单的实现方法是使用指向子队列的原子指针数组，如图7.22所示。为了获得该队列的所有权，同时防止任何其他线程访问该队列，我们将子队列指针自动交换为空。
 
 \hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/22.jpg}\\
-Figure 7.22 – Non-sequentially-consistent queue based on an array sub-queue accessed via atomic 
-pointers
+图7.22 - 基于通过原子指针访问数组子队列的非顺序一致队列
 \end{center}
 
-A thread that needs to access the queue must first acquire a sub-queue. We can start from any element of the pointer array; if it's null, that sub-queue is currently busy, and we try the next element, and so on until we reserve a sub-queue. At this point, there is only one thread operating on the sub-queue, so there is no need for thread safety (the sub-queue can even be std::queue). After the operation (push or pop) is completed, the thread returns the ownership of the sub-queue to the queue by atomically writing the sub-queue pointer back into the array.
+需要访问队列的线程必须获得一个子队列，可以从指针数组的任何元素开始;如果为空，则该子队列当前处于繁忙状态，然后尝试下一个元素，以此类推，直到保留了一个子队列。此时，只有一个线程在子队列上操作，因此不需要线程安全(子队列甚至可以是\texttt{std::queue})。操作(\texttt{push}或\texttt{pop})完成后，线程原子性地将子队列指针写回数组，将子队列的所有权返回给队列。
 
-The push operation must continue to try to reserve the sub-queue until it finds one (alternatively, we can allow the push to fail after a certain number of tries and signal the caller that the queue is too busy). The pop operation may reserve a sub-queue only to find that it's empty. In this case, it has to try to pop from another sub-queue (we can keep an atomic count of elements in the queue to optimize the fast return if the queue is empty).
+\texttt{push}操作必须继续尝试保留子队列，直到找到子队列为止(或者，可以允许\texttt{push}在尝试一定次数后失败，向调用者发出队列太忙的信号)。\texttt{pop}操作可能会保留一个子队列，结果发现是空的。这种情况下，必须尝试从另一个子队列中弹出(可以在队列中保持元素的原子计数，若队列是空的，可以快速返回)。
 
-Of course, pop may fail on one thread and report that the queue is empty when in fact, it isn't because another thread has pushed new data onto the queue. But this could happen with any concurrent queue: one thread checks the queue size, finds that the queue is empty, but before the control is returned to the caller, the queue becomes non-empty. Again, the sequential consistency puts some limits on what kind of inconsistencies can be observed by multiple threads, while our non-sequentially consistent queue makes the order of outgoing elements much less certain. Still, the order is maintained on average. 
+当然，\texttt{pop}可能在一个线程上失败，并报告队列为空。而实际上，这并不是因为另一个线程将新数据推入队列。但这可能发生在任何并发队列上，一个线程检查队列大小，发现队列是空的，但在控制权返回给调用者之前，队列可能会成为非空队列。同样，顺序一致性对多个线程的可见性不一致性，进行了一些限制，而非顺序一致性队列使弹出元素的顺序变得不确定。尽管如此，这样的顺序还是能接受的。
 
-This is not the right data structure for every problem, but when the mostly queue-like most of the time order is acceptable, it can lead to significant performance improvements, especially in systems with many threads. Observe the scaling of the non-sequentially consistent queue on a large X86 server running many threads:
+这并不是适用于所有数据结构，但是当大多数类似于队列顺序可以接受时，顺序不一致可以产生显著的性能提升，特别是在有许多线程的系统中。在一个运行许多线程的大型x86服务器上，进行顺序不一致队列扩展后的情况:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \noindent
 \textbf{03b\_noncst\_queue.C}
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/2/chapter7/images/23.jpg}\\
-Figure 7.23 – Performance of the non-sequentially-consistent queue
+图7.23 - 顺序不一致队列的性能
 \end{center}
 
-In this benchmark, all threads do both push and pop operations, and the elements are fairly large (copying each element requires copying 1KB of data). For comparison, the spinlock-guarded std::queue delivers the same performance (about 170k elements per second) on a single thread but does not scale at all (the entire operation is locked), and the performance drops slowly (due to the overhead of locking) to about 130k elements per second for the maximum number of threads.
+这个基准测试中，所有线程都执行\texttt{push}和\texttt{pop}操作，并且元素相当大(复制每个元素需要复制1KB的数据)。为了进行比较，自旋锁保护的\texttt{std::queue}在单个线程上提供了相同的性能(大约每秒170k个元素)，但根本没有扩展性(整个操作都是锁定的)，而且性能下降得很慢(由于锁定的开销)，对于最大线程数来说，性能会下降到大约每秒130k个元素。
 
-Of course, many other data structures can benefit from this approach if you're willing to embrace the chaos of the non-sequentially-consistent programs for the sake of 
-performance. 
+当然，如果出于性能考虑，可以愿意接受顺序不一致程序的混乱，那么许多其他数据结构也可以使用这种方法。
 
-The last subject we need to cover when it comes to concurrent sequential containers such as stack and queue is how to handle the situation when they need more memory
+当涉及到并发顺序容器(如堆栈和队列)时，我们要讨论的最后一个主题是如何处理需要更多内存的情况
 
-\subsubsubsection{7.4.3\hspace{0.2cm}Memory management for concurrent data structures}
+\subsubsubsection{7.4.3\hspace{0.2cm}并行数据结构的内存管理}
 
-So far, we persisted in pushing back on the issue of memory management and assumed that the initial memory allocation for the data structure would suffice, at least for lock-free data structures that do not make the entire operation single-threaded. The lock-guarded and the non-sequentially-consistent data structures we have seen throughout this chapter do not have this problem: under the lock or exclusive ownership, there is only one thread operating on the particular data structure, so the memory is allocated in the usual way.
+目前为止，我们才来讨论内存管理的问题，并假设数据结构的初始内存分配已经足够，至少对于不会使整个操作变成单线程的无锁数据结构来说是这样的。本章中看到的锁保护的和顺序不一致的数据结构没有这个问题:在锁或抢占所有权的方式下，只有一个线程操作特定的数据结构，所以内存按照通常的方式分配。
 
-For a lock-free data structure, memory allocation is a significant challenge. It is usually a relatively long operation, especially if the data must be copied to the new location. Even though multiple threads may detect that the data structure ran out of memory, usually only one thread can add new memory (it is very hard to make that part multi-threaded as well), the remaining threads must wait. There is no good general solution to this problem, but we will present several recommendations.
+对于无锁数据结构，内存分配是一个重大挑战。这通常是一个耗时较长的操作，特别是当数据必须复制到新位置时。即使多个线程可能会检测到数据结构的内存耗尽，通常只有一个线程可以添加新的内存(很难让那部分也变成多线程)，其余的线程必须等待。对于这个问题没有好的通用解决方案，但是我们将给出一些建议。
 
-First of all, the best option is to avoid the problem altogether. In many situations, when a lock-free data structure is needed, it is possible to estimate its maximum capacity and preallocate the memory. For example, we may know the total number of data elements we are going to enqueue. Alternatively, it may be possible to push the problem back to the caller: instead of adding memory, we can tell the caller that the data structure is out of capacity; in some problems, this may be an acceptable trade-off for the performance of the lock-free data structure.
+首先，最好的选择是避免这个问题。许多情况下，当需要无锁数据结构时，可以估计其最大容量并预分配内存。例如，知道要进入队列的数据元素的总数。或者，可以将问题推给调用者:可以告诉调用者数据结构的容量不足，而不是增加内存。在某些问题中，对于无锁数据结构的性能来说，这可能是一个可以接受的折衷方案。
 
-If the memory needs to be added, it is highly desirable that adding memory should not require copying of the entire existing data structure. This implies that we can't simply allocate more memory and copy everything to the new location. Instead, we must store the data in memory blocks of a fixed size, the way std::deque does it. When more memory is required, another block is allocated, and there are usually a few pointers that need to be changed, but no data is copied. 
+如果需要增加内存，最理想的做法是添加内存时，不复制整个现有数据结构。这意味着我们不能简单地分配更多内存，并将所有内容复制到新位置。相反，必须将数据存储在固定大小的内存块中，就像\texttt{std::deque}一样。当需要更多内存时，会分配另一个内存块，通常会有一些指针地址需要更改，但不会复制数据。
 
-In all cases where memory allocation is done, this must be an infrequent event. If this is not so, then we are almost certainly better off with a single-threaded data structure protected by a lock or temporary exclusive ownership. The performance of this rare event is not critical, and we can simply lock the entire data structure and have one thread do the memory allocation and all the necessary updates. The key requirement is to make the common execution path, the one where we do not need more memory, as fast as possible. 
+在完成内存分配的所有情况下，这是很少发生的事件。如果不是这样，那么肯定使用由锁或独占所有权保护的单线程的数据结构最好。这个罕见事件的性能不是关键，我们可以简单地锁定整个数据结构，并让一个线程执行内存分配和所有必要的更新。关键的公共内存地址，也就是我们不需要更多内存的地址，所以会很快。
 
-The idea is very simple: we certainly do not want to acquire the memory lock on every thread every time, which would serialize the whole program. We also don't need to do this: most of the time, we are not out of memory, and there is no need for this lock. So instead, we are going to check an atomic flag. The flag is set only if memory allocation is currently in progress, and all threads must wait:
+这个想法非常简单:我们当然不希望每次都在每个线程上获取内存锁，这将串行化整个程序。我们也不需要这样做:大多数时候，不会内存不足，也不需要这个锁。因此，我们将检查原子标志。只有当内存分配正在进行，并且所有线程都必须等待时，才会设置该标志:
 
 \begin{lstlisting}[style=styleCXX]
 std::atomic<int> wait; // 1 if managing memory
@@ -244,7 +242,7 @@ if ( … out of memory … ) {
 … do the operation normally … 
 \end{lstlisting}
 
-The problem here is that multiple threads may detect the out-of-memory condition at the same time before one of them sets the wait flag; they would then all try to add more memory to the data structure. This usually creates a race (reallocating the underlying storage is rarely thread-safe). However, there is a simple solution known as the double-checked locking. It uses both a mutex (or another lock) and an atomic flag. If the flag is not set, all is well, and we can proceed as usual. If the flag is set, we must acquire the lock and check the flag again:
+这里的问题是，多个线程可能会在设置等待标志之前同时检测内存不足的情况。然后，尝试向数据结构中添加更多的内存。这通常会导致竞争(重新分配底层内存很少是线程安全的)。不过，有一种简单的解决方案，称为\textbf{双重检查锁}。它同时使用互斥锁(或另一个锁)和原子标志。如果标志没有设置，那么一切正常，我们可以照常进行。如果设置标志，则必须获取锁，并再次检查该标志:
 
 \begin{lstlisting}[style=styleCXX]
 std::atomic<int> wait;  // 1 if managing memory
@@ -261,11 +259,11 @@ if ( … out of memory … ) {
 … do the operation normally …
 \end{lstlisting}
 
-The first time, we check the out-of-memory condition without any locking. It is fast and, most of the time, we are not out of memory. The second time, we check it under the lock, where we have the guarantee that only one thread is executing at a time. Multiple threads may detect that we are out of memory; however, the first one to get the lock is the thread that handles this case. All remaining threads wait for the lock; when they acquire the lock, they do the second check (hence, double-checked locking) and discover that we are no longer out of memory. 
+第一次，我们检查内存不足的情况，没有任何锁。它速度很快，大多数时候，我们不会内存不足。第二次，我们在锁下检查它，在锁下可以保证一次只有一个线程在执行。多线程可能会检测到内存不足，但第一个获得锁的线程是处理这种情况的线程。所有剩余的线程都在等待锁。当它们获得锁时，则进行第二次检查(因此，双重检查锁)，并发现内存充足。
 
-This approach can be generalized to handle any special case that happens very infrequently but is much more difficult to implement in a lock-free manner than the rest of the code. In some cases, it may even be useful for situations such as the empty queue: as we have seen, the handling of multiple producers or multiple consumers would require a simple atomically incremented index if the two groups of threads never had to interact with each other. If, in a particular application, we have a guarantee that the queue rarely, if ever, becomes empty, we could favor an implementation that is very fast (wait-free) for the non-empty queue but falls back on a global lock if the queue might be empty.
+这种方法可以泛化来处理罕见的特殊情况，但与其他代码相比，以无锁的方式实现这种情况要困难得多。某些情况下，甚至可能对空队列这样的情况非常有用:正如所看到的，如果两个线程组从不相互交互，那么多个生产者或多个消费者的处理将需要原子递增的索引。如果在特定的应用程序中，我们能够保证队列很少(如果有的话)变成空，那么可以选择对于非空队列来说非常快(无需等待)的实现，但如果队列可能为空，则需要使用全局锁。
 
-We have covered the sequential data structures in enough detail now. It is time to study the nodal data structures next. 
+我们已经详细地介绍了顺序数据结构，接下来来研究一下节点数据结构。
 
 
 
