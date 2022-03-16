@@ -1,13 +1,13 @@
 
-C++20 added a few enhancements here and there to the existing concurrency support, but we are going to focus on the major new addition: coroutines. Coroutines, in general, are functions that can be interrupted and resumed. They are useful in several major applications: they can greatly simplify writing event-driven programs, they are almost unavoidable for work-stealing thread pools, and they make writing asynchronous I/O and other asynchronous code much easier
+C++20对现有的并发性进行了增强，但我们将重点关注新添加的特性:协程。协程具有中断和恢复功能的线程，在几种主要的应用程序中很有用:可以极大地简化事件驱动程序的编写，对于窃取工作的线程池来说，那必然要使用协程，而且会让异步I/O和其他异步的代码更加简单
 
-\subsubsubsection{8.4.1\hspace{0.2cm}The foundations of coroutines}
+\subsubsubsection{8.4.1\hspace{0.2cm}介绍协程}
 
-There are two styles of coroutines: stackful and stackless. Stackful coroutines are also sometimes called fibers; they are similar to functions wherein their state is allocated on the stack. Stackless coroutines have no corresponding stack allocations, their state is stored on the heap. In general, stackful coroutines are more powerful and flexible, but stackless coroutines are significantly more efficient.
+协同程序有两种风格:\textbf{有栈}和\textbf{无栈}。有栈协程有时也被称为\textbf{纤程}(fiber)，类似于在堆栈上分配状态的函数。无栈协程没有相应的堆栈，状态存储在堆中。通常，有栈协程更加强大和灵活，但是无栈协程会更高效。
 
-In this book, we will focus on stackless coroutines since this is what C++20 supports. This is a sufficiently unusual concept that we need to explain before we show C++-specific syntax and examples.
+本书中，我们将重点关注无栈协程，因为C++20支持。这是一个不寻常的概念，在展示C++特有的语法和示例之前，先来解释一下。
 
-A regular C++ function always has a corresponding stack frame. This stack frame exists for as long as the function is running, and that is where all the local variables and other states are stored. Here is a simple function f(): 
+常规的C++函数总是有一个相应的堆栈框架。只要函数在运行，栈帧就存在，所有的局部变量和其他状态都存储在这里。下面是一个简单的函数\texttt{f()}:
 
 \begin{lstlisting}[style=styleCXX]
 void f() {
@@ -15,7 +15,7 @@ void f() {
 }
 \end{lstlisting}
 
-It has a corresponding stack frame. The function f() may call another function, g():
+其中有一个栈帧。再函数\texttt{f()}调用另一个函数\texttt{g()}时:
 
 \begin{lstlisting}[style=styleCXX]
 void g() {
@@ -28,21 +28,21 @@ void f() {
 }
 \end{lstlisting}
 
-The function g() also has a stack frame that exists while the function is running. 
+函数\texttt{g()}在函数运行时也有一个栈帧。 
 
-Refer to the following figure:
+参考下图:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/2/chapter8/images/5.jpg}\\
-Figure 8.5 – Stack frames of regular functions
+\includegraphics[width=0.6\textwidth]{content/2/chapter8/images/5.jpg}\\
+图8.5 - 常规函数的栈帧
 \end{center}
 
-When function g() exits, its stack frame is destroyed, and only the frame of the function f() remains.
+当函数\texttt{g()}退出时，它的栈帧会销毁，只有函数\texttt{f()}的栈帧保留了下来。
 
-In contrast, the state of the stackless coroutine is not stored on the stack but on the heap: this allocation is called the activation frame. The activation frame is associated with a coroutine handle, which is an object that acts as a smart pointer. Function calls can be made and returned from, but the activation frame persists as long as the handle is not destroyed. 
+相反，无栈协程的状存储在堆上:这种分配称为\textbf{活帧}。活帧与协程句柄相关联，协程句柄是一个智能指针的对象。可以发出和返回函数的调用，只要句柄没有损坏，活帧就一直存在。
 
-The coroutine also needs stack space, for example, if it calls other functions. This space is allocated on the stack of the caller. Here is how it works (the real C++ syntax is different, so think of the coroutine-related lines as pseudocode for now):
+协程还需要堆栈空间，比如调用其他函数。该空间在调用者的堆栈上分配。下面是它的工作原理(C++语法有所不同，所以现在把协程相关的行为想象成伪代码):
 
 \begin{lstlisting}[style=styleCXX]
 void g() {
@@ -61,21 +61,21 @@ void f() {
 }
 \end{lstlisting}
 
-The corresponding memory allocations are shown in the following figure:
+对应的内存分配如下图所示:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/2/chapter8/images/6.jpg}\\
-Figure 8.6 – Coroutine call
+\includegraphics[width=0.6\textwidth]{content/2/chapter8/images/6.jpg}\\
+图8.6 - 调用协程
 \end{center}
 
-The function f() creates a coroutine handle object, which owns the activation frame. Then it calls the coroutine function coro(). There is some stack allocation at this point, in particular, the coroutine stores on the stack the address where it would return if it is suspended (remember that coroutines are functions that can suspend themselves). The coroutine can call another function g(), which allocates the stack frame of g() on the stack. At this point, the coroutine can no longer suspend itself: it is possible to suspend only from the top level of the coroutine function. Function g() runs the same way no matter who called it and eventually returns, which destroys its stack frame. The coroutine can suspend itself now, so let us assume that it does. 
+函数\texttt{f()}创建协程句柄，所以拥有活帧。然后调用协程函数\texttt{coro()}。这时有一些堆栈分配，协程在堆栈上存储了在挂起时返回的地址(记住，协程是可以挂起自己的函数)。协程可以调用另一个函数\texttt{g()}，将\texttt{g()}的栈帧分配到堆栈上。此时，协程不能再挂起:只有协程顶层函数可以挂起。函数\texttt{g()}无论谁调用最终都会返回，以同样的方式运行，这将破坏它的栈帧。协程现在可以挂起自己了，所以我们假设它挂起了。 
 
-This is the key difference between stackful and stackless coroutines: a stackful coroutine can be suspended anywhere, at an arbitrary depth of function calls, and will resume from that point. But this flexibility has a high cost in memory and especially runtime: stackless coroutines, with their limited state allocations, are much more efficient.
+这是有栈协程和无栈协程的关键区别:有栈协程可以在函数调用任意深度的地方挂起，并将从那里恢复。但是这种灵活性需要很高的内存成本，尤其是运行时成本:无栈协程由于其有限的状态，效率要高很多。
 
-When a coroutine suspends itself, parts of the state that are necessary to resume it are stored in the activation frame. The stack frame of the coroutine is then destroyed, and the control returns to the caller, to the point where the coroutine was called. The same happens if the coroutine runs to completion, but there is a way for the caller to find out whether the coroutine is suspended or done.
+当协程挂起时，恢复协程所需的部分状态会存储在活帧中。然后销毁协程的栈帧，并将控制权返回给调用者，直至协程调用的位置。如果协程完成，也会发生同样的情况，但是调用者有一种方法可以查询协程的状态是挂起还是完成。
 
-The caller continues its execution and may call other functions:
+调用者继续执行他的操作，并可以使用其他函数:
 
 \begin{lstlisting}[style=styleCXX]
 void h() {
@@ -91,15 +91,15 @@ void f() {
 }
 \end{lstlisting}
 
-The memory allocations now look as follows:
+内存分配看起来如下所示:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/2/chapter8/images/7.jpg}\\
-Figure 8.7 – Coroutine is suspended, execution continues
+\includegraphics[width=0.6\textwidth]{content/2/chapter8/images/7.jpg}\\
+图8.7 - 挂起协程，继续执行
 \end{center}
 
-Note that there is no stack frame corresponding to the coroutine, only the heap-allocated activation frame. The coroutine can be resumed as long as the handle object is alive. It does not have to be the same function that calls and resumes the coroutine; for example,  our function h() can resume it if it has access to the handle:
+注意，没有与协程对应的栈帧，只有堆分配的活帧。只要句柄对象处于活动状态，协程就可以恢复。不一定是调用和恢复协程的同一函数，例如：如果句柄可用，函数\texttt{h()}就可以恢复:
 
 \begin{lstlisting}[style=styleCXX]
 void h(H) {
@@ -115,56 +115,55 @@ void f() {
 }
 \end{lstlisting}
 
-The coroutine resumes from the point where it was suspended. Its state is restored from  the activation frame, and any necessary stack allocations will happen as usual:
+协程从暂停的地方重新开始，状态从活帧中恢复，任何必要的堆栈分配将像往常一样:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/2/chapter8/images/8.jpg}\\
-Figure 8.8 – Coroutine is resumed from a different function
+\includegraphics[width=0.6\textwidth]{content/2/chapter8/images/8.jpg}\\
+图8.8 - 协程从不同的函数处恢复
 \end{center}.
 
-Eventually, the coroutine completes, and the handle is destroyed; this deallocates all the memory associated with the coroutine.
+最终，协程完成，句柄销毁。这将释放与协程关联的所有内存。
 
-Here is a summary of what is important to know about C++20 coroutines:
+以下是关于C++20协程需要了解的主要内容:
 
 \begin{itemize}
 \item
-Coroutines are functions that can suspend themselves. This is different from the OS suspending a thread: suspending a coroutine is done explicitly by the programmer (cooperative multitasking).
+协程是可以挂起自己的函数。这与操作系统挂起一个线程不同:挂起一个协程是由开发者显式地完成的(多任务协作)。
 
 \item
-Unlike regular functions, which are associated with stack frames, coroutines have handle objects. Coroutine state persists as long as the handle is alive.
+与栈帧相关联的常规函数不同，协程具有句柄对象。只要句柄处于活动状态，协程状态就会保持。
 
 \item
-After the coroutine is suspended, the control is returned to the caller, which continues to run the same way as if the coroutine had completed. 
+协程挂起后，控制权将返回给调用者，调用者可以继续以相同的方式运行，就像协程已经完成一样。 
 
 \item 
-The coroutine can be resumed from any location; it does not have to be the caller itself. Furthermore, the coroutine can even be resumed from a different thread (we will see an example later in this section). The coroutine is resumed from the point of suspension and continues to run as if nothing happened (but may be running on a different thread).
+协程可以从任何位置恢复，不一定是调用者本身。此外，协程甚至可以从不同的线程恢复(将在本节后面看到一个示例)。协程从挂起点恢复，并继续运行，就像什么都没发生一样(但可能在不同的线程上运行)。
 \end{itemize}
 
-Now let us see how all of this is done in real C++.
+现在让我们了解一下所有这些在C++中是如何完成的。
 
-\subsubsubsection{8.4.2\hspace{0.2cm}Coroutine C++ syntax}
+\subsubsubsection{8.4.2\hspace{0.2cm}协程的C++语法}
 
-Let us now see the C++ language constructs that are used for programming with coroutines. 
+现在让我们看一下C++语言的构造，这些构造可用于协程编程。 
 
-The first order of business is getting a compiler that supports this feature. Both GCC and Clang have coroutine support in their latest versions, but, unfortunately, not in the same way. For GCC, you need version 11 or later. For Clang, partial support was added in version 10 and was improved in later versions, although it still remains "experimental."
+首先，是获得一个支持该特性的编译器。GCC和Clang在他们的最新版本中都支持协程，但不幸的是，方式不同。对于GCC您需要版本11或更高版本。对于Clang，在版本10中添加了部分支持，并在以后的版本中进行了加强，但仍然是“实验性的”。
 
-First of all, in order to compile coroutine code, you need a compiler option on the command line (merely enabling C++20 with the --std=c++20 option is not enough). For GCC, the option is –fcoroutines. For Clang, the options are -stdlib=libc++ -fcoroutines-ts. No options except /std:c++20 are needed for the latest Visual Studio.
+首先，为了编译协程代码，您需要在命令行上有一个编译器选项(使用\texttt{-std=c++20}选项启用C++20还不够)。对于GCC，这个选项是\texttt{-fcoroutines}。对于Clang，选项是\texttt{-stdlib=libc++ -fcoroutines-ts}。最新版的Visual Studio只需要\texttt{/std:c++20}，不需要其他选项。
 
-Then, you need to include the coroutines header. In GCC and Visual Studio (and according to the standard), the header is \#include <coroutine> and all the classes it declares are in namespace std. Unfortunately, in Clang, the header is \#include <experimental/coroutine> and the namespace is std::experimental. 
+然后，需要包含协程头文件。在GCC和Visual Studio中(根据标准)，头文件是\texttt{\#include <coroutine>}，声明的所有类都在标准命名空间\texttt{std}中。但在Clang中，头文件是\texttt{\#include <experimental/coroutine>}，使用的命名空间是\texttt{std::experimental}。
 
-There is no special syntax for declaring a coroutine: coroutines are, syntactically, just regular C++ functions. What makes them into coroutines is the use of the suspend operator co\_await or its variant, co\_yield. However, it's not enough to call one of these operators in the body of the function: coroutines in C++ have strict requirements for their return types. The standard library offers no help in declaring these return types and other classes necessary for working with coroutines. The language provides only a framework for programming with coroutines. As a result, the coroutine code that uses C++20 constructs directly is very verbose, repetitive, and contains a lot of boilerplate code. In practice, everybody who uses coroutines does so using one of several available coroutine libraries. 
+声明协程不需要特殊的语法，协程只是普通的C++函数。使它们成为协程的是使用暂停操作\texttt{co\_await}或其\texttt{co\_yield}。然而，在函数体中调用这些操作是不够的，C++中的协程对其返回类型有严格的要求。标准库在声明这些返回类型和其他处理协程所需的类时，没有提供任何帮助。语言仅提供了一个使用协程进行编程的框架。因此，直接使用C++20协程代码会非常冗长、重复，并且包含大量样板代码。实际中，每个使用协程的开发者都会使用一个可用的协程库。 
 
-For practical programming, so should you. However, in this book, we show you examples written in bare C++. We do it because we do not want to direct you toward any particular library and because doing so would obscure the understanding of what is really going on. The support for coroutines is very recent, and the libraries are rapidly evolving; it is unlikely that your library of choice will stay the same. We would like you to understand the coroutine code at the C++ level instead of at the level of abstractions presented by a particular library. Then you should choose a library based on your needs and use its abstractions.
+对于实际的编程，也应该这样做。本书中，我们将展示用简单的C++编写的示例。这样做的目的是，不想引入任何特定的库，而且这样做会模糊读者对实际情况的理解。对协程的支持是最近才出现的，这些库也在迅速发展，现在选择的库不一定会一直好用。我们希望在C++的级别理解协程代码，而不是在某个特定库所呈现的抽象级别理解协程代码。然后，应该根据自己的需要选择一个库，并使用它的抽象语法进行编程。
 
-A thorough description of the syntax constructs related to coroutines would be 
-remarkably non-intuitive: it is a framework, not a library. For that reason, we do the rest of the presentation using examples. If you really want to know all the syntax requirements for coroutines, you have to look up a very recent publication (or read the standard). But the examples should give you enough understanding of what coroutines can do that you can read the documentation for your favorite coroutine library instead and use it in your  programs.
+对与协程相关语法结构的全面描述非常不直观:它是一个框架，而不是一个库。出于这个原因，我们将使用示例来完成余下的演示。如果真的想知道协程的所有语法要求，必须查找最新的出版物(或阅读标准)进行了解。但是这些例子应该能对协程的功能有足够的展示，也可以阅读相关协程库的文档，并在程序中使用这个协程库。
 
-\subsubsubsection{8.4.3\hspace{0.2cm}Coroutine examples}
+\subsubsubsection{8.4.3\hspace{0.2cm}协程用例}
 
-The first example is probably the most common use of coroutines in C++ (and the one for which the standard provides some explicitly designed syntax). We are going to implement a lazy generator. Generators are functions that generate sequences of data; every time you call the generator, you get a new element of the sequence. A lazy generator is a generator that computes elements on demand, as it is called. 
+第一个例子是C++中协程最常见的用法(标准为协程提供了一些显式设计的语法)。我们将实现一个惰性生成器。生成器是生成数据序列的函数。每次调用生成器，都会得到序列的一个新元素。惰性生成器是按需计算元素的生成器。
 
-Here is a lazy generator based on C++20 coroutines:
+下面是一个基于C++20协程的惰性生成器:
 
 \hspace*{\fill} \\ %插入空行
 \noindent

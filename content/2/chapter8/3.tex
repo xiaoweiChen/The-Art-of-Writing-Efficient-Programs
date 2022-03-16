@@ -1,6 +1,6 @@
 C++17带来了重要修改和几个与并发相关的调整，先让我们快速讨论一下后者。在C++11中引入的\texttt{std::lock()}现在有一个相应的RAII对象，s\texttt{td::scoped\_lock}。添加了共享互斥锁\texttt{std::shared\_mutex}，或者称为读写互斥锁(同样，匹配POSIX相应的特性)。只要线程不需要独占访问锁定的资源，这个互斥锁允许多个线程同时进行操作。通常，这样的线程执行只读操作，而写线程需要独占访问，因此称为\textbf{读写锁}。理论上讲，这是一个聪明的想法，但大多数实现的性能都很糟糕。
 
-值得注意的是一个新特性，允许决定L1缓存的缓存行大小，\texttt{std::hardware\_destructive\_interference\_size}和\texttt{std::hardware\_constructive\_interference\_size}。这些常量有助于创建缓存优化的数据结构，避免错误共享。
+值得注意的是一个新特性，允许决定L1缓存的缓存行大小，\texttt{std::hardware\_destructive\_\linebreak interference\_size}和\texttt{std::hardware\_constructive\_interference\_size}。这些常量有助于创建缓存优化的数据结构，避免错误共享。
 
 现在来看看C++17的主要新特性——\textbf{并行算法}。我们熟悉的STL算法现在有了并行版本(总的来说，这组并行算法通常称为并行STL)。例如，下面是对\texttt{std::for\_each}的使用:
 
