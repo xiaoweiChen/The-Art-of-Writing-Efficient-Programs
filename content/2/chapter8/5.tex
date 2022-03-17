@@ -1,7 +1,7 @@
-C++11 was the first version of the standard to acknowledge the existence of threads. It laid the foundation for documenting the behavior of C++ programs in concurrent environments and provided some useful functionality in the standard library. Out of this functionality, the basic synchronization primitives and the threads themselves are the most useful. Subsequent versions extended and completed these features with relatively minor enhancements.
+C++11是第一个添加线程存在的标准，它为在并发环境中记录C++程序的行为奠定了基础，并在标准库中提供了一些有用的功能。除了这些功能之外，基本的同步原语和线程也是有用的。后续版本对这些特性进行了改进。
 
-C++17 brought a major advancement in the form of parallel STL. The performance is, of course, determined by the implementation. The observed performance is quite good as long as the data corpus is sufficiently large, even on hard-to-parallelize algorithms like search and partition. However, if the sequences of data are too short, parallel algorithms actually degrade the performance.
+C++17以并行STL的形式带来了重大的进步。当然，性能是由实现决定的。只要数据语料库足够大，观察到的性能就相当好，即使是在搜索和分区等难以并行化的算法上。然而，如果数据序列太短，并行算法的性能并不是很好。
 
-C++20 added coroutine support. You have seen how stackless coroutines work, in theory and on some basic examples. However, it is too early to talk about the performance and best practices for the use of C++20 coroutines.
+C++20增加了协程支持。我们已经从理论上和一些基本的示例中了解了无栈协程的工作方式。然而，现在谈论使用C++20协程的性能和最佳实践还为时过早。
 
-This chapter concludes our exploration of concurrency. Next, we go on to learn how the use of the C++ language itself influences the performance of our programs.
+本章结束了本书对并发的探索。接下来，我们继续学习C++语言本身的使用如何影响程序的性能。

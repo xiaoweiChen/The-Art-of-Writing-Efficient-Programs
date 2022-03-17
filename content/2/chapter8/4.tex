@@ -186,13 +186,13 @@ int main() {
 }
 \end{lstlisting}
 
-As promised, this is very low-level C++, you rarely see code like this, but it allows us to explain all the steps. First of all, the coroutine coro() looks like any other function, except for the co\_yield operator. This operator suspends the coroutine and returns the value i to the caller. Because the coroutine is suspended, not terminated, the operator can be executed multiple times. Just like any other function, the coroutine terminates when the control reaches the closing brace; at this point, it cannot be resumed. It is possible to exit the coroutine at any point by executing statement co\_return (the regular return statement should not be used).
+这是底层的C++代码，我们可以对其中涉及的每一步进行解释。首先，协程\texttt{coro()}看起来像个函数，\texttt{co\_yield}操作符除外。此操作符挂起协程，并将值\texttt{i}返回给调用者。因为协程挂起，而不是终止，所以操作符可以执行多次。和其他函数一样，协程在控件到达右大括号时终止。此时，无法恢复。通过\texttt{co\_return}(不应该使用常规的\texttt{return})，可以在退出协程。
 
-Second, the return type of the coroutine – generator – is a special type that we are about to define. It has a lot of requirements on it, which results in lengthy boilerplate code (any coroutine library will have such types predefined for you). We can already see that generator contains a nested data member h\_; that is the coroutine handle. The creation of this handle also creates the activation frame. The handle is associated with a promiseobject; this has absolutely nothing to do with C++11 std::promise. In fact, it is not one of the standard types at all: we have to define it according to a set of rules listed in the standard. At the end of the execution, the handle is destroyed, which destroys the coroutine state as well. The handle is, thus, similar to a pointer.
+其次，协程的返回类型——生成器——是需要定义的一种特殊类型。它有很多要求，这会导致了冗长的样板代码(任何协程库都预定义了这样的类型)。我们已经看到生成器包含一个嵌套的数据成员\texttt{h\_}，而这就是协程句柄。这个句柄的创建也会创建活帧。句柄与\texttt{promise}对象关联，这与C++11的\texttt{std::promise}没有任何关系。事实上，它根本不是标准类型之一:我们必须根据标准中列出的一组规则来定义它。执行结束时，句柄会销毁，这也会销毁协程的状态。因此，句柄类似于指针。
 
-Finally, the handle is a callable object. Calling it resumes the coroutine, which generates the next value and promptly suspends itself again because the co\_yield operator is in the loop. 
+最后，句柄是一个可调用对象。调用会恢复协程，因为\texttt{co\_yield}操作符在循环中，所以协程会生成下一个值，并立即再次挂起自己。 
 
-All of this is magically tied together by defining the appropriate return type for the coroutine. Just like the STL algorithms, the entire system is bound by convention: there are expectations on all types involved in this process, and something somewhere will not compile if these expectations are not met. Let us see the generator type now:
+通过为协程定义适当的返回类型，所有这些都可以神奇地结合在一起。就像STL算法一样，整个系统都受到规则的约束:这个过程中涉及到的所有类型都有期望，如果这些期望没有得到满足，那么就无法编译。现在来看看生成器的类型:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename T> struct generator {
@@ -215,7 +215,7 @@ template <typename T> struct generator {
 };
 \end{lstlisting}
 
-First of all, the return type does not have to be generated from a template. We could have just declared a generator for integers. Usually, it is a template parameterized on the type of the elements in the generated sequence. Second, the name generator is in no way special: you can call this type anything you want (most libraries provide a similar template and call it generator). On the other hand, the nested type generator::promise\_type must be called promise\_type, otherwise, the program will not compile. Often,  the nested type itself is called something else, and a type alias is used:
+首先，返回类型不必从模板生成，我们可以声明一个整数生成器。通常，是对生成序列中的元素类型参数化的模板。其次，命名生成器没有任何特殊之处，可以随意调用该类型(大多数库都提供了类似的模板，并将其称为生成器)。另一方面，嵌套类型\texttt{generator::promise\_type}必须称其为\texttt{promise\_type}，否则，程序将无法编译。通常，嵌套类型本身命名成其他类型，并在使用时，使用类型别名:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename T> struct generator {
@@ -224,21 +224,21 @@ template <typename T> struct generator {
 };
 \end{lstlisting}
 
-The promise\_type type must be a nested type of the generator class (or, in general, any type returned by the coroutine). But the promise class does not have to be a nested class: usually, it is, but it could be declared outside as well. 
+\texttt{promise\_type}类型\textit{必须}是\texttt{generator}类的嵌套类型(或者，协程返回的类型)。但是\texttt{promise}类不强制是嵌套类:通常，它是嵌套类，但可以在外部进行声明。 
 
-What is mandatory is the set of required member functions of the promise type, including their signatures. Note that some of the member functions are declared noexcept. This is part of the requirement, too: the program will not compile if you omit this specification. Of course, any function that is not required to be noexcept can be declared as such if it doesn't throw. 
+制性是需要\texttt{promise}类型的成员函数集合，包括签名。注意，有些成员函数是\texttt{noexcept}的。这也是需求的一部分:如果忽略此规范，程序将无法编译。当然，即使函数不会抛出异常，也没必要将其声明为\texttt{noexcept}。 
 
-The body of these required functions may be more complex for different generators. We will describe briefly what each of them does.
+对于不同的生成器，这些必需的函数实现可能更加复杂。我们将简要描述他们的工作。
 
-The first non-empty function, get\_return\_object(), is part of the boilerplate code and usually looks exactly like the one earlier; this function constructs a new generator from a handle that is, in turn, constructed from a promise object. It is called by the compiler to get the result of the coroutine. 
+第一个非空函数\texttt{get\_return\_object()}是样板代码的一部分，看起来和前面的那个完全一样，这个函数从句柄构造了一个新的生成器，而句柄又是由\texttt{promise}对象构造的。编译器使用它，以获得协程的结果。 
 
-The second non-empty function, yield\_value(), is invoked every time the operator co\_yield is called; its argument is the co\_yield value. Storing the value in the promise object is how the coroutine usually passes the results to the caller. 
+第二个非空函数\texttt{yield\_value()}，在每次使用操作符\texttt{co\_yield}时调用，它的参数是\texttt{co\_yield}值。将值存储在\texttt{promise}对象中，是协程将结果传递给调用者的常用方式。 
 
-The initial\_suspend() function is called by the compiler the first time co\_yield is encountered. The final\_suspend() function is called after the coroutine produces its last result via co\_return; it cannot be suspended afterward. If the coroutine ends without co\_return, the return\_void() method is called. Finally, if the coroutine throws an exception that escapes from its body, the unhandled\_exception() method is called. You can customize these methods for special handling of each of these situations, although this is seldom used.
+编译器在第一次遇到\texttt{co\_yield}时调用\texttt{initial\_suspend()}。\texttt{final\_suspend()}在协程通过\texttt{co\_return}生成最后一个结果后调用，之后不能暂停。如果协程结束时没有返回\texttt{co\_return}，则调用\texttt{return\_void()}。最后，如果协同程序抛出了一个从其主体中逃逸的异常，则调用\texttt{unhandled\_exception()}。尽管些情况很罕见，使用者可以定制这些方法来特殊处理其中每一种情况。
 
-Now we see how it all ties together to provide us with a lazy generator. First, the coroutine handle is created. In our example, we do not keep the generator object, only the handle. This is not required: we could have kept the generator object and destroyed the handle in its destructor. The coroutine runs until it hits co\_yield and suspends itself; the control is returned by the caller while the return value of co\_yield is captured in the promise. The calling program retrieves this value and resumes the coroutine by invoking the handle. The coroutine picks up from the point where it was suspended and runs until the next co\_yield. 
+现在我们来看看它们是如何结合在一起，为我们提供一个惰性生成器的。首先，创建协程句柄。在示例中，我们不保留生成器对象，只保留句柄。这不是必需的:可以保留生成器对象，并在其析构函数中销毁句柄。协程一直运行，直到遇到\texttt{co\_yield}挂起自己，控制权返回给调用者，而\texttt{co\_yield}的返回值在\texttt{promise}中捕获。调用程序获取此值，并通过调用该句柄恢复协程。协程从它挂起开始，一直运行到下一个\texttt{co\_yield}。 
 
-Our generator can run forever (or until we reach the maximum integer value on our platform, anyway): the sequence never ends. If we needed a sequence of finite length, we can execute co\_return or just exit the loop after the sequence is over. Refer to the following code:
+我们的生成器可以永远运行(或者达到平台上的最大整数值)，流程永远不会结束。如果需要一个有限长度的序列，可以执行\texttt{co\_return}，或在流程结束后退出循环。参考以下代码:
 
 \begin{lstlisting}[style=styleCXX]
 generator<int> coro(){
@@ -248,9 +248,9 @@ generator<int> coro(){
 }
 \end{lstlisting}
 
-Now we have a sequence of 10 elements. The caller must check the result of the handle member function done() before trying to resume the coroutine.
+现在我们有一个10个元素的序列。在尝试恢复协程之前，调用者必须检查句柄成员函数\texttt{done()}的结果。
 
-We mentioned before that a coroutine can be resumed from anywhere in the code (after it was suspended, of course). It can even be resumed from a different thread. In this case, the coroutine starts to execute on one thread, is suspended, and then runs the rest of its code on another thread. Let us see an example:
+我们在前面提到过，可以从代码中的任何地方恢复协程(当然是在它挂起后)，甚至可以从不同的线程恢复。这种情况下，协程开始在一个线程上执行和挂起，然后在另一个线程上运行它的其余代码。让我们看一个例子:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -275,9 +275,9 @@ int main() {
 }
 \end{lstlisting}
 
-First, let us get one detail out of the way: std::jthread is a C++20 addition, it is just a joinable thread – it is joined in the destructor of the object (almost anyone who worked with threads wrote a class for that, but now we have a standard one). Now we can move to the important part – the coroutine itself. 
+首先，让我们了解一些细节信息:\texttt{std::jthread}在C++20中添加，它只是一个可汇入的线程——它会连接到对象的析构函数中(几乎所有使用线程的人都为此编写了一个类，但现在有了一个标准的类)。现在我们可以来看看最重要的部分——协程本身。 
 
-First, let us see the return type of the coroutine:
+了解一下协程的返回类型:
 
 \begin{lstlisting}[style=styleCXX]
 struct task{
@@ -292,9 +292,9 @@ struct task{
 };
 \end{lstlisting}
 
-This is actually the smallest possible return type of a coroutine: it contains all the required boilerplate and nothing else. Specifically, the return type is a class that defines a nested type promise\_type. That nested type must define several member functions, as shown in this code. Our generator type from the previous example has all of that plus some data used to return the results to the caller. Of course, the task can also have an internal state as needed.
+这可能是协程的最小返回类型:包含所有必需的样板，而不包含其他内容。具体来说，返回类型是一个嵌套类型\texttt{promise\_type}类。该嵌套类型必须定义几个成员函数，如下面的代码所示。前面示例中的生成器类型包含这些内容，以及用于将结果返回给调用者的数据。当然，任务也可以根据需要具有内部状态。
 
-The second change from the previous example is the way the task is suspended: we do it with co\_await instead of co\_yield. Operator co\_await is actually the most general way to suspend a coroutine: just like co\_yield, it suspends the function and returns the control to the caller. The difference is in the argument type: while co\_yield returns a result, co\_await's argument is an awaiter object with very general functionality. There are, again, specific requirements on the type of this object. If the requirements are met, the class is called an awaitable, and an object of this type is a valid awaiter (if not, something somewhere will not compile). Here is our awaitable:
+与前面的例子相比，第二个变化是任务挂起的方式:我们使用\texttt{co\_await}，而不是\texttt{co\_yield}。操作符\texttt{co\_await}实际上是挂起协程的更通用的方法:就像\texttt{co\_yield}一样挂起函数，并将控制权返回给调用者。区别在于参数类型:\texttt{co\_yield}返回一个结果，而\texttt{co\_await}的参数是一个\texttt{waiter}对象。同样，对该对象的类型也有特定的要求。如果满足了这个要求，类就可称为\texttt{awaitable}，这种类型的对象是一个有效的awaiter(如果不是，则无法编译)。以下是我们的\texttt{awaitable}:
 
 \begin{lstlisting}[style=styleCXX]
 struct awaitable {
@@ -310,25 +310,25 @@ struct awaitable {
 };
 \end{lstlisting}
 
-The required interface of an awaitable is the three methods we see here. The first is await\_ready(): it is called after the coroutine is suspended. If it returns true, then the result of the coroutine is ready, and it is not really necessary to suspend it. In practice, it almost always returns false, which leads to suspension of the coroutine: the state of the coroutine, such as local variables and the suspension point, is stored in the activation frame, and the control is returned to the caller or resumer. The second function is await\_resume(), it is called just before the coroutine continues to execute after it is resumed. If it returns the result, that is the result of the entire co\_await operator (no result in our example). The most interesting function is await\_suspend(). It is called with the handle of the current coroutine when this coroutine is suspended and can have several different return types and values. If it returns void, as it does in our example, the coroutine is suspended, and the control is returned to the caller or resumer. Don't be fooled by the content of await\_suspend() in our example: it does not resume the coroutine. Instead, it creates a new thread that will execute a callable object, and it is this object that resumes the coroutine. The coroutine may be resumed after await\_suspend() is done or while it is still running: this example demonstrates the use of coroutines for asynchronous operations. 
+\texttt{awaitable}所需的接口是这里的三个函数。第一个是\texttt{await\_ready()}:它在协程挂起后调用。如果返回true，那么协程的结果就准备好了，并且没有必要挂起协程。实际中，这个函数总是返回false，这将导致协程的暂停:协程的状态，例如局部变量和暂停点，都存储在活帧中，控制权返回给调用者或恢复者。第二个函数是\texttt{await\_resume()}，在协程恢复后继续执行之前调用。如果它返回结果，那就是整个\texttt{co\_await}操作符的结果(我们的例子中是没有结果的)。最有趣的函数是\texttt{await\_suspend()}，它在当前协程挂起时，使用当前协程的句柄进行调用，并且可以有几种不同的返回类型和值。如果它返回void(正如在我们的示例中所做的那样)，协程将挂起，控制权将返回给调用者或恢复者。不要被我们示例中的\texttt{await\_suspend()}所迷惑:它不会恢复协程。相反，它创建一个将执行可调用对象的新线程，并且正是这个对象恢复了协程。协程可以在\texttt{await\_suspend()}完成，或仍在运行时恢复:这个例子演示了异步操作时协程的用法。 
 
-Putting all of this together, we get this sequence:
+把所有这些放在一起，我们得到这个流程:
 
 \begin{enumerate}
 \item
-The main thread calls a coroutine.
+主线程调用协程。
 
 \item
-The coroutine is suspended by operator co\_await. This process involves several calls to the member functions of the awaitable object, one of which creates a new thread whose payload resumes the coroutine (the game with move-assigning thread objects is done so we delete the new thread in the main program and avoid some nasty race conditions).
+操作符\texttt{co\_await}挂起协程。这个过程涉及到对\texttt{awaitable}对象成员函数的调用，其中一个调用会创建一个新线程，其会恢复协程(带有移动分配线程对象的游戏已经结束，所以我们删除了主程序中的新线程，这样可以避免了一些糟糕的竞争条件)。
 
 \item
-Control is returned to the caller of the coroutine, so the main thread continues to run from the line after the coroutine call. It will block in the destructor of the thread object t if it gets there before the coroutine completes.
+控制权返回给协程的调用方，因此主线程在协程调用之后继续从该行运行。如果线程在协程完成之前到达那里，将在线程对象\texttt{t}的析构函数中进行阻塞。
 
 \item 
-The coroutine is resumed by the new thread and continues to execute on that thread from the line after co\_await. The awaitable object that was constructed by co\_await is destroyed. The coroutine runs to the end, all on the second thread. Reaching the end of the coroutine means it's done, just like any other function. The thread that runs the coroutine now can be joined. If the main thread was waiting for the destructor of thread t to complete, it now unblocks and joins the thread (if the main thread has not yet reached the destructor, it won't block when it does). 
+新线程会恢复协程，并从\texttt{co\_await}之后的行继续在该线程上执行。由\texttt{co\_await}构造的\texttt{awaitable}对象会销毁。协程运行到最后，全部在第二个线程上运行。到达协程的末尾意味着它完成了，就可以汇入运行协程的线程了。若主线程正在等待线程\texttt{t}的析构函数完成，现在则会解除阻塞，并汇入线程(如果主线程还没有到达析构函数，那么当它到达析构函数时就不会阻塞)。
 \end{enumerate}
 
-The sequence is confirmed by the output of our program:
+该流程可以通过程序的输出进行确认:
 
 \begin{tcblisting}{commandshell={}}
 Main thread: 140003570591552
@@ -338,19 +338,19 @@ Coroutine resumed on thread: 140003570587392
 Coroutine done on thread: 140003570587392
 \end{tcblisting}
 
-As you can see, the coroutine coro() was running on one thread first, then changed to a different thread in the middle of the execution. If it had any local variables, they would be preserved through this transition.
+如您所见，协程\texttt{coro()}首先在一个线程上运行，然后在执行过程中跳转到另一个线程。如果有任何局部变量，将在转换过程中保留。
 
-We mentioned that co\_await is the general operator for suspending coroutines. Indeed, the co\_yield x operator is equivalent to a particular invocation of co\_await as shown here:
+我们提到\texttt{co\_await}是暂停协程的通用操作符。实际上，\texttt{co\_yield x}操作符等价于\texttt{co\_await}的特殊用法:
 
 \begin{lstlisting}[style=styleCXX]
 co_await promise.yield_value(x);
 \end{lstlisting}
 
-Here promise is the promise\_type object associated with the current coroutine handle. The reason for the separate operator co\_yield is that accessing your own promise from inside the coroutine results in a quite verbose syntax, so the standard added a shortcut.
+这里的\texttt{promise}是与当前协程句柄关联的\texttt{promise\_type}对象。使用操作符\texttt{co\_yield}的原因是，从协程内部访问自己的\texttt{promise}会出现相当复杂的语法使用，因此标准为其添加了一个快捷方式。
 
-These examples demonstrate the capabilities of coroutines in C++. The situations where coroutines are thought to be useful are work stealing (you have seen how easy it is to transfer execution of a coroutine to another thread), lazy generators, and asynchronous operations (I/O and event handling). Nonetheless, the C++ coroutines have not been around long enough for any patterns to emerge, so the community is yet to come up with the best practices for using coroutines. Similarly, it is too early to talk about the performance of the coroutines; we have to wait for the compiler support to mature and for larger-scale applications to be developed. 
+这些例子演示了C++协程的功能。协程最有用的功能是工作窃取(您已经看到将协程的执行转移到另一个线程是多么容易)、惰性生成器和异步操作(I/O和事件处理)。尽管如此，协程在C++中的时间还不够长，还没有形成使用模式，所以社区还没有提出使用协程的最佳实践。同样，现在谈论协程的性能还为时过早，我们必须等待编译器支持成熟的和更大规模的应用程序开发。 
 
-Overall, after neglecting concurrency for years, the C++ standard is rapidly catching up, so let us summarise the recent advances.
+总的来说，在多年忽视并发性之后，C++标准正在迅速赶上，所以让我们总结一下语言最近的进展。
 
 
 
