@@ -1,15 +1,15 @@
-Unnecessary copying of objects is probably C++ inefficiency \#1. The main reason is that it’s easy to do and hard to notice. Consider the following code:
+不必要的对象复制可能是C++的低效之处。主要原因是这样做很简单，但很难关注到。看一下以下代码:
 
 \begin{lstlisting}[style=styleCXX]
 std::vector<int> v = make_v(… some args …);
 do_work(v);
 \end{lstlisting}
 
-How many copies of the vector v are made in this program? The answer depends on the details of the functions make\_v() and do\_work() as well as the compiler optimizations. This tiny example covers several language subtleties that we will now discuss.
+这个程序中，\texttt{v}被复制了多少次？答案取决于\texttt{make\_v()}和\texttt{do\_work()}函数的实现以及编译器的优化。这个例子涵盖了我们现在要讨论的一些语言细节。
 
-\subsubsubsection{9.3.1\hspace{0.2cm}Copying and argument passing}
+\subsubsubsection{9.3.1\hspace{0.2cm}复制和参数传递}
 
-We are going to start with the second function, do\_work(). What matters here is the declaration: if the function takes the argument by reference, const or not, then no copies are made.
+我们将从第二个函数\texttt{do\_work()}开始。若函数以引用(\texttt{const}或非\texttt{const}形式)传递实参，则不进行复制。
 
 \begin{lstlisting}[style=styleCXX]
 void do_work(std::vector<int>& vr) {
@@ -17,7 +17,7 @@ void do_work(std::vector<int>& vr) {
 }
 \end{lstlisting}
 
-If the function uses pass-by-value, then a copy must be made:
+若函数使用按值传递，则必须进行复制:
 
 \begin{lstlisting}[style=styleCXX]
 void do_work(std::vector<int> vc) {
@@ -25,7 +25,7 @@ void do_work(std::vector<int> vc) {
 }
 \end{lstlisting}
 
-Copying a vector is an expensive operation if the vector is large: all the data in the vector must be copied. This is one expensive function call. If the work itself does not require a copy of the vector, then it’s also extremely inefficient. For example, if all we need is to compute the sum (or some other function) of all the elements in the vector, we do not need a copy. While it may seem undesirable, at first glance, that the call itself does not tell us whether the copy is made, it is how it should be. The decision to make the copy belongs to the implementer of the function and can be made only after considering the requirements and the choice of the algorithm. For the previously mentioned problem of accumulating the sum of all elements, the correct decision is clearly to pass the vector by (const) reference as follows:
+如果\texttt{vector}对象很大，则复制\texttt{vector}对象的操作代价很高:必须复制\texttt{vector}对象中的所有数据，这是一个代价很高的函数调用。如果不需要\texttt{vector}的副本，那么这里的复制就非常的低效。例如，如果只需要计算\texttt{vector}中所有元素的和(或其他计算)，则不需要副本。乍一看，调用本身并没有告诉我们是否复制，但它应该是这样的。复制的决定属于函数的实现者，只有在考虑了需求和算法的选择后才能做出。对于前面提到的累加所有元素和的问题，正确的决定显然是通过(\texttt{const})引用传递\texttt{vector}对象，如下所示:
 
 \begin{lstlisting}[style=styleCXX]
 void do_work(const std::vector<int>& v) {
@@ -35,9 +35,9 @@ void do_work(const std::vector<int>& v) {
 }
 \end{lstlisting}
 
-Using pass-by-value, in this case, is such a blatant inefficiency that it may be considered a bug, but it happens more often than you’d think. In particular, it happens in template code where the author considered only small, lightweight data types, but the code ends up being used more widely than expected.
+这种情况下，使用值传递明显是低效的，并可能会认为是一个Bug，但是这种情况发生的频率比还挺高。特别是在模板代码中，作者只考虑了小型、轻量级的数据类型，但代码最终得到了比预期更广泛的使用。
 
-On the other hand, if we need to create a copy of the arguments as a part of fulfilling the requirements on the function, using parameter passing is as good of a way as any:
+另一方面，如果需要创建实参的副本，作为满足函数要求的一部分，使用参数传递是一种很好的方法:
 
 \begin{lstlisting}[style=styleCXX]
 	void do_work(std::vector<int> vc) {
@@ -45,9 +45,9 @@ On the other hand, if we need to create a copy of the arguments as a part of ful
 	}
 \end{lstlisting}
 
-Here we need to apply a so-called clamping loop to the data before processing it further. Assuming we read the clamped values many times, calling std::min() for every access may be less efficient than creating a cached copy of the result. We could make an explicit copy as well, and it may be slightly more efficient, but this kind of optimization should not be left to speculation; it can be definitively answered only by a benchmark.
+进一步处理数据之前，我们需要对数据应用一个所谓的固定环。假设多次读取固定位的值，每次访问都调用\texttt{std::min()}可能比创建结果的缓存副本的效率要低。我们也可以显式的制作一个副本，这可能会更有效，但这种优化不应该只是猜测，需要通过一个基准测试才能明确回答。
 
-C++11 introduced move semantics as a partial answer to unnecessary copying. In our case, we observe that if the function argument is an rvalue, we can use it any way we want, including altering it (the caller has no way of accessing the object after the call completes). The usual way to take advantage of the move semantics is to overload the function with an rvalue reference version:
+C++11引入了移动语义来解决部分不必要的复制。本例中，我们观察到，如果函数实参是右值，可以以任何方式使用它，包括修改它(调用者在调用完成后无法访问该对象)。利用移动语义的常用方法是使用右值引用版本重载函数:
 
 \begin{lstlisting}[style=styleCXX]
 void do_work(std::vector<int>&& v) {
@@ -55,7 +55,7 @@ void do_work(std::vector<int>&& v) {
 }
 \end{lstlisting}
 
-However, if the object itself is move-enabled, our simple pass-by-value version shines in the new light. Refer to the following code:
+但是，如果对象本身支持移动，简单的值传递版本就有了亮点。参考以下代码:
 
 \begin{lstlisting}[style=styleCXX]
 void do_work(std::vector<int> v) {
@@ -66,11 +66,11 @@ do_work(v1);                 // Local copy is made
 do_work(std::vector<int>(…));    // rvalue
 \end{lstlisting}
 
-The first call to do\_work() uses an lvalue argument, so a local copy is made inside the function (the argument is passed by value!). The second call uses an rvalue or an unnamed temporary. Since the vector has a move constructor, the function argument is moved (not copied!) into its parameter, and moving vectors is very fast. Now with a single implementation of the function, without any overloads, we can handle both the rvalue and the lvalue arguments efficiently Now we have seen the two extreme examples. In the first case, a copy of the argument was not needed, and creating one was pure inefficiency. In the second case, making a copy was a reasonable implementation. Not every situation falls into one of these extremes, as we are about to see.
+\texttt{do\_work()}的第一次调用使用了左值参数，因此在函数内部进行了局部复制(参数通过值传递!)。第二个调用使用右值或未命名的临时函数，由于\texttt{vector}有一个移动构造函数，函数的实参移动(而不是复制!)到形参中，移动\texttt{vector的}速度非常快。现在，在没有任何重载的情况下，通过函数实现，可以有效地处理右值和左值参数，现在我们已经看到了两个极端的例子。第一种情况下，不需要副本，显式的构造一份是低效的。第二种情况下，复制是一种合理的实现。正如我们即将看到的，并不是每一种情况都属于这些极端情况。
 
-\subsubsubsection{9.3.2\hspace{0.2cm}Copying as an implementation technique}
+\subsubsubsection{9.3.2\hspace{0.2cm}使用复制进行实现}
 
-There is also the middle ground where the chosen implementation needs a copy of the argument, but the implementation itself is not optimal. As an example, consider the following function that needs to print the vector in the sorted order:
+还有一种中间情况，即选择的实现需要参数的副本，但实现本身并不是最优的。例如，考虑下面的函数，它需要按顺序输出向量:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -82,9 +82,9 @@ void print_sorted(std::vector<int> v) {
 }
 \end{lstlisting}
 
-For a vector of integers, this is probably the best way. We sort the container itself and print it in order. Since we are not supposed to modify the original container, we need a copy, and, again, there is nothing wrong with exploiting the compiler to make one.
+对于一个整数\texttt{vector}，这可能是最好的方法，我们对容器本身进行排序并按顺序打印。因为不应该修改原始容器，所以需要一个副本，而且需要利用编译器来创建一个副本也没有什么错。
 
-But what if the elements of the vector were not integers but some large objects? In this case, copying the vector takes a lot of memory, and sorting it takes a lot of time spent copying large objects. In this case, a better implementation may be to create and sort a vector of pointers without moving the original objects:
+但是如果\texttt{vector}的元素不是整数，而是一些大型对象呢？在这种情况下，复制\texttt{vector}就需要占用大量内存，而对其进行排序需要花费大量时间来复制大型对象。这种情况下，更好的实现可能是在不移动原始对象的情况下，创建指针\texttt{vector}并对其排序:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -100,7 +100,7 @@ void print_sorted(const std::vector<T>& v) {
 }
 \end{lstlisting}
 
-Since we have learned by now to never guess about performance, the intuition needs to be confirmed by a benchmark. Since sorting an already sorted vector does not require any copying, we want a fresh, unsorted vector for every iteration of the benchmark, like the following:
+因为我们现在已经学会了永远不要猜测性能，所以直觉需要通过基准测试来确认。因为对已经排序的\texttt{vector}进行排序不需要任何复制，所以我们希望在基准测试的每次迭代中都有一个新的、未排序的\texttt{vector}，如下所示:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -118,27 +118,27 @@ void BM_sort(benchmark::State& state) {
 }
 \end{lstlisting}
 
-Of course, we should disable the actual printing since we are not interested in benchmarking the I/O. On the other hand, we should benchmark copying the vector without sorting, just so we know what portion of the measured time is spent in setting up the test.
+当然，我们应该禁用打印，因为我们对I/O基准测试不感兴趣。另一方面，我们应该在不进行排序的情况下对复制\texttt{vector}进行基准测试，这样就可以知道所测量的时间的哪一部分花在了准备测试上。
 
-The benchmark confirms that, for integers, it is faster to copy the entire vector and sort a copy:
+基准测试确认，对于整数，复制整个\texttt{vector}对象并对其进行排序会更快:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter9/images/1.jpg}\\
-Figure 9.1 – Benchmark of sorting a vector of integers, copying versus pointer indirection
+图9.1 - 对一个整数\texttt{vector}排序的基准测试：复制方式和指针方式(间接)的对比
 \end{center}
 
-Note that if the vector is small and all the data fits in the low-level cache, the processing is very fast either way, and there is little speed difference. If the objects are large and expensive to copy, the indirection becomes relatively more efficient:
+请注意，如果向量很小，而且所有数据都适合底层缓存，那么无论哪种方式，处理速度都非常快，而且速度差异很小。如果对象比较大，复制的代价也比较高，那么间接性方式就会比较高效:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter9/images/2.jpg}\\
-Figure 9.2 – Benchmark of sorting a vector of large objects, copying versus pointer indirection
+图9.2 - 大型对象的\texttt{vector}排序基准测试：复制方式和指针(间接)方式
 \end{center}
 
-There is yet another special case when copying objects is necessary for the implementation; we will consider it next.
+还有一种特殊情况，即实现时需要复制对象。这个，我们下次再讨论。
 
-\subsubsubsection{9.3.3\hspace{0.2cm}Copying to store data}
+\subsubsubsection{9.3.3\hspace{0.2cm}复制存储数据}
 
 In C++, we can encounter another particular case of data copying. It happens most often in class constructors where the object must store a copy of the data, so a long-term copy with a lifetime exceeding that of the constructor call must be created. Consider this example:
 

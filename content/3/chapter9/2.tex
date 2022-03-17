@@ -1,25 +1,24 @@
-Programmers often talk about a language being efficient or otherwise. C++, in particular, has been developed with the explicit goal of efficiency and, at the same time, has a reputation in some circles of being inefficient. How can this be?
+开发者经常谈论一种语言是否有效。特别是C++，它的开发有着明确的效率目标。与此同时，它在某些圈子里认为C++是低效的。这是怎么回事呢？
 
-Efficiency can mean different things in different contexts or to different people. For example:
+效率在不同的情况下或对不同的人有不同的含义。例如:
 
 \begin{itemize}
 \item
-C++ design follows the principle of zero overhead: with a handful of exceptions, you don’t pay any runtime cost for any feature you do not use just because it is present in the language. In this sense, it is as efficient as a language can be.
+C++的设计遵循\textbf{零开销}原则:除了少数的例外，不会为任何不使用的特性支付运行成本。从这个意义上说，C++可以认为是高效的语言。
 
 \item
-You obviously have to pay something for the language features you do use, at least if they translate into some runtime work. C++ is very good about not requiring any runtime code for doing work that can be done during compilation (although the implementations of the compilers and the standard libraries vary in their efficiency). An efficient language does not add any overhead to the code that must be generated to carry out the requested work, and again, C++ is quite good here, with one major caveat we will discuss next.
+必须为所使用的语言特性付出一些代价，若将它们转化为一些运行时的话。C++的优点是不需要任何运行时代码，来完成可以在编译期间完成的工作(尽管编译器的实现和标准库的效率各不相同)。高效的语言不会为执行请求的代码增加任何开销，C++在这里做的还是相当不错的，我们将在下面讨论一个主要的限制。
 
 \item
-If the preceding is true, how did C++ earn the label of inefficient from those who hold this opinion? Now we come to yet another perspective on efficiency: how easy is it to write efficient code in this language? Or, how easy is it to do something that seems natural but, in fact, is a very inefficient way of solving the problem? A closely related problem is the one we alluded to in the last paragraph: C++ is very efficient in doing exactly what you asked it to do. But it is not always easy to express exactly what you want in the language, and, again, the natural way of writing the code sometimes imposes additional requirements or constraints that the programmer did not want and may not be aware of. These constraints have runtime costs.
+如果上述情况属实，那么C++是如何被持这种观点的人贴上“效率低下”的标签的呢？现在我们来看另一个视角定义的效率:用这种语言编写高效的代码有多容易？或者，做一件看起来很自然，但实际上是一种非常低效的解决问题的方法有多容易？与之前提到的问题密切相关，我们也在上一段中提到:C++能够非常高效地完成开发者要求它做的事情。但是，要在语言中准确地表达想要的东西并不容易，而且编写代码的方式有时会强制约束和要求开发者，这些约束和要求有些是有运行时成本的。
 	
 \end{itemize}
 
-From the point of view of the language designer, the last problem is not a language inefficiency: you asked the machine to do X and Y, it costs time to do X and Y, we’re not doing anything beyond what you asked us to do. But from the point of view of the programmer, this is an inefficient language if the programmer only wanted to do X but didn’t care about Y. 
+从语言设计者的角度来看，最后一个问题不是语言的低效:你要求机器做X和Y，它需要时间来做X和Y，没有做任何超出要求的事情。但从开发者的角度来看，如果开发者只想做X而不关心Y，那么这是一种效率低下的语言。 
 
-It is the goal of this chapter to help you write code that clearly expresses what you want the machine to do. The purpose is two-fold: you may think that your primary audience is the compiler: by precisely describing what you want and what the compiler is free to change, you give the compiler the freedom to generate more efficient code. But the same can be said about the readers of your program: they can only infer what you expressed in the code, not what you intended to express. Is it safe to optimize your code if it changes certain aspects of its behavior? Was this behavior intentional or an accident of the implementation that can be altered? Once again, we are reminded that programming is primarily a way of communicating with our peers, and only then with the machines.
+本章的目标是帮助读者编写代码，并清楚地表达希望机器做去什么。这样做的目的有两个。若认为你的代码主要读者是编译器:通过精确地描述想要的事情和了解编译器可以自由修改的内容，可以给编译器生成更高效代码的自由。但是对于程序的读者来说也是一样的:他们只能推断出作者在代码中表达的内容，而不能推断出想要表达的内容。如果代码的某些方面发生了变化，那么优化代码是否安全？这种行为是有意为之，还是错误的实现，并且可以去更改吗？这再次提醒我们，编程更多的是一种与同伴交流的方式，而不仅仅是与机器交流的方式。
 
-We will start with the simpler inefficiencies that seem easy to avoid, but they
-crop up even in the code of programmers who have mastered other aspects of the language.
+我们将从显而易见的简单低效代码示例开始。但这种情况，甚至会出现在该语言资深开发者的代码中。
 
 
 
