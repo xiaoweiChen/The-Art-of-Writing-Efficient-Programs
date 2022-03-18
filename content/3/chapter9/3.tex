@@ -140,7 +140,7 @@ void BM_sort(benchmark::State& state) {
 
 \subsubsubsection{9.3.3\hspace{0.2cm}复制存储数据}
 
-In C++, we can encounter another particular case of data copying. It happens most often in class constructors where the object must store a copy of the data, so a long-term copy with a lifetime exceeding that of the constructor call must be created. Consider this example:
+C++中会遇到另一种数据复制的特殊情况。这种情况最常发生在类构造函数中，在类构造函数中，对象必须存储数据的副本，因此必须创建一个生命周期超过构造函数调用生命周期的副本。看一下这个例子:
 
 \begin{lstlisting}[style=styleCXX]
 class C {
@@ -149,7 +149,7 @@ class C {
 };
 \end{lstlisting}
 
-Here the intent is to make a copy. The inefficiency would be to make multiple intermediate copies or make an unnecessary copy. The standard way to accomplish this is to take the object by const reference and make a copy inside the class:
+这里的目的是复制一份，低效率的做法是复制多个中间副本或一个不必要的副本。实现的标准方法是通过\texttt{const}引用获取对象，并在类内部复制:
 
 \begin{lstlisting}[style=styleCXX]
 class C {
@@ -158,7 +158,7 @@ class C {
 };
 \end{lstlisting}
 
-If the argument of the constructor is an lvalue, this is as efficient as it can be. However, if the argument is an rvalue (a temporary), we would prefer to move it into the class and make no copies at all. This requires an overload for the constructor:
+如果构造函数的实参是左值，这是最高效的。但是，如果实参是右值(临时值)，我们可以将它移到类中，从而不进行任何复制。这需要重载构造函数:
 
 \begin{lstlisting}[style=styleCXX]
 class C {
@@ -167,9 +167,9 @@ class C {
 };
 \end{lstlisting}
 
-The downside is the need to code two constructors, but it gets worse if the constructor takes several arguments, and each one needs to be copied or moved. Following this pattern, we would need 6 constructor overloads to handle 3 parameters.
+缺点是需要编写两个构造函数，但如果构造函数有几个参数，并且每个参数都需要复制或移动，情况就麻烦了。按照这种模式，我们将需要6个构造函数重载来处理3个参数。
 
-The alternative is to pass all parameters by value and move from the parameter, check the following code:
+另一种方法是按值传递所有参数，并移动参数，看下代码:
 
 \begin{lstlisting}[style=styleCXX]
 class C {
@@ -179,19 +179,19 @@ class C {
 };
 \end{lstlisting}
 
-It is very important to remember that the parameter v is now an object in a moved-from state, and it should not be used in the body of the constructor. If the argument is an lvalue, a copy is made to construct the parameter v, then moved into the class. If the argument is an rvalue, it is moved into the parameter v and again moved into the class. This pattern works great if the objects are cheap to move. However, if the objects are expensive to move or have no move constructors at all (so they are copied instead), we end up doing two copies instead of one. 
+形参\texttt{v}现在是一个处于已移动状态的对象，不应该在构造函数体中再使用。如果实参是左值，则创建一个副本来构造形参\texttt{v}，然后移动到类中。如果实参是右值，则将其移动到形参\texttt{v}中，然后再次移动到类中。如果移动成本较低，这种模式就很高效。然而，如果对象的移动代价很高，或者根本没有m移动构造函数(只能复制)，最终则会进行两次复制，而不是一次。 
 
-So far, we have focused on the problem of getting data into functions and objects. But copying can also occur when we need to return the results. The considerations there are completely different and need to be examined separately
+目前为止，我们关注的是将数据放入函数和对象的问题。但是当需要返回结果时，复制也可能发生。这里的考虑因素完全不同，需要分别研究。
 
-\subsubsubsection{9.3.4\hspace{0.2cm}Copying of return values}
+\subsubsubsection{9.3.4\hspace{0.2cm}复制返回值}
 
-Our example at the very beginning of this section included both kinds of copying. In particular, this line:
+本节开头的示例包含了这两种类型的复制。特别是这一行:
 
 \begin{lstlisting}[style=styleCXX]
 std::vector<int> v = make_v(… some args …);
 \end{lstlisting}
 
-It implies that the resulting vector v is created from another vector, the one returned by the function make\_v:
+生成的\texttt{v}是由\texttt{make\_v}函数返回的:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -204,7 +204,7 @@ std::vector<int> make_v(… some args …) {
 }
 \end{lstlisting}
 
-In theory, more than one copy can be made here: the local variable vtmp is copied into the (unnamed) return value of the function make\_v, which is, in turn, copied into the final result v. In practice, this is not going to happen. First of all, the unnamed temporary return value of make\_v is moved, not copied, into v. But, most likely, even this is not going to happen. If you try this code with your own class instead of std::vector, you will see that neither a copy nor a move constructor is used:
+理论上，这里可以进行不止一次的复制:局部变量\texttt{vtmp}复制到\texttt{make\_v}函数的(未命名)返回值中，又复制到最终结果\texttt{v}中。首先，\texttt{make\_v}的临时返回值会移动，而不是复制到\texttt{v}中。但即使是这样，也可能不会发生。如果用自己的类，而不是\texttt{std::vector}来尝试这段代码，会看到这里既没有使用复制构造函数，也没有使用移动构造函数:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -235,21 +235,21 @@ int main() {
 }
 \end{lstlisting}
 
-This program prints something like the following (on most compilers, a certain level of optimization must be turned on):
+这个程序输出如下内容(对于大多数编译器，必须开启某种级别的优化):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
-\includegraphics[width=0.9\textwidth]{content/3/chapter9/images/3.jpg}\\
-Figure 9.3 – The output of the program returning an object by value
+\includegraphics[width=0.4\textwidth]{content/3/chapter9/images/3.jpg}\\
+图9.3 - 程序按值返回一个对象的输出
 \end{center}
 
-As you can see, only one object was constructed and destroyed. This is the result of the compiler optimization. The specific optimization that is used here is known as Return Value Optimization (RVO). The optimization itself is very simple: the compiler recognized that the three objects involved – the local variable ctmp, the unnamed temporary return value, and the final result c – are all of the same type. Furthermore, it is impossible for any code we write to observe any two of these variables at the same time. Therefore, without changing any observable behavior, the compiler can use the same memory location for all three variables. Before calling the function, the compiler needs to allocate the memory where the eventual result c will be constructed. The address of this memory is passed into the function by the compiler, where it is used to construct the local variable ctmp at the same location. As a result, when the function makeC ends, there is nothing to return at all: the result is already where it should be. This is the RVO in a nutshell.
+如您所见，只构造和销毁了一个对象，这是编译器优化的结果。这里使用的优化为\textbf{返回值优化(RVO)}。优化本身非常简单:编译器认识到所涉及的三个对象——局部变量\texttt{ctmp}、未命名的临时返回值和最终结果\texttt{c}——都是相同的类型。此外，我们编写的代码都不可能同时观察到这两个变量。因此，在不改变可观察行为的情况下，编译器可以为这三个变量使用相同的内存位置。调用函数之前，编译器需要分配用于构造最终结果\texttt{c}的内存。这个内存地址由编译器传递到函数中，用于在相同的位置构造局部变量\texttt{ctmp}。因此，当函数\texttt{makeC}结束时，根本不需要返回任何东西:结果已经在它应该在的地方了。这就是RVO。
 
-While RVO seems simple, it has several subtleties. 
+虽然RVO看起来很简单，但它有几个微妙之处。 
 
-First, remember that this is an optimization. This means that the compiler usually does not have to do it (if yours doesn’t, you need a better compiler). However, it is a very special kind of optimization. In general, the compiler can do whatever it wants to your program as long as it does not change the observable behavior. The observable behavior includes input and output and accessing volatile memory. This optimization, however, has resulted in an observable change: the expected output of the copy constructor and the matching destructor is nowhere to be seen. Indeed, this is one exception from the otherwise ironclad rule: the compiler is allowed to eliminate calls to copy or move constructors and the corresponding destructors even if these functions have side effects that include observable behavior. This exception is not limited to RVO. The implication is that, in general, you cannot count on copy and move constructors to be called just because you wrote some code that appears to do a copy. This is known as copy elision (or move elision, for move constructors).
+首先，这是一种优化。这意味着编译器通常不必这样做(如果编译器不这样做，那么可能需要一个更好的编译器)，这是一种非常特殊的优化。通常，编译器可以对程序做任何事情，只要它不改变可观察对象的行为。可观察行为包括输入、输出和访问易失性存储器。然而，这种优化导致了一个可观察的变化:复制构造函数和匹配的析构函数的预期输出不见了。实际上，这是一个例外:编译器允许消除复制或移动构造函数和相应的析构函数的调用，即使这些函数有包含可观察行为的副作用，并且这个例外不局限于RVO。通常，不能仅仅因为编写了一些似乎在进行复制的代码，就指望调用复制和移动构造函数。这就是所谓的\textbf{忽略复制}(或对于移动构造函数来说，就是\textbf{忽略移动})。
 
-Second, remember (again) that this is an optimization. The code must compile before it can be optimized. If your object does not have any copy or move constructors, this code will not compile, and we will never get to the optimization step that is going to remove all calls to these constructors. This is easy to see if we delete all copy and move constructors in our example:
+其次，(再次)这是一种优化。代码必须先编译，然后才能进行优化。如果对象没有任何复制或移动构造函数，这段代码将无法编译，所以将永远不会进入优化步骤，该步骤将删除所有对这些构造函数的调用。若在我们的例子中删除了所有的复制和移动构造函数，就很容易得到失败的结果:
 
 \begin{lstlisting}[style=styleCXX]
 class C {
@@ -259,47 +259,47 @@ class C {
 }; 
 \end{lstlisting}
 
-The compilation will now fail. The exact error message depends on the compiler and the C++ standard level; in C++17, it is going to look something like this:
+编译现在会失败，确切的错误信息取决于编译器和C++标准级别。在C++17中，看起来是这样的:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter9/images/4.jpg}\\
-Figure 9.4 – Compilation output of Clang using C++17 or C++20
+图9.4 - 使用Clang(支持C++17或C++20)编译的输出
 \end{center}
 
-There is one special case where our program would compile even with deleted copy and move operations. Let us make a slight change to the makeC function:
+特殊情况是，即使删除了复制和移动操作，程序仍然可以编译。我们稍微修改一下\texttt{makeC}函数:
 
 \begin{lstlisting}[style=styleCXX]
 C makeC(int i) { return C(i); }
 \end{lstlisting}
 
-Nothing changes in C++11 or C++14; however, in C++17 and above, this code compiles fine. Note the slight difference from the previous version: the returned object used to be an lvalue, it had a name. Now it’s an rvalue, an unnamed temporary. This makes all the difference: while the named RVO (NRVO) is still an optimization, the unnamed RVO is mandatory since C++17 and is no longer considered to be a copy elision. Instead, the standard says that no copy or move is requested in the first place. 
+C++11和C++14没有什么变化。然而，在C++17及以上版本中，这段代码可以很好地编译。注意，与前一个版本的差别:返回的对象过去是左值，它有一个名称。现在它是一个右值，一个未命名的临时值。虽然\textbf{命名RVO(NRVO)}仍然是一种优化，但未命名RVO是强制性的，因为C++17不再认为其是一个忽略复制。相反，该标准规定，一开始就不要求复制或移动。 
 
-Finally, you may wonder if the function must be inlined in order for the compiler to know where the return value is while it compiles the function itself. With a simple test, you can convince yourself that this is not so: even if the function makeC is in a separate compilation unit, RVO still takes place. The compiler, therefore, must send the address of the result to the function at the call point. You can do something similar yourself if you do not return the result from the function at all but instead pass the reference to the result as an additional argument. Of course, that object has to be constructed first, while the compiler-generated optimization does not need an extra constructor call. 
+最后，可能想知道是否必须使用内联函数，以便编译器在编译函数本身时知道返回值在哪里。可以进行一个简单的测试，可以确信事实并非如此:即使函数\texttt{makeC}位于单独的编译单元中，RVO仍然会发生。因此，编译器必须将结果的地址发送到函数的调用点。如果不返回函数的结果，而是将结果的引用作为附加参数传递，开发者也可以做类似的事情。当然，必须首先构造该对象，而编译器生成的优化不需要额外的构造函数调用。 
 
-You may find a recommendation to not rely on RVO but to enforce the move of the return value instead:
+可能会看到不依赖RVO的建议，但会强制执行返回值的移动:
 
 \begin{lstlisting}[style=styleCXX]
 C makeC(int i) { C c(i); return std::move(c); }
 \end{lstlisting}
 
-The argument goes that if RVO does not happen, your program will take the performance penalty of the copying operation, while the move operation is cheap anyway. However, this argument is wrong. To understand why, look carefully at the error message in Figure 9.4: the compiler complains that the move constructor is deleted even though ctmp is an lvalue and should be copied. This is not a compiler bug but reflects the behavior required by the standard: in the context where the return-value optimization is possible, but the compiler decides not to do it, the compiler must first try to find a move constructor to return the result. If the move constructor is not found, the second lookup is performed; this time, the compiler is looking for a copy constructor. In both cases, the compiler is really performing overload resolution since there can be many copy or move constructors. Thus, there is no reason to write an explicit move: the compiler will do one for us. But what is the harm, then? The harm is that using the explicit move disables RVO; you have asked for a move, so you are going to get one. While a move may require very little work, RVO is no work at all, and no work is always faster than some work.
+如果RVO没有发生，程序将承担复制操作的性能损失，而移动操作无论如何都更好的选择。然而，这种观点是错误的。要理解原因，请仔细查看图9.4中的错误消息:编译器报错说移动构造函数删除了，尽管\texttt{ctmp}是左值，并应该复制。这不是编译器的错误，但反映了标准所要求的行为:在返回值时进行优化是可能的，但编译器决定是否这么做取决于上下文，编译器必须首先找到一个移动构造函数来返回结果。如果没有找到移动构造函数，则执行第二次查找。这一次，编译器会寻找复制构造函数。在这两种情况下，编译器实际上是在执行重载解析，因为对象可以有许多复制或移动构造函数。因此，没有理由写一个显式的移动:编译器将自己生成一个。但这有什么不好的呢？其危害在于，使用显式移动将禁用RVO。需要一个移动，那么就获得一个。虽然移动可能只需要很少的工作，但RVO根本没有工作量，而且不需要工作总是比有工作快。
 
-What happens if we delete the move constructor but not the copy constructor? The compilation still fails in the case where it was failing with both constructors deleted. This is, again, a subtle point of the language: declaring a deleted member function is not the same as not declaring any. If the compiler performs the overload resolution for a move constructor, it will find one, even if this constructor is deleted. The compilation fails because the overload resolution selected a deleted function as the best (or the only) overload. If you want to force the use of the copy constructor (in the name of science, of course), you have to not declare any move constructors at all. 
+如果删除了移动构造函数，而没有删除复制构造函数，会发生什么？如果两个构造函数都删除了，编译仍然会失败。这也是语言的微妙之处:声明一个已删除的成员函数，与不声明任何成员函数是不同的。如果编译器对移动构造函数执行重载解析，它将找到一个移动构造函数(即使这个构造函数被删除了)。编译失败的原因是，因为重载解析选择一个已删除的函数作为最佳(或唯一)重载。如果想强制使用复制构造函数(当然是以科研的名义)，就不必声明任何移动构造函数。 
 
-By now, you must see the danger of accidentally copying an object and ruining your program’s performance hiding behind every dark corner of your code. What can you do to avoid unintentional copying? We will have some suggestions in a moment, but first, let us return to one approach that we already used briefly: the use of pointers.
+现在，已经看到了隐藏在代码阴暗角落的复制对象，从而会有拉低程序性能的危险。能做些什么来避免无意的复制吗？我们稍后会给出一些建议，但首先，让我们回到已经使用过的一种方法:使用指针。
 
-\subsubsubsection{9.3.5\hspace{0.2cm}Using pointers to avoid copying}
+\subsubsubsection{9.3.5\hspace{0.2cm}使用指针避免复制}
 
-One way to avoid copying objects when passing them around is to pass pointers instead. This is easiest if we don’t have to manage the object’s lifetime. If a function needs access to an object but does not need to delete it, passing the object by reference or by a raw pointer is the best way (the reference, in this context, is really just a pointer that cannot be null). 
+传递对象时避免复制对象的一种方法是传递指针。如果不需要管理对象的生命周期，那这是最简单的方式。如果函数需要访问一个对象，但不需要删除它，那么通过引用或原始指针传递对象是最好的方式(在上下文中，引用实际上只是一个不能为空的指针)。 
 
-Similarly, we can return an object from a function using a pointer, but this needs more care. First of all, the object must be allocated on the heap. You must never return pointers or references to local variables. Refer to the following code:
+类似地，我们可以使用指针从函数返回一个对象，但这需要注意一些问题。首先，对象必须在堆上分配。绝对不能返回指向局部变量的指针或引用。参考以下代码:
 
 \begin{lstlisting}[style=styleCXX]
 C& makeC(int i) { C c(i); return c; } // Never do this!
 \end{lstlisting}
 
-Second, the caller is now responsible for deleting the object, so every caller of your function must know how the object was constructed (operator new is not the only way to construct objects, just the most common one). The best solution here is to return a smart pointer:
+其次，调用者负责删除对象，因此函数的每个调用者都必须知道对象是如何构造的(\texttt{new}操作符不是构造对象的唯一方法，不过是最常见的方法而已)。这里的最佳解决方案是返回智能指针:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -310,9 +310,9 @@ std::unique_ptr<C> makeC(int i) {
 }
 \end{lstlisting}
 
-Note that such a factory function should return unique pointers even if the caller may use shared pointers to manage the object’s lifetime: it is easy and cheap to move from the unique pointer to the shared one.
+注意，这样的工厂函数应该返回唯一指针，即使调用者可以使用共享指针来管理对象的生命周期:从唯一指针移动到共享指针很容易，成本也很低。
 
-Speaking of shared pointers, they are often used to pass around objects whose lifetime is managed by smart pointers. Unless the intent is to pass the ownership of the object as well, this is again an example of unnecessary and inefficient copying. Copying shared pointers is not cheap. So, what do we do if we have an object managed by a shared pointer and a function that needs to operate on this object without taking ownership of it? We use raw pointers:
+说到共享指针，它们通常用于传递生命期由智能指针管理的对象。除非目的是同时传递对象的所有权，否则这又是一个不必要和低效的复制的例子。复制共享指针开销也不小。若我们有一个由共享指针管理的对象，以及一个需要操作这个对象而不需要占有它的函数，应该怎么办呢？就可以使用原始指针:
 
 \begin{lstlisting}[style=styleCXX]
 void do_work1(C* c);
@@ -322,27 +322,27 @@ do_work1(&*p);
 do_work2(&*p);
 \end{lstlisting}
 
-The declarations of the functions do\_work1() and do\_work2() tell us about the programmer’s intent: both functions operate the object without deleting it. The first function modifies the object; the second does not. Both functions expect to be called without the object and will handle this special case (otherwise, the arguments would be passed by reference). 
+函数\texttt{do\_work1()}和\texttt{do\_work2()}的声明告诉我们开发者的意图:这两个函数都操作对象而不删除它。第一个函数修改对象，第二个则不然。这两个函数都希望在没有对象的情况下调用，并将处理这种特殊情况(否则，参数将通过引用传递)。 
 
-Similarly, you can create containers of raw pointers as long as the lifetime of the objects is managed elsewhere. If you want the container to manage the lifetime of its elements but do not want to store the objects in the container, a container of unique pointers will do the job. 
+类似地，只要对象的生命周期是在别处管理，就可以创建原始指针的容器。如果希望容器管理其元素的生命周期，但又不想将对象存储在容器中，可以则使用具有唯一指针的容器来完成这项工作。 
 
-Now it is time for some general guidelines that will help you avoid unnecessary copying and the inefficiencies it can cause.
+现在是时候给出一些通用的指导指南了，这些指导指南将帮助我们避免不必要的复制，以及相应的低效率。
 
-\subsubsubsection{9.3.6\hspace{0.2cm}How to avoid unnecessary copying}
+\subsubsubsection{9.3.6\hspace{0.2cm}如何避免不必要的复制}
 
-Perhaps the most important thing you can do to reduce accidental, unintentional copying is to ensure that all your data types are movable if moving can be implemented cheaper than copying. If you have container libraries or other reusable code, make sure it is move-enabled as well. 
+也许为了减少意外的、无意义的复制，可以做的事情是确保所有数据类型都是可移动的，如果实现移动比复制更廉价的话。如果有容器库或其他可重用代码，请确保支持移动。 
 
-The next suggestion is somewhat hamfisted, but it can save you a lot of debugging time: if you have types that are expensive to copy, make them non-copyable to begin with. Declare the copy and assignment operations as deleted. If the classes support a fast move, provide move operations instead. This will, of course, prevent any copying, intentional or not. Hopefully, intentional copying is rare, and you can implement a special member function like clone() that will create a copy of the object. At least this way, all the copying is explicit and visible in your code. If the class is neither copyable nor movable, you will not be able to use it with STL containers; however, a container of unique pointers is a fine alternative. 
+下一个建议有些笨拙，但可以节省大量调试时间:如果类型复制成本很高，那么就从一开始就让它们不可复制。将复制和赋值操作声明为删除。如果类支持快速移动，则提供移动操作。当然，这将防止任何复制，无论是有意义还是无意义。希望有意义复制很少发生，可以实现一个特殊的成员函数，如\texttt{clone()}，它将创建对象的副本。至少这样，所有的复制在代码中是显式和可见的。如果类既不能复制也不能移动，就不能在STL容器中使用它，而包含唯一指针的容器是一种很好的替代方法。 
 
-When passing parameters to functions, use references or pointers whenever possible. If the function needs to make a copy of the argument, consider passing by value and moving from the parameter instead. Remember that this works well only for move-enabled types, and see the first guideline.
+向函数传递参数时，尽可能使用引用或指针。如果函数需要复制实参，则考虑按值传递，并从实参移动。记住，这只适用于支持移动的类型，请参阅第一条准则。
 
-Everything we said about passing function arguments can be applied to temporary local variables as well (after all, function parameters are basically temporary local variables in the function scope). These should be references unless you need a copy. This does not apply to the built-in types like integers or pointers: they are cheaper to copy than to access indirectly. In template code, you don’t have the luxury of knowing whether the type is large or small, so use references and rely on compiler optimizations to avoid unnecessary indirect access to built-in types.
+关于传递函数参数的建议也可以应用于临时局部变量(毕竟，函数形参基本上就是函数作用域中的临时局部变量)。这些应该是可以参考的，除非需要复制。不过，这并不适用于整数或指针等内置类型:复制它们比间接访问要廉价。在模板代码中，无法知道类型是大是小，因此使用引用并依赖于编译器优化，可以避免不必要的(内置类型)间接访问。
 
-When returning values from functions, your first preference should be to rely on RVO and copy elision. Only when you find that the compiler does not perform this optimization and that it matters in your particular case should you consider alternatives. These alternatives are: using functions with output arguments and using factory functions that construct the results in dynamically allocated memory and return owning smart pointers such as std::unique\_ptr. 
+当从函数返回值时，第一选择应该是依赖RVO和忽略复制。只有当发现编译器不执行这种优化，或这种优化对特定情况有影响时，才应该考虑其他方法。这些方法是:使用带有输出参数的函数和使用在动态分配的内存中构造结果，并返回智能指针(如\texttt{std::unique\_ptr})的工厂函数。 
 
-Finally, review your algorithms and the implementation with an eye out for unnecessary copying: remember that ill-intentioned copying is just as bad for the performance as unintentional copying.
+最后，检查算法和实现，注意是否存在不必要的复制:记住，恶意的复制和无意的复制对性能的影响是一样的。
 
-We are done with the first bane of efficiency in C++ programs, the gratuitous copying of objects. The close second is poor memory management.
+我们已经解决了C++程序中影响效率的第一个问题，即对象的不必要复制。紧随其后的是糟糕的内存管理。
 
 
 
