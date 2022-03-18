@@ -1,14 +1,13 @@
 
-The subject of memory management in C++ can merit a book all of its own. There are dozens if not hundreds of papers dedicated just to the issue of the STL allocators. In this chapter, we will focus on several problems that tend to affect performance the most. Some have simple solutions; for others, we will describe the issue and outline the possible solution approaches. 
+关于C++内存管理的主题可以单独成书。关于STL分配器的问题，即使没有上百篇论文，也有几十篇。本章中，将重点讨论几个影响性能的问题。有些有简单的解决方案;其他的，我们将描述问题，并概述可能的解决方法。 
 
-There are two types of memory-related problems that you may run into in the context of performance. The first one is using too much memory: your program either runs out of memory or doesn’t meet the memory use requirements. The second problem occurs when your program becomes memory-bound: its performance is limited by the speed of memory access. Often, in these cases, the runtime of the program is directly related to how much memory it uses, and reducing the memory use also makes the program run 
-faster. 
+性能方面可能会遇到两种与内存相关的问题。第一个问题是使用太多内存:程序要么耗尽内存，要么没有满足内存使用要求。第二个问题发生在程序受到内存限制时，性能受到内存访问速度的限制。在这样的情况下，程序的运行时间与使用的多少内存直接相关，减少内存使用会使程序运行得更快。 
 
-The material presented in this section is helpful mostly for programmers who deal with memory-bound programs or programs that allocate memory frequently and/or in large quantities. We begin with the performance impact of the memory allocations themselves.
+本节中介绍的示例适用于处理内存限制程序或频繁和/或大量分配内存的程序。我们从内存分配本身对性能的影响开始。
 
-\subsubsubsection{9.4.1\hspace{0.2cm}Unnecessary memory allocations}
+\subsubsubsection{9.4.1\hspace{0.2cm}不必要的内存分配}
 
-One of the most common performance problems related to memory use is that of unnecessary memory allocation. Here is a very common problem, described in C++-like pseudocode:
+与内存使用相关的性能问题之一是\textit{不必要的内存分配}。下面是一个常见的问题，用类似C++的伪代码来描述:
 
 \begin{lstlisting}[style=styleCXX]
 for ( … many iterations … ) {
@@ -18,9 +17,9 @@ for ( … many iterations … ) {
 }
 \end{lstlisting}
 
-A well-written program would use an RAII class to manage deallocations, but we wanted to make allocations and deallocations explicit for clarity. The allocations are usually concealed inside objects that manage their own memory, such as STL containers. It is not uncommon for such a program to spend most of its time in memory allocation and deallocation functions (such as malloc() and free()). 
+一个良好的程序会使用RAII类来管理回收内存，但是为了清晰明了，我们希望使显式分配和回收。分配通常隐藏在管理自己内存的对象中，比如STL容器。这样的程序，会将大部分时间花在内存分配和回收函数(如\texttt{malloc()}和\texttt{free()})上。 
 
-We can see the effect on performance on a very simple benchmark:
+我们可以在一个非常简单的基准测试中看到它对性能的影响:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -38,9 +37,9 @@ void BM_make_str_new(benchmark::State & state) {
 }
 \end{lstlisting}
 
-Here the work is represented by initializing a character string, and the random\_number() function returns random integer values (it could be just rand(), but the benchmark is cleaner if we precompute and store random numbers to avoid benchmarking the random number generator). You may also need to trick thecompiler into not optimizing away the results: if the usual benchmark::DoNotOptimize()does not suffice, you may have to insert a print statement with the condition that never happens (but the compiler does not know it) like rand() < 0.
+这里的工作是通过初始化一个字符串来表示的，\texttt{random\_number()}返回随机整数值(可能只是\texttt{rand()}，但是若预先计算和存储随机数，以避免对随机数生成器进行基准测试，那么基准测试会更简洁)。可能还需要哄骗编译器不要优化掉结果:若\texttt{benchmark::DoNotOptimize()}不能满足要求，可能需要插入一个\texttt{print}语句，但条件永远不会发生(但编译器并不知道)，比如\texttt{rand() < 0}。
 
-The numbers we get from the benchmark are meaningless by themselves: we need to compare them with something. In our case, the baseline is easy to figure out: we must do the same work but none of the allocations. This can be accomplished by moving the allocation and the deallocation out of the loop since we know the maximum memory size:
+我们从基准中得到的数据本身没有意义，需要将它们与其他东西进行比较才可以。我们的例子中，基线很容易确定:我们必须做相同的工作，但不进行分配。这可以通过将分配和回收移出循环来实现(我们知道最大内存大小):
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -52,19 +51,19 @@ for (auto _: state) {
 delete[] buf;
 \end{lstlisting}
 
-The performance difference you will observe in such a benchmark depends greatly on the operating system and the system libraries, but you’re likely to see something like this (we used strings of random sizes up to 1 KB):
+基准测试中，将观察到的性能差异在很大程度上取决于操作系统和系统库，但很可能会看到这样的情况(我们使用的是随机大小为1KB的字符串):
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter9/images/5.jpg}\\
-Figure 9.5 – Performance impact of the allocation-deallocation pattern
+图9.5 - 分配-回收模式对性能的影响
 \end{center}
 
-It should be noted that the memory allocations in a micro-benchmark are typically more efficient than in the context of a large program where the memory allocation pattern is much more complex, so the real-world effect of frequent allocations and deallocations is likely to be even larger. Even in our small benchmark, the implementation that allocates memory every time runs at 40\% of the speed of the version that allocates the maximum possible amount of memory just once. 
+与内存分配模式复杂得多的大型程序相比，微基准测试中的内存分配通常更高效，因此频繁的分配和回收在实际中的影响可能更大。即使在我们的微基准测试中，每次分配内存的实现运行速度只有一次分配最大可能内存量的版本的40\%。 
 
-Of course, when the maximum amount of the memory we need during the computation is known in advance, preallocating it and reusing it from one iteration to the next is an easy solution. This solution generalizes to many containers as well: for a vector or deque, we can reserve the memory before the start of the iterations and take advantage of the fact that resizing the container does not shrink its capacity.
+当然，如果在计算过程中所需要的最大内存量是已知的，那么预先分配内存并从一个迭代到下一个迭代进行重用，就是一个简单的解决方案。这个解决方案也适用于许多容器:对于\texttt{vector}或\texttt{deque}容器来说，利用调整容器大小不会缩小其容量的事实，可以在迭代开始之前预留内存。
 
-The solution is only slightly more complex when we do not know the maximum memory size in advance. This situation can be handled with a grow-only buffer. Here is a simple buffer that can be grown but never shrinks:
+如果事先不知道最大内存大小，那么解决方案就会复杂一些。这种情况可以使用仅增长的缓冲区来处理。下面是一个简单的缓冲区，只能增长:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -87,7 +86,7 @@ class Buffer {
 };
 \end{lstlisting}
 
-Again, this code is useful for demonstration and exploration. In a real program, you are likely to use STL containers or your own library classes, but they all should have the capability to increase the memory capacity. We can compare the performance of this grow-only buffer with that of the fixed-size preallocated buffer by trivially modifying our benchmark:
+同样，这段代码对于演示和探索都非常有用。在实际的程序中，可能会使用STL容器或自己的库类，但它们都应该具有增加内存容量的能力。我们可以通过简单地修改基准测试，来比较这个只增长的缓冲区和固定大小的预分配缓冲区的性能:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -105,90 +104,89 @@ void BM_make_str_buf(benchmark::State& state) {
 }
 \end{lstlisting}
 
-Again, in a real program, you are likely to get better results with a smarter memory growth strategy (grow by somewhat more than requested, so you don’t have to grow memory as often – most STL containers employ some form of this strategy). But, for our demonstration, we want to keep things as simple as possible. On the same machine, the results of the benchmark are as follows:
+现实中，使用更智能的内存增长策略可能会得到更好的结果(比请求的内存增长稍微多一些，所以不必经常增加内存——大多数STL容器都采用这种策略)。但是，在我们的演示中，想让事情尽可能的简单。在同一台机器上，基准测试的结果如下:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter9/images/6.jpg}\\
-Figure 9.6 – Performance of a grow-only buffer (compare with Figure 9.5)
+图9.6 - 只增长缓冲区的性能(与图9.5相比)
 \end{center}
 
-The grow-only buffer is slower than a fixed-size buffer but much faster than allocating and deallocating memory every time. Again, a better growth policy would make this buffer even faster, close to the speed of the fixed-size buffer. 
+只增长的缓冲区比固定大小的缓冲区慢，但比每次分配和回收内存都会快很多。同样，更好的增长政策将使这个缓冲更快，接近固定大小的速度。 
 
-This is not the entire story: the importance of good memory management is even greater in multi-threaded programs because the calls to the system memory allocator do not scale well and may involve a global lock. Running our benchmark on the same machine using 8 threads produces these results:
+这还不是全部:多线程程序中，良好的内存管理更为重要，因为对系统内存分配器的调用不能很好地扩展，并且可能涉及全局锁。同一台机器上使用8个线程运行我们的基准测试会产生以下结果:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter9/images/7.jpg}\\
-Figure 9.7 – Performance impact of the allocation-deallocation pattern in a multi-threaded program
+图9.7 - 多线程程序中分配-回收模式对性能的影响
 \end{center}
 
-Here, the penalty for frequent allocations is even greater (the grow-only buffer shows the cost of the remaining allocations as well and would really benefit from a smarter growth policy). 
+这里，频繁分配的代价更大(只增长缓冲区也展示了分配剩余内存的成本，从而从好的增长策略中受益)。 
 
-The bottom line is: interact with the OS as little as possible. If you have a loop that needs to allocate and deallocate memory on each iteration, allocate once before the loop instead. If the allocations are of the same size, or you know the maximum allocation size upfront, make one allocation of this size and hold it (of course, if you use several buffers or containers, you should not try to shoehorn them into a single allocation, but preallocate each one). If you do not know the maximum size, use a data structure that can grow, but do not shrink or release the memory until the work is done. 
+底线是:尽可能少地与操作系统交互。如果有一个循环需要在每次迭代中分配和释放内存，那么在循环之前分配。如果分配的大小相同，或者预先知道最大分配大小，则预分配一个这个大小的内存，并保持它(当然，如果使用几个缓冲区或容器，不应该将它们硬塞到一个分配中，而是应该为每个区域进行预分配)。如果不知道最大内存大小，则使用可以增长的数据结构，但在工作完成之前不要缩减或释放内存。 
 
-The recommendation to avoid interacting with the OS is particularly important in multi-threaded programs, and we will now make some more general comments on the use of memory in concurrent programs.
+避免与操作系统交互的建议在多线程程序中尤为重要，现在我们将对并发程序中的内存使用做一些讨论。
 
-\subsubsubsection{9.4.2\hspace{0.2cm}Memory management in concurrent programs}
+\subsubsubsection{9.4.2\hspace{0.2cm}并发程序中的内存管理}
 
-The memory allocator provided by the operating system is a solution that balances many requirements: on a given machine, there is only one OS but many different programs with their own unique needs and memory use patterns. The developers tried very hard to make it not fail miserably in any reasonable use case; the flip side is that it’s rarely the best possible solution for any use case, too. Often, it’s good enough, especially if you follow the recommendation of requesting memory frequently.
+操作系统提供的内存分配器是一种平衡多种需求的解决方案:在给定的机器上，只有一个操作系统，但有许多不同的程序，它们有自己独特的需求和内存使用模式。开发人员非常努力地让它在合理的使用方式中不会失败;另一方面，它也很少是最佳解决方案。通常，这就已经足够好了，特别是如果需要频繁的申请内存。
 
-Memory allocation becomes more inefficient in concurrent programs. The primary reason is that any memory allocator has to maintain a fairly complex internal data structure to track allocated and free memory. In high-performance allocators, the memory is subdivided into multiple arenas to group allocations of similar size together. This increases performance at the cost of complexity. The result is that this management of the internal data has to be protected by a lock if multiple threads are allocating and deallocating memory at once. This is a global lock, one for the entire program, and it can limit the scaling of the entire program if the allocator is called often.
+在并发程序中，内存分配变得更加低效。主要原因是，内存分配器都必须维护一个相当复杂的内部数据结构，以跟踪分配和释放的内存。在高性能分配器中，内存会细分为多个方面，以便将类似大小的分配组合在一起。这就是以复杂性为代价，提高了性能。结果是，如果多个线程同时分配和释放内存，那么内部数据的管理必须由锁来保护。这是一个全局锁，用于整个程序，如果经常调用分配器，它可以限制整个程序的扩展性。
 
-The most common solution to this problem is to use an allocator with thread-local caches, such as the popular malloc() replacement library TCMalloc. These allocators reserve some amount of memory for each thread: when a thread needs to allocate memory, it is taken from the thread-local memory arena first. This does not need a lock since only one thread interacts with that arena. Only if the arena is empty does the allocator have to take the lock and allocate from the memory shared between all threads. Similarly, when a thread deallocates the memory, it is added to the thread-specific arena, again without any locking.
+这个问题最常见的解决方案是使用带有线程局部缓存的分配器，比如流行的\texttt{malloc()}替换库TCMalloc。这些分配器为每个线程预留了一定数量的内存:当一个线程需要分配内存时，首先从线程本地内存域中获取。这并不需要锁，因为只有一个线程与该域交互。只有当域为空时，分配器才必须从所有线程共享的内存中获取锁并进行分配。类似地，当一个线程释放内存时，释放的内存会添加到线程特定域中，同样不需要任何锁。
 
-The thread-local caches are not without their share of problems.
+线程本地缓存也不是没有问题。
 
-First of all, they tend to use more memory overall: if one thread frees a lot of memory and another thread allocates a lot of memory, the recently freed memory does not become available to the other thread (it’s local to the thread that released it). So more memory is allocated while unused memory is available for other threads. To limit this memory waste, he allocators typically do not allow the per-thread arena to grow above some predefined limit. Once the limit is reached, the thread-local memory is returned to the main arena shared between all threads (this operation requires a lock).
+首先，它们倾向于使用更多的内存:如果线程释放了大量内存，而另一个线程分配了大量内存，那么最近释放的内存对另一个线程来说是不可用的(对于释放它的线程来说内存是本地的)。因此，当未使用的内存可供其他线程使用时，会分配更多的内存。为了限制这种内存浪费，分配器通常不允许每个线程的空间增长超过某个预定义的限制。达到限制时，线程本地内存将返回到所有线程共享的内存域中(这个操作需要一个锁)。
 
-The second problem is that these allocators work well if each allocation is owned by one thread, that is, the same thread allocates and deallocates memory at each address. If one thread allocates some memory, but another thread has to deallocate it, this cross-thread deallocation is difficult because the memory must be transferred from the thread-local arena of one thread to that of the other (or to the shared arena). A simple benchmark shows that the performance of cross-thread deallocation with the standard allocators like malloc() or TCMalloc is at least an order of magnitude worse than that of thread-owned memory. This is likely to be true with any allocator that utilizes thread-local caches, and so memory transfers between threads should be avoided whenever possible.
+其次，如果每个分配都由一个线程拥有，那么这些分配器可以工作得很好，相同的线程可以在每个地址分配和释放内存。如果一个线程分配了一些内存，但另一个线程必须释放，因为内存必须从一个线程的局部域，转移到另一个线程的局部域(或共享域)，所以这种跨线程释放很困难。基准测试表明，使用标准分配器(如\texttt{malloc()}或TCMalloc)的跨线程回收的性能，至少比线程分别拥有本地内存的性能差一个数量级。对于使用线程本地缓存的分配器来说，这可能都是正确的，因此应该尽可能避免线程之间的内存交互。
 
-So far, we were talking about transferring memory from one thread to another for the purpose of deallocating it. What about simply using memory that was allocated by another thread? The performance of such memory access depends greatly on the hardware capabilities. For a simple system with few CPUs, this is likely a non-issue. But larger systems have multiple memory banks, and the connection between the CPU and the memory is not symmetric: each memory bank is closer to one CPU. This is known as the non-uniform memory architecture (NUMA). The performance impact of NUMA varies widely from doesn’t matter to twice as fast. There are ways to tune theperformance of the NUMA memory system as well as making the program memory management sensitive to NUMA details, but beware that you are likely tuning the performance to a particular machine: there is very little that can be said about the performance of NUMA systems in general.
+现在，我们讨论的是将内存从一个线程传输到另一个线程，目的是回收内存。那么简单地使用由另一个线程分配的内存呢？这种内存访问的性能在很大程度上取决于硬件能力。对于CPU较少的简单系统，这可能不是问题。但是较大的系统有多个内存库，并且CPU和内存之间的连接是不对称的:每个内存库更接近一个CPU，这就是所谓的\textbf{非均匀内存访问(NUMA)}。NUMA对性能的影响差别很大，\textit{从无关紧要到快了一倍}。有一些方法可以优化NUMA内存系统的性能，并使程序内存管理对NUMA敏感。但请注意，您可能会针对特定的机器调优性能，但关于NUMA系统的一般性性能资料，可以几乎没有。
 
-We are now returning to the issue of using memory more efficiently since it is universally helpful for performance in concurrent and serial programs alike.
+我们现在回到更有效地使用内存的问题，因为它对并发程序和串行程序的性能都有帮助。
 
+\subsubsubsection{9.4.3\hspace{0.2cm}避免内存碎片}
 
-\subsubsubsection{9.4.3\hspace{0.2cm}Avoiding memory fragmentation}
+困扰许多程序的问题是与内存分配系统的低效交互。假设程序需要分配1KB的内存。这个内存块是从一些更大的内存空间中取出来的，标记为由分配器使用，并将地址返回给调用者。接下来会分配更多的内存，所以1KB块之后的内存现在也使用了。然后程序返回第一个分配，并立即请求2KB的内存。这时有一个1KB的空闲块，但它不够大，不能满足新的请求。其他地方可能还有另一个1KB的块，但只要这两个块不是紧挨着的，则对于2KB的分配申请就没什么意义:
 
-One issue that plagues many programs is an inefficient interaction with the memory allocation system. Let us say that the program needs to allocate 1 KB of memory. This chunk of memory is carved out from some larger memory arena, marked as used by the allocator, and the address is returned to the caller. More memory allocations follow, so the memory after our 1 KB chunk is now used too. Then the program returns the first allocation and immediately asks for 2 KB of memory. There is a 1 KB free chunk, but it’s not large enough to service this new request. There may be another 1 KB chunk somewhere else, but as long as the two chunks are not right next to each other, they are not useful for the purpose of the 2 KB allocation:
-
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter9/images/8.jpg}\\
-Figure 9.8 – Memory fragmentation: 2 KB of free memory exists but is not useful for a single 2 KB allocation
+图9.8 - 内存碎片:存在2KB的空闲内存，但对于单个2KB的分配并没啥用
 \end{center}
 
-This situation is known as memory fragmentation: the system has free memory returned by the program but instead has to use new memory to service the next allocation because the memory released by the program is fragmented into small chunks. In extreme cases, this fragmentation can cause the program to run out of memory long before the overall memory capacity of the system is exhausted (the worst case the author has seen is a program that ran out of memory after allocating only 1/6th of the total memory available). There are memory allocators that resist fragmentation better than the standard malloc(), but for programs that churn through memory quickly, more extreme measures may be required.
+这种情况称为\textbf{内存碎片}:系统有程序返回的空闲内存，但必须使用新的内存来服务于下一次分配，因为程序释放的内存分割成小块。在极端的情况下，这种碎片可能会导致程序在系统的总内存容量耗尽之前就“耗尽内存”(作者所见过的最糟糕的情况是，一个程序在只分配了总可用内存的1/6后就“耗尽”了内存)。有些内存分配器比标准的\texttt{malloc()}更能抵抗碎片，但是对于快速移动内存的程序，可能需要更极端的措施。
 
-One such measure is a block allocator. The idea is that all memory is allocated in blocks of fixed size, such as 64 KB. You should not allocate single blocks of this size from the OS one at a time but instead allocate larger chunks of fixed size (say, 8 MB) and subdivide them into the smaller blocks (64 KB in our example). The memory allocator that handles these requests is the primary allocator in your program, the one that interacts directly with malloc(). Because it allocates blocks of just one size, it can be very simple, and we can focus on the most efficient implementation (thread-local cache for concurrent programs, low latency for real-time systems, and so on). Of course, you do not want to deal with these 64 KB blocks everywhere in your code. That is the job of secondary allocators, as shown in the following Figure 9.9:
+一种解决方式为块分配器。其思想是，所有内存都以固定大小的块(比如64KB)分配。不能从操作系统一次分配一个这样大小的块，而是分配较大的内存块(例如，8MB)，并将它们细分为较小的块(在我们的示例中为64KB)。处理这些请求的内存分配器是程序中的主分配器，它直接与\texttt{malloc()}交互。因为只分配一个大小的块，所以非常简单，这样我们就可以专注于最有效的实现(并发程序的线程本地缓存，实时系统的低延迟等)。当然，谁都不想在代码中处理这些64KB的块，其实这是二级分配器的工作，如图9.9所示:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter9/images/9.jpg}\\
-Figure 9.9 – Fixed-size block allocation
+图9.9 - 固定大小的块分配
 \end{center}
 
-You can have an allocator that further subdivides the 64 KB blocks into smaller allocations. Particularly efficient is a uniform allocator (an allocator for just one size): for example, if you want to allocate memory for single 64-bit integers, you can do so without any memory overhead (by comparison, malloc() usually requires at least 16 bytes of overhead per allocation). You can also have containers that allocate memory in 64 KB blocks and use it to store the elements. You will not be using vectors since they require a single large, contiguous allocation. The array-like container you want here is the deque that allocates memory in fixed-size blocks. You can, of course, have nodal containers as well. You can use the STL containers if the STL allocator interface is sufficient for your needs; otherwise, you may have to write your own container library.
+可以使用一个分配器将64KB的块进一步细分为更小的块。统一分配器(只分配一个大小的分配器)非常高效，例如：想为单个64位整数分配内存，就可以这样做，而不需要任何内存开销(相比之下，\texttt{malloc()}每次分配通常需要至少16个字节的开销)。还可以使用容器以64KB块分配内存，并使用它来存储元素。这里不会使用\texttt{vector}，因为它需要一个大型的、连续的分配。这里你需要的数组容器是\texttt{deque}，它在固定大小的块中分配内存。当然，也可以使用节点容器。如果STL分配器接口足以满足需求，可以使用STL容器，要不，就需要编写自己的容器库了。
 
-The key advantage of the fixed-size block allocation is that it does not suffer from fragmentation: all allocations from malloc() are of the same size, so are all allocations from the primary allocator. Any time a memory block is returned to the allocator, it can be reused to satisfy the next request for memory. Refer to the following figure:
+固定大小的块分配的优点是不会受到碎片化的影响，\texttt{malloc()}的所有分配都是相同的大小，主分配程序的所有分配也是一样的。一个内存块返回给分配器时，都可以重用以满足下一个内存请求。参考下图:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter9/images/10.jpg}\\
-Figure 9.10 – Memory reuse in fixed-size allocators
+图9.10 - 固定大小分配器中的内存重用
 \end{center}
 
-That first-in-first-out property is also an advantage: the last 64 KB memory block is likely to be from the most recently used memory and is still hot in the cache. Reusing this block immediately improves memory reference locality and, therefore, makes more efficient use of the cache. The allocator manages the blocks returned to it as a simple free list (Figure 9.10). These free lists can be maintained per thread to avoid locking, although they will likely need periodic rebalancing to avoid the situation where one thread has accumulated many free blocks while another thread is allocating new memory.
+这种先进先出的属性也是一个优势:最后的64KB内存块很可能来自最近使用的内存，并且在缓存中仍然是\textit{热的}。重用这个块可以立即改善内存引用的局部性，因此可以更有效地使用缓存。分配调度器会返回块作为一个简单的空闲链表(图9.10)。可以为每个线程维护这些空闲链表，以避免锁的使用，尽管它们可能需要定期重新平衡，以避免线程积累了过多的空闲块，而另一个线程正在分配新内存的情况。
 
-Of course, the allocators that subdivide our 64 KB blocks into smaller sizes are still susceptible to fragmentation unless they are also uniform (fixed-size) allocators. It is, however, easier to write a self-defragmenting allocator if it has to deal with a small memory range (one block) and few different sizes. 
+当然，将我们的64KB块细分成更小大小的分配器时，仍然容易受到碎片的影响，除非它们也是统一(固定大小)的分配器。然而，如果必须处理较小的内存(一个块)和少量不同大小的内存，那么编写一个可以自动进行碎片整理分配器会更容易。 
 
-It is likely that the entire program is affected by the decision to use block memory allocation. For example, allocating large numbers of small data structures such that each one uses a fraction of the 64 KB block and leaves the rest unused becomes prohibitively expensive. On the other hand, a data structure that itself is a collection of smaller data structures (a container) such that it packs many smaller objects into one block becomes easier to write. One can even write compressed containers that compress each block for keeping the data long-term, then decompress them one block at a time for access. 
+使用块内存分配的决定很可能会影响整个程序，例如：分配大量的小数据结构，使每个数据结构使用64KB块的一小部分，这将降低内存的性价比。另一方面，如果数据结构本身是一组较小的数据结构(容器)的集合，可以将许多较小的对象打包到一个块中，那么这种数据结构就更容易处理。甚至可以编写压缩容器来压缩每个块，以便长期保存数据，然后进行解压缩以便访问。 
 
-The block size itself is not set in stone, either. Some applications will be more efficient with smaller blocks where less memory is wasted if a block is left partially unused. Others can benefit from larger blocks that require fewer allocations.
+区块大小本身也不是一成不变的。一些应用程序使用更小的块会更有效率，如果块部分未使用，内存浪费更少。其他线程可以减少大内存块分配的次数，从而在性能上获益。
 
-The literature on application-specific allocators is extensive. For example, slab allocators are a generalization of the block allocators we have just seen; they manage multiple allocation sizes efficiently. There are many other types of custom memory allocators, and most of them can be used in a C++ program. Using an allocator that is well-suited for a specific application often brings dramatic performance improvements, usually at the cost of severely restricting the programmer’s freedom in the implementation of the data structures.
+关于特定于应用程序的分配器的文献非常丰富，例如：slab分配器是我们刚才看到的块分配器的泛化版本，可以有效地管理多个内存分配。还有许多其他自定义的内存分配器，其中大多数都可以在C++中使用。特定应用程序的分配器通常会带来显著的性能改进，但代价通常是严重限制了开发者实现数据结构的自由。
 
-The next common reason for inefficiency is more subtle and much harder to deal with.
+下一个导致效率低下的常见原因更为微妙，也更难处理。
 
 
 

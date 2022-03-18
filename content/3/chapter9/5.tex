@@ -1,22 +1,22 @@
-After the unnecessary computations and inefficient use of memory, the next easiestway to write inefficient code that fails to utilize a large fraction of available computing resources is probably code that does not pipeline well. We have seen the importance of CPU pipelining in Chapter 3, CPU Architecture, Resources, and Performance Implications. We have also learned there that the worst disruptor of pipelining is usually a conditional operation, especially the one that the hardware branch predictor fails to guess. 
+在经历了不必要的计算和低效的内存使用之后，低效的编码、不充分利用大部分可用计算资源代码的下一个问题，可能就是不能很好地流水线化代码。我们已经在第3章中看到了CPU流水线的重要性。我们还了解到，流水线最糟糕的干扰因素通常是条件操作，特别是硬件分支预测器无法猜测的操作。 
 
-Unfortunately, optimizing conditional code for better pipelining is one of the hardest C++ optimizations. It should be undertaken only if the profiler shows poor branch prediction. Note, however, that the number of mispredicted branches does not have to be large to be considered “poor”: a good program will typically have less than 0.1\% of mispredicted branches. The misprediction rate of 1\% is quite large. It is also quite difficult to predict the effect of source code optimizations without examining the compiler output (the machine code).
+不幸的是，优化条件代码以实现更好的流水是C++最困难的优化之一。只有当分析器显示出较差的分支预测时，才应该进行此操作。然而，错误预测的分支的数量并不一定要很大才会认为是“差”的:好的程序通常会有少于0.1\%的错误预测分支。1\%的预测误差率是相当大的。如果不检查编译器输出(机器码)，也很难预测源代码的优化效果。
 
-If the profiler shows a badly predicted conditional operation, the next step is to determine which condition is being mispredicted. We have already seen some examples in Chapter 3, CPU Architecture, Resources, and Performance Implications. For example, this code:
+如果分析器显示了一个预测不好的条件操作，下一步就是确定哪个条件预测错了。我们已经在第3章中看到了一些例子。例如:
 
 \begin{lstlisting}[style=styleCXX]
 if (a[i] || b[i] || c[i]) { … do something … }
 \end{lstlisting}
 
-may yield one or more badly predicted branches even when the overall result is predictable. This has to do with the definition of the Boolean logic in C++: the operators || and \&\& are short-circuited: the expression is evaluated left to right until the result becomes known. For example, if a[i] is true, the code must not access array elements b[i] and c[i]. Sometimes, this is necessary: the logic of the implementation may be such that these elements don’t exist. But often, the Boolean expressions introduce unnecessary branches for no reason. The preceding if() statement requires 3 conditional operations. On the other hand, this statement:
+即使整体结果可预测，也可能产生一个或多个预测不佳的分支。这与C++中布尔逻辑的定义有关。操作符\texttt{||}和\texttt{\&\&}可以短路:表达式从左到右求值，直到结果已知。如果\texttt{a[i]}为true，则代码就不管数组元素\texttt{b[i]}和\texttt{c[i]}了。有时，这是必要的:实现的逻辑可能不存在这些元素。但通常，布尔表达式会无缘无故地引入不必要的分支。前面的\texttt{if()}语句需要3个条件操作。而在下面的代码中:
 
 \begin{lstlisting}[style=styleCXX]
 if (a[i] + b[i] + c[i]) { … do something … }
 \end{lstlisting}
 
-is equivalent to the last one if the values a, b, and c are non-negative but require a single conditional operation. Again, this is not the kind of optimization you should be doing preemptively unless you have measurements that confirm the need for it.
+如果值\texttt{a}、\texttt{b}和\texttt{c}非负，但需要单个条件操作，则与最上一个示例相同。再次强调，这不是那种应该先做的优化，除非你有测试确认这里需要优化。
 
-Here is another example. Consider this function:
+看一下这个函数:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -27,7 +27,7 @@ void f2(bool b, unsigned long x, unsigned long& s) {
 }
 \end{lstlisting}
 
-It is very inefficient if the value of b is unpredictable. Much better performance is just a simple change away:
+如果\texttt{b}值是不可预测的，则效率非常低。需要更好的表现，只是一个改变:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -38,43 +38,43 @@ void f2(bool b, unsigned long x, unsigned long& s) {
 }
 \end{lstlisting}
 
-This improvement can be confirmed with a simple benchmark of the original, conditional, implementation versus the branchless one:
+这种改进可以通过一个简单的基准测试来确定:原始的、有条件的、实现与无分支的实现:
 
 \begin{tcblisting}{commandshell={}}
 BM_conditional   176.304M items/s
 BM_branchless     498.89M items/s
 \end{tcblisting}
 
-As you can see, the branchless implementation is almost 3 times faster.
+如您所见，无分支实现比有条件的快3倍。
 
-It is important not to go overboard with this type of optimization. It must always be driven by the measurements, for several reasons:
+重要的是，不要在这种类型的优化上走极端。这种优化必须由测试驱动，原因如下:
 
 \begin{itemize}
 \item
-The branch predictors are quite complex, and our intuition about what they can and cannot handle is almost always wrong.
+分支预测器相当复杂，对它们能处理什么和不能处理什么的直觉几乎是错误的。
 
 \item
-The compiler optimizations can often change the code significantly, so, without  measuring or examining the machine code, even our expectations of the existence of a branch can be wrong.
+编译器优化常常会改变代码，因此，如果不测量或检查机器码，即使我们知道会对分支进行预测，猜测的结果可能是错的。
 
 \item
-Even if the branch is mispredicted, the performance impact can vary, so it is impossible to be sure without the measurement.
+即使分支错误地预测，性能影响也会变化，因此在没有测试的情况下没法进行确定。
 \end{itemize}
 
-For example, it is almost never useful to manually optimize this very common code:
+例如，手动优化这段代码几乎没什么用:
 
 \begin{lstlisting}[style=styleCXX]
 int f(int x) { return (x > 0) ? x : 0; }
 \end{lstlisting}
 
-It looks like conditional code, and if the sign of x is random, the prediction is impossible. However, it is very likely that the profiler will not show a large number of mispredicted branches here. The reason is that most compilers will not implement this line using a conditional jump. On x86, some compilers will use the CMOVE instruction, which does a conditional move: it moves the value from one of two source registers to the destination, depending on the condition. The conditional nature of this instruction is benign: remember that the problem with conditional code is that the CPU does not know in advance which instruction to execute next. With a conditional move implementation, the sequence of instructions is perfectly linear, and their order is predetermined, so there is nothing to guess. 
+这看起来像条件代码，若\texttt{x}的符号是随机的，则不可预测。然而，分析器很可能不会在这里显示预测错误的分支。原因是大多数编译器不会使用条件跳转来实现这一行。在x86上，一些编译器将使用CMOVE指令，它执行一个条件移动:根据条件，将值从两个源寄存器之一移动到目标寄存器。这条指令的条件性质是良性的:记住，条件代码的问题是CPU事先不知道接下来执行哪条指令。在有条件的移动实现中，指令序列完全线性，顺序是预先确定的，所以不需要猜测。 
 
-Another common example that is unlikely to benefit from a branchless optimization is a conditional function call:
+另一个不太可能从无分支优化中受益的例子是条件函数调用:
 
 \begin{lstlisting}[style=styleCXX]
 if (condition) f1(… args …) else f2(… args …);
 \end{lstlisting}
 
-A branchless implementation is possible using an array of function pointers:
+无分支实现可以使用函数指针数组:
 
 \begin{lstlisting}[style=styleCXX]
 using func_ptr = int(*)(… params …);
@@ -82,11 +82,11 @@ static const func_ptr f[2] = { &f1, &f2 };
 (*f[condition])(… args …);
 \end{lstlisting}
 
-If the functions were originally inlined, replacing them with an indirect function call is a performance killer. If they weren’t, this change likely does almost nothing: jumping to another function whose address is not known during compilation has an effect very similar to a mispredicted branch, so this code causes the CPU to flush the pipeline either way. 
+如果函数最初是内联的，那么用间接函数调用替换会影响性能。如果不是，这个更改可能没有任何作用:在编译期间跳转到另一个地址未知的函数，其效果类似于错误地预测分支，所以这段代码会使CPU刷新流水线。 
 
-The bottom line is, optimizing for branch prediction is a very advanced step. The results can be a spectacular improvement or a spectacular failure (or just some wasted time), so it is important to be guided by performance measurements at every step.
+底线是，优化分支预测需要很多技巧。性能结果可能有改进，也可能没改进(或者只是浪费了一些时间)，所以每一步都要有性能测试进行指导。
 
-We have now learned a lot about many kinds of potential inefficiencies in C++ programs and ways to improve them. We conclude with some overall guidelines for optimizing your code.
+我们现在已经了解了许多C++程序中潜在的低效率情况，以及改进它们的方法。最后，我们会给出了一些优化代码的指南。
 
 
 
