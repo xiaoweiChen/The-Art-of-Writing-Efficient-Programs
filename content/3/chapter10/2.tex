@@ -1,17 +1,17 @@
 
-The optimizing compiler is critically important for achieving high performance. Just try running a program compiled with no optimization at all to appreciate the role of the compiler: it is not uncommon for an unoptimized program (optimization level zero) to run an order of magnitude slower than the program compiled with all optimizations enabled.
+编译器优化对于实现高性也很重要。运行一个编译时根本没有优化的程序，就能体会到编译器的作用:一个未优化的程序(优化级别为0)运行速度比启用所有优化后编译的程序慢一个数量级。
 
-Very often, however, it is the case that the optimizer can use some help from the programmer. This help can take the form of very subtle and often counter-intuitive changes. Before we look at some specific techniques to improve the optimization of your code, it helps to understand how the compiler sees your program.
+然而，优化器可以从开发者那里得到一些帮助。这种帮助可以通过非常微妙的形式，通常是反直觉的。在研究一些改进代码优化的技术之前，其有助于理解编译器是如何处理程序的。
 
-\subsubsubsection{10.2.1\hspace{0.2cm}Basics of compiler optimizations}
+\subsubsubsection{10.2.1\hspace{0.2cm}编译器优化的基础知识}
 
-The most important thing you must understand about optimization is that any code that is correct must remain correct. Correct here has nothing to do with your view of what is correct: the program may have bugs and give an answer you consider wrong, but the compiler must preserve this answer. The only exception is a program that is ill-defined or invokes undefined behavior: if the program is incorrect in the eyes of the Standard, the compiler is free to do whatever it wants. We will examine the implications of this in the next chapter. For now, we are going to assume that the program is well defined and uses only valid C++. The compiler, of course, is restricted in what changes it can make by the requirement that the answers must not change for any combination of inputs. The latter is very important: you may know that a certain input value is always positive or a certain string is never more than 16 characters long, but the compiler does not know that (unless you find a way to tell it). The compiler can only make the optimizing transformation if it can be proven that this transformation results in a perfectly equivalent program: a program that produces the same outputs for any inputs. In practice, the compiler is also limited in how complex of a proof it can manage before it gives up.
+关于优化必须了解的事是，代码都必须保持正确。这里的正确与否与开发者主观认为什么是正确无关:程序可能会有错误，并给出一个看起来错误的答案，但编译器必须保留这个答案，而定义不明确或调用未定义行为的程序则是例外。如果程序在标准看来是错误的，编译器可以自由地做它想做的事情。我们将在下一章中来研究这一点。现在，我们将假设程序定义良好，并且只使用有效的C++语句。当然，由于答案不能因输入组合而改变，所以编译器在更改方面会受到限制。后者非常重要:可能知道某个输入值是正的，或者某个字符串中的字符永远不会超过16个，但编译器并不知道(除非找到一种方法来告诉它)。编译器只有在能够证明这种转换会产生完全等价的程序时，才能进行优化转换，从而该程序对任何输入都产生相同的输出。实际中，若是复杂性让编译器难以控制，编译器也会放弃修改。
 
-This understanding that it's not what you know, it's what you can prove is the key to successfully interacting with the compiler through code to achieve better optimizations. Basically, the rest of this chapter shows different ways in which you can make it easier to prove that certain desirable optimizations do not alter the result of the program.
+这种理解不是知道什么，而是能证明什么，这是通过代码成功地与编译器交互，并实现更好的优化的关键。本章的其余部分展示了不同的方法，可以更容易地证明某些理想的优化不会改变程序。
 
-A compiler is also restricted with regard to what information it has about the program. It has to work with only what is known at compile-time, has no knowledge of any runtime data, and has to assume that any legal state is possible at runtime.
+编译器还受限于程序的信息。它只能处理编译时已知的内容，不了解任何运行时数据，并且假设运行时的合法状态都有可能。
 
-Here is a simple example that illustrates this. First, consider this code:
+下面是一个简单的例子:
 
 \begin{lstlisting}[style=styleCXX]
 std::vector<int> v;
@@ -19,9 +19,9 @@ std::vector<int> v;
 for (int& x : v) ++x;
 \end{lstlisting}
 
-The focus of our attention is the last line, the loop. The performance may be better if the loop is manually unrolled: as written, there is one branch (loop termination condition) for every increment. Unrolling the loop reduces this overhead. In a simple case of a vector with, say, only two elements, it is even better to remove the loop completely and just increment both elements. However, the size of the vector is an example of runtime information. The compiler may be able to generate a partially unrolled loop with some extra branches to handle all possible vector sizes, but it cannot optimize the code for a  particular size.
+我们关注的焦点是最后一行——循环。如果手动展开循环，性能可能会更好:如前所述，每个增量都有一个分支(循环终止条件)，展开循环可以减少此开销。在一个只有两个元素的简单\texttt{vector}例子中，最好完全删除循环，只对两个元素进行递增。但是，\texttt{vector}的大小是运行时的信息，编译器可能会生成一个带有一些额外分支的部分展开循环来处理所有可能的向量大小，但它无法针对特定大小对代码进行优化。
 
-Contrast it with this code:
+将它与下面的代码进行对比:
 
 \begin{lstlisting}[style=styleCXX]
 int v[16];
@@ -29,9 +29,9 @@ int v[16];
 for (int& x : v) ++x;
 \end{lstlisting}
 
-Now the compiler knows exactly how many integers are processed in the loop. It can unroll the loop and even replace single integer increments with vector instructions that operate on several numbers at once (AVX2 instruction set on x86, for example, can add 8 integers at once). 
+现在编译器确切地知道在循环中处理了多少整数，可以展开循环，甚至可以用一次操作多个数字的向量指令替换单个整数递增操作(例如，在x86上设置的AVX2指令可以一次处理8个整数)。 
 
-What if you know that the vector always has 16 elements? Probably does not matter. What matters is whether the compiler knows this and can prove it with certainty. This is harder than you think. For example, consider this code:
+如果你道向量总是有16个元素呢？可能并不重要。重要的是编译器是否知道，并且能够确定无误，这比想象的要难。例如，以下代码:
 
 \begin{lstlisting}[style=styleCXX]
 constexpr size_t N = 16;
@@ -40,11 +40,11 @@ std::vector<int> v(N);
 for (int& x : v) ++x;
 \end{lstlisting}
 
-The programmer went out of their way to make it obvious that the vector size is a compile-time constant. Is the compiler going to optimize the loop? Possibly. It all depends on whether the compiler can prove that the vector size does not change. How would it change? Ask yourself, what could be hiding in the code that fills the vector? Not what you know to be there, but what can be learned from the code itself? If all the code is written between the two lines, the construction and the increment loop, the compiler can, in theory, know everything (in practice, the compiler will give up if this code fragment is too long and assume that anything is possible otherwise compilation times will explode). But if you call a function and that function has access to the vector object, the compiler has no way of knowing whether that function changes the size of the vector unless the function is inlined. A helpful function name like fill\_vector\_without\_resizing() is only helpful to the programmer. 
+开发者用他们自己的方式使\texttt{vector}的大小成为一个编译时常量。编译器会优化循环吗？有可能。这完全取决于编译器能否确定向量的大小不会改变。它将如何改变？可以先问问自己，填充\texttt{vector}的代码中可能隐藏着什么？虽然对于开发者来说，这是已知的事情，但如何让代码也已知这个事情呢？所有的代码都是在构造和递增循环这两行之间编写的，从理论上讲，编译器可以知道所有的东西(实际上，如果这个代码段太长，编译器就会放弃，并假设任何可能性，否则编译时间就会爆炸)。但是，如果调用一个函数，而该函数可以访问\texttt{vector}对象，编译器则无法知道该函数是否改变了\texttt{vector}对象的大小(除非该函数是内联的)。像\texttt{fill\_vector\_without\_resizing()}这样的函数名，只对开发者阅读程序有帮助。 
 
-Even if there are no function calls that take v as an argument, we are still not in the clear. How else might the function get access to the vector object? If the vector v is a local  variable declared in a function scope, it probably cannot. But if v is a global variable, then  any function can have access to it. Similarly, if v is a class member variable, any member  function or friend function can have access to it. So, if we call a non-inlined function that  does not get direct access to v through its argument list, it may still be able to access v through other means (and the less is said about the truly evil practice of creating global pointers to local variables, the better). 
+即使没有函数以\texttt{v}作为参数，我们仍然不清楚函数要如何访问\texttt{vector}对象？如果\texttt{vector v}是在函数作用域中声明的局部变量，那可能不能。但如果\texttt{v}是一个全局变量，那么任何函数都可以访问它。类似地，如果\texttt{v}是类的成员变量，任何成员函数或友元函数都可以访问它。因此，如果我们调用一个非内联函数，这个函数不能通过参数直接访问\texttt{v}，那么它仍然可以通过其他方式访问\texttt{v}(并且对于创建局部变量的全局指针这一邪恶的做法，知道的人越少越好)。 
 
-From the programmer's point of view, it is easy to overestimate the knowledge the compiler has, based on the knowledge the programmer has about what is really going on in the program. Also, remember that puzzling things out is not one of the compiler's strengths, most of the time. For example, you can add an assert just before the loop:
+从开发者的角度来看，很容易高估编译器所拥有的知识。另外，请记住，在大多数情况下，把问题弄清楚并不是编译器的优点，例如：可以在循环之前添加一个断言:
 
 \begin{lstlisting}[style=styleCXX]
 constexpr size_t N = 16;
@@ -54,30 +54,30 @@ assert(v.size() == N); // if (v.size() != N) abort();
 for (int& x : v) ++x;
 \end{lstlisting}
 
-Some compilers, at the highest optimization level and in simple contexts, will deduce that the execution flow cannot get to the loop unless the vector has exactly 16 elements and will optimize for that size. Most will not. By the way, we are assuming that the asserts are enabled (NDEBUG is undefined), or you use your own assert.
+一些编译器，在使用最高的优化级别和未优化的上下文中，会推断执行流不能进入循环，除非\texttt{vector}恰好有16个元素，并将优化该大小。多数编译器不会这么做。
 
-The basic example we have considered already has the key elements of the techniques used to assist the compiler with optimizing the code:
+我们已经考虑过的基本示例中，用来帮助编译器优化代码的关键技术:
 
 \begin{itemize}
 \item
-Non-inlined functions disrupt most optimizations because the compiler has to assume that a function whose code it does not see can do anything it is legally allowed to do. 
+非内联函数会破坏大多数优化，因为编译器必须假设一个函数，但它没有看到它的代码，所以可以做任何合法的事情。 
 
 \item
-Global and shared variables are terrible for optimization
+全局变量和共享变量对于优化有害
 
 \item
-The compiler is more likely to optimize a short and simple code fragment than a long and complex one.
+编译器更可能优化短而简单的代码，而不是长而复杂的代码。
 	
 \end{itemize}
 
-The first and the last notions are somewhat in conflict with each other. Most optimizations in the compilers are limited to what's known as basic blocks of code: these are blocks with only one entry point and only one exit point. They serve as nodes in the flow control graph of a program. The reason basic blocks are important is that the compiler can see everything that is going on inside the block, so it can reason about code transformations that do not change the output. The advantage of inlining is that it increases the size of the basic blocks. The compiler does not know what a non-inlined function does, so it has to assume the worst. But if the function is inlined, the compiler knows exactly what it's doing (and, more importantly, what it's not doing). The disadvantage of inlining is also that it increases the size of the basic blocks: the compiler can analyze only so much code without making compilation time unreasonable. Inlining is really important for compiler optimizations for reasons we are going to explore now.
+第一个和最后一个在某种程度上有冲突。编译器中的大多数优化都局限于\textbf{基本代码块}:这些块只有一个入口点和一个出口点，在程序的流控制图中充当节点。基本块之所以重要，是因为编译器可以看到块内发生的一切，因此可以对不改变输出的代码转换进行推理，所以内联的优点是它增加了基本块的大小。编译器不知道非内联函数是做什么的，所以它需要做最坏的假设。但是，如果函数是内联的，编译器就能确切地知道它在做什么了(更重要的是，它没有做什么)。内联的缺点也在于它增加了基本块的大小:编译器只能分析这么多代码，而不会使编译时间变得不合理。内联对于编译器优化是非常重要的，原因我们将进行讨论。
 
 
-\subsubsubsection{10.2.2\hspace{0.2cm}Function inlining}
+\subsubsubsection{10.2.2\hspace{0.2cm}函数内联}
 
-Inlining is done by the compiler when it replaces a function call with a copy of the body of the function. In order for this to happen, the inlining must be possible: the definition of the function must be visible during the compilation of the calling code, and the function that is being called must be known at compile time. The first requirement is relaxed in some compilers that do whole-program optimizations (still uncommon). The second requirement rules out virtual function calls and indirect calls through function pointers. Not every function that can be inlined ends up inlined: the compiler has to weigh the code bloat against the benefits of inlining. Different compilers have different heuristics for inlining. The inline keyword of C++ is only a suggestion, and the compiler can disregard it.
+当使用函数体的副本替换函数调用时，将由编译器执行。为了实现这一点，内联函数的定义必须在调用代码的编译过程中是可见的，调用的函数必须在编译时已知。第一个要求在一些进行全程序优化的编译器中是宽松的(不常见)。第二个要求排除虚函数调用和通过函数指针间接调用，并不是每个可以内联的函数最终都可以内联，编译器必须权衡代码膨胀和内联带来的好处。不同的编译器对于内联有不同的处理方法，C++的\texttt{inline}关键字只是一个建议，编译器可以忽略进行。
 
-The most obvious benefit of function call inlining is that it eliminates the cost of the function call itself. This is also the least important benefit in most cases: the function calls are not that expensive. The main benefit is that the compiler is very limited in what optimizations it can do across the function calls. Consider this simple example:
+函数调用内联最明显的好处是消除了函数调用本身的成本。大多数情况下，当函数调用的开销不是那么大，这也就不重要了。其主要的好处是，编译器跨函数调用的优化能力非常有限。考虑下面的代码:
 
 \begin{lstlisting}[style=styleCXX]
 double f(int& i, double x) {
@@ -91,7 +91,7 @@ double f(int& i, double x) {
 }
 \end{lstlisting}
 
-Is the following a valid optimization?
+以下是有效的优化吗？
 
 \begin{lstlisting}[style=styleCXX]
 double f(int& i, double x) {
@@ -100,24 +100,24 @@ double f(int& i, double x) {
 }
 \end{lstlisting}
 
-If you answered yes, you are still looking at this through the programmer's eyes instead of the compiler's eyes. There are so many ways in which this optimization can break the code (none of which are probably true for any reasonable program you would write, but the one assumption the compiler cannot make is that of a reasonable programmer). 
+如果回答“是”，那么仍然是从开发者的角度，而不是从编译器的角度来看待这个问题。这种优化有很多方式会破坏代码(对于编写的合理的程序来说，可能没有一种是正确的，但编译器不能做的假设是自己是一个开发者)。 
 
 \begin{itemize}
 \item
-First, the functions g() and h() can produce output, in which case eliminating the repeated function calls would change the observable behavior. 
+首先，\texttt{g()}和\texttt{h()}可以产生输出。在这种情况下，消除重复的函数调用将改变可观察行为。 
 
 \item
-Second, a call to g() might lock some mutex, and the call to h() might unlock it, in which case the order of execution – call g() to lock, increment i, call h() to unlock – is really important. 
+其次，对\texttt{g()}的调用可能会锁定一些互斥对象，而对\texttt{h()}的调用可能会解锁它。在这种情况下，执行的顺序——调用\texttt{g()}锁定，增加\texttt{i}计数，调用\texttt{h()}解锁——就非常重要了。 
 
 \item
-Third, the results of g() and h() may be different even with the same arguments: they could, for example, use random numbers inside. 
+第三，即使参数相同，\texttt{g()}和\texttt{h()}的结果也可能不同，例如：它们可以在内部使用随机数。 
 
 \item
-Finally (and this possibility is most often missed by programmers), the variable i is passed by reference, so we don't know what else the caller might have done with it: it could be a global variable, or some object might store a reference to it, s, one way or another, the functions g() and h() might operate on i even though we don't see it being passed into these functions. 
+最后(这种可能性经常被忽略)，变量\texttt{i}是通过引用传递的，所以我们不知道调用者还对它做了什么:它可以是一个全局变量，或者某个对象可能会存储对它的引用，函数\texttt{g()}和\texttt{h()}可能会对\texttt{i}进行操作，即使我们没有看到它传入到这些函数中。 
 	
 \end{itemize}
 
-On the other hand, if the functions g() and h() are inlined, the compiler can see exactly what is going on, for example:
+另一方面，如果函数\texttt{g()}和\texttt{h()}内联，编译器可以确切地看到发生了什么，例如:
 
 \begin{lstlisting}[style=styleCXX]
 double f(int& i, double x) {
@@ -131,7 +131,7 @@ double f(int& i, double x) {
 }
 \end{lstlisting}
 
-The entire function f() is now one basic block, and the compiler has only one restriction: preserve the returned value. This is a valid optimization:
+整个函数\texttt{f()}现在是一个基本块，编译器只有一个限制:保留返回值。现在，就是一个有效的优化了:
 
 \begin{lstlisting}[style=styleCXX]
 double f(int& i, double x) {
@@ -140,15 +140,15 @@ double f(int& i, double x) {
 }
 \end{lstlisting}
 
-The effect of the inlining on the optimization can trickle down quite far. Consider the destructor of an STL container, say, std::vector<T>. One of the steps it must do is to invoke the destructors on all objects in the container:
+内联对优化的影响可以延伸到的远。考虑STL容器的析构函数，例如\texttt{std::vector<T>}。它必须做的是调用容器中所有对象的析构函数:
 
 \begin{lstlisting}[style=styleCXX]
 for (auto it = crbegin(); it != crend(); ++it) it->~T();
 \end{lstlisting}
 
-The execution time of the destructor is, therefore, proportional to the size N of the vector. Unless it isn't: consider a vector of integers, std::vector<int>. The compiler knows very well what the destructor does in this case: absolutely nothing. The compiler can also see that the calls to crbegin() and crend() do not modify the vector (if you are concerned about destroying an object through a const\_iterator, think how const objects are destroyed). This entire loop, therefore, can be eliminated.
+因此，析构函数的执行时间与\texttt{vector}的大小N成正比。考虑一个由整数组成的\texttt{rstd::vector<int>}，编译器非常清楚析构函数在这种情况下的作用:什么都不做。编译器还可以看到，对\texttt{crbegin()}和\texttt{crend()}的调用并不会修改\texttt{vector}对象(如果想通过\texttt{const\_iterator}销毁对象，请考虑如何销毁\texttt{const}对象)。因此，可以消除整个循环。
 
-Now consider using a vector of simple aggregates:
+现在考虑使用结构体的向量:
 
 \begin{lstlisting}[style=styleCXX]
 struct S {
@@ -158,8 +158,7 @@ struct S {
 std::vector<S> v;
 \end{lstlisting}
 
-This time, the type T has a destructor, and again the compiler knows what it does (the compiler did generate it, after all). Again, the destructor does nothing, and the entire destruction loop is eliminated. The same goes for a default destructor:
-
+这一次，类型\texttt{T}有一个析构函数，并且编译器知道它的作用(因为通过编译器生成)。同样，析构函数什么也不做，整个销毁循环消除。对于默认析构函数也是如此:
 
 \begin{lstlisting}[style=styleCXX]
 struct S {
@@ -169,7 +168,7 @@ struct S {
 };
 \end{lstlisting}
 
-The compiler should be able to do the same optimization for an empty destructor, but only if it's inlined:
+编译器应该能够为空析构函数做同样的优化，但只有当它是内联时才会这么做:
 
 \begin{lstlisting}[style=styleCXX]
 struct S {
@@ -179,7 +178,7 @@ struct S {
 };
 \end{lstlisting}
 
-On the other hand, if the class declaration only declares the destructor like the following:
+另一方面，如果类声明只是像下面这样声明析构函数:
 
 \begin{lstlisting}[style=styleCXX]
 struct S {
@@ -189,10 +188,9 @@ struct S {
 };
 \end{lstlisting}
 
-and the definition is provided in a separate compilation unit, then the compiler has to generate a function call for each vector element. The function still does nothing, but it still takes time to run the loop and do N function calls. Inlining allows the compiler to optimize this time to nothing, zero.
+定义是在单独的编译单元中提供的，然后编译器为每个\texttt{vector}元素生成一个函数调用。这个函数仍然什么也不做，但是它需要时间来运行循环，并执行N个函数调用。内联允许编译器将这优化为零。
 
-This is the key to inlining and its effect on optimization: inlining allows the compiler to see what is not happening inside the otherwise mysterious function. Inlining has another important role: it creates a unique clone of the inlined function's body that can be optimized with the specific inputs as given by the caller. Within this unique clone, some optimization-friendly conditions may be observed that are not true in general for this function. Again, here is an example:
-
+这是内联及其对优化的影响的关键:内联允许编译器看到在本来神秘的函数中没有发生的事情。内联还有另一个重要的作用，创建内联函数体的唯一副本，可以使用调用者给出的特定输入进行优化。在这个唯一的副本中，可能会观察到一些对优化友好的条件，而这些条件对于函数通常是不正确的。下面是一个例子:
 
 \begin{lstlisting}[style=styleCXX]
 bool pred(int i) { return i == 0; }
@@ -201,9 +199,9 @@ std::vector<int> v = … fill vector with data …;
 auto it = std::find_if(v.begin(), v.end(), pred);
 \end{lstlisting}
 
-Assuming the definition of the function pred() is in the same compilation unit as the call to std::find\_if(), will the call to pred() be inlined? The answer is maybe, and it critically depends on whether or not the call to find\_if() is inlined first. Now, find\_if() is a template, so the compiler always sees the function definition. It may decide not to inline the function, regardless. If find\_if() is not inlined, then we have a function generated from the template for the specific types. Within this function, the type of the third argument is known: it's bool (*)(int), a pointer to a function that takes an int and returns a bool. But the value of this pointer is not known at compile time: the same find\_if() function can be called with many different predicates, so none of them can be inlined. Only if the compiler generates a unique clone of find\_if() for this particular call can the predicate function be inlined. Compilers will sometimes do just that; it is called, unsurprisingly, cloning. Most of the time, however, the only way to inline the predicate, or any other inner function that is passed in as a parameter, is to inline the outer function first. 
+假设函数\texttt{pred()}的定义与对\texttt{std::find\_if()}的调用在同一个编译单元中，对\texttt{pred()}的调用是否内联？答案是“可能”，这主要取决于\texttt{find\_if()}是否首先内联。现在，\texttt{find\_if()}是模板，所以编译器可以看到函数的定义。当然，也可能决定函数不内联。如果\texttt{find\_if()}没有内联，则从模板中会为特定类型生成一个函数。这个函数中，第三个实参的类型是已知的:\texttt{bool (*)(int)}，它是指向接受\texttt{int}类型并返回\texttt{bool}类型的函数的指针。但是这个指针在编译时未知:同一个\texttt{find\_if()}函数可以用许多不同的谓词来调用，这些谓词都不能是内联的。只有当编译器为这个特定的调用生成唯一的\texttt{find\_if()}副本时，谓词函数才能内联。编译器有时会这样做，这就是所谓的复制。但在大多数情况下，内联谓词或作为参数传入的其他内部函数的唯一方法，是首先内联外部函数。 
 
-This particular example produces different results on different compilers: for example, GCC will inline both find\_if() and pred() at the highest optimization setting only. Other compilers won't do it even then. However, there is another way to encourage the compiler to inline a function call, and it does seem counter-intuitive because it adds more code to the program and makes the chain of nested function calls longer:
+这个特殊的例子在不同的编译器上会产生不同的结果:例如，GCC将只在最高的优化级别下内联\texttt{find\_if()}和\texttt{pred()}。其他编译器甚至不会这样做。然而，还有另一种方法鼓励编译器使用内联函数调用的方式，这似乎是反直觉的，因为这会向程序中添加了更多的代码，并使嵌套函数调用更加冗长:
 
 \begin{lstlisting}[style=styleCXX]
 bool pred(int i) { return i == 0; }
@@ -213,23 +211,23 @@ auto it = std::find_if(v.begin(), v.end(),
   [&](int i) { return pred(i); });
 \end{lstlisting}
 
-The paradox here is that we have added an extra layer of indirection, a lambda expression, around the same indirect function call (by the way, we assume that there is a reason the programmer does not want to simply duplicate the body of the predicate directly into the lambda). This call to pred() is actually much easier to inline, even if the compiler does not inline the find\_if() function. The reason is that this time, the type of the predicate is unique: every lambda expression has a unique type, so there is only one instantiation of the find\_if() template for these particular type parameters. The compiler is more likely to inline a function that is called only once: after all, doing so does not generate any more code. But even if the call to find\_if() is not inlined, within that function, there is only one possible value of the third argument, this value is known at compile time to be pred() and, therefore, the call to pred() can be inlined.
+这里的矛盾之处是，我们在同一个间接函数调用周围添加了一个间接层，即lambda表达式(顺便说一下，我们假设开发者不想简单地将谓词直接复制到lambda中是有原因的)。即使编译器没有内联\texttt{find\_if()}，但\texttt{pred()}实际上更容易内联。因为，这一次谓词的类型是唯一的:每个lambda表达式都有一个唯一的类型，因此对于这些特定的类型参数，\texttt{find\_if()}模板实例化一次。编译器可能会内联一个调用一次的函数，这样做就不会生成任何更多的代码。但是，即使对\texttt{find\_if()}的调用没有内联，但在该函数中，第三个参数只有一个可能的值，这个值在编译时就知道是\texttt{pred()}。因此，对\texttt{pred()}的调用可以内联。
 
-As an aside, we can finally clarify the answers to the question we asked all the way back in Chapter 1, Introduction to Performance and Concurrency: what is the cost of a virtual function call? First of all, the compiler typically implements a virtual call using a table of function pointers, so the call itself involves an extra layer of indirection: the CPU has to read one more pointer and do one more jump compared to a non-virtual call. This adds several more instructions to the function call, making the code of the function call about twice as expensive (with a large variation depending on the hardware and cache state). However, we usually call a function to have some work done, so the machinery of the function call is only a part of the total function execution time. Even for simple functions, it is rare to have the virtual function cost more than 10-15\% of the non-virtual one.
+顺便说一句，我们可以澄清在第1章中提出的“虚函数调用的成本”问题。首先，编译器通常使用函数指针表来实现虚调用，因此调用本身涉及到间接层:与非虚调用相比，CPU必须多读一个指针，并多做一次跳转。这为函数调用增加了更多的指令，使函数调用的代码开销增加了一倍(根据硬件和缓存状态有很大的变化)。然而，我们通常调用一个函数来完成工作，因此函数调用的机制只是函数执行总时间的一部分。即使对于简单函数，虚函数的开销也很少超过非虚函数的10-15\%。
 
-However, before we spend too much time counting instructions, we should question the validity of the original question: if a non-virtual function call is sufficient, that is, if we know at compile time which function will be called, why would we use a virtual function in the first place? Conversely, if we find out which function to call only at runtime, then a non-virtual function cannot be used at all, so its speed is irrelevant. Following this logic, we should compare a virtual function call against a functionally equivalent runtime solution: conditionally call one of several functions using some runtime information to choose. Using an if-else or a switch statement usually results in slower execution, at least if there are more than two versions of the function to call. The most efficient implementation is a table of function pointers, which is precisely what the compiler does with virtual functions. 
+然而，在花费太多时间计算指令之前，应该质疑最初的问题的有效性:如果一个非虚函数调用是充分的，也就是说，在编译时就知道将调用哪个函数，为什么一开始要使用虚函数呢？确切地说，如果发现只在运行时调用哪个函数，那么就根本不能使用非虚函数，因此它的速度无关紧要。按照这个逻辑，我们应该比较虚函数调用和函数等价的运行时解决方案:有条件地调用几个函数中的一个，使用一些运行时信息来选择。使用\texttt{if-else}或\texttt{switch}通常会导致执行速度变慢，至少在要调用的函数有两个以上的重载版本时是这样。最有效的实现是使用函数指针表，这正是编译器对虚函数所做的。
 
-Of course, the original question was not, in truth, entirely meaningless: what if we have a polymorphic class with a virtual function but, in some cases, we know the actual type at compile time? In this case, comparing a virtual function call with a non-virtual one makes sense. We should also mention an interesting compiler optimization that applies: if the compiler can figure out the real type of the object at compile time and, thus, knows which override of the virtual function will be called, it will convert the call to non-virtual in what is known as devirtualization.
+当然，问题实际上并不是毫无意义的:如果有一个带有虚函数的多态类，但是在某些情况下，在编译时就知道了实际的类型，那该怎么办？在这种情况下，比较虚函数调用和非虚函数调用就有意义了。还需要在说一下合适的编译器优化:如果编译器能够在编译时确定对象的真实类型，从而知道将调用虚拟函数的哪个重载版本，那么它将在去虚拟化中将调用转换为非虚的。
 
-Why, though, is this discussion taking place in a section dedicated to inlining? Because we are missing the elephant in the room: the greatest impact of virtual functions on performance is that (unless the compiler can devirtualize the call) they cannot be inlined. A simple function such as int f() { return x; } results in one or even zero instructions after inlining, but the non-inlined version has the regular function call machinery, which is orders of magnitude slower. Now add the fact that without inlining, the compiler cannot know what's going on inside the virtual function and has to make the worst assumptions about every externally accessible piece of data, and you can see how, in the worst-case scenario, a virtual function call can be thousands of times more expensive.
+但是，为什么要在讨论内联的章节中讨论这个问题呢？因为我们忽略了一个事实:虚函数对性能的最大影响是(除非编译器可以反虚化调用)不能内联。一个简单的函数，如\texttt{int f() {return x;}}的结果是在内联之后只有一条，甚至没有指令，但是非内联版本具有常规的函数调用机制，就要慢一个数量级。现在，如果没有内联，编译器就无法知道虚函数内部发生了什么，必须对每一个外部可访问的数据块做出最坏的假设。所以在最坏的情况下，虚函数调用的代价可能会高出数千倍。
 
-Both effects of inlining, exposing the content of the functions, and creating a unique, specialized copy of the function, help the optimizer because they increase the amount of knowledge the compiler has about the code. As we already mentioned, it is very important to understand what the compiler really knows if you want to help it do a better job of optimizing your code. 
+内联、展示函数体实现和创建唯一的、特化的函数副本的两种效果都有助于优化器，因为它们增加了编译器对代码的了解。正如我们提到的，如果想帮助编译器更好地优化代码，那么理解编译器真正了解什么非常重要。 
 
-We will now explore different restrictions the compiler operates under, so you can develop an eye for recognizing the false constraints: something you know to be true but the compiler does not. 
+现在，我们将探讨编译器在不同的约束下运行的情况，这样就可以发现错误的约束:一些是开发者认为是已知的，但编译器却不这么认为。 
 
-\subsubsubsection{10.2.3\hspace{0.2cm}What does the compiler really know?}
+\subsubsubsection{10.2.3\hspace{0.2cm}编译器到底知道什么？}
 
-Perhaps the greatest constraint on the optimization is the knowledge of what can change during the execution of this code. Why is this important? Again, here is an example:
+也许对优化的最大限制是，了解在此代码执行期间可能会进行修改的内容。为什么这很重要？下面是一个例子:
 
 \begin{lstlisting}[style=styleCXX]
 int g(int a);
@@ -242,7 +240,7 @@ int f(const std::vector<int>& v, bool b) {
 } 
 \end{lstlisting}
 
-In this case, only the declaration of g() is available. Can the compiler optimize the if() statement and eliminate the repeated evaluation of the condition? After all the surprises and gotchas of this chapter, you may be looking for a reason why not. There isn't one, and it's a perfectly valid optimization:
+在这种情况下，只有\texttt{g()}的声明是可用的。编译器能优化\texttt{if()}语句，并消除条件的重复求值吗？在经历了本章所有的惊喜和陷阱之后，我们可能正在寻找一个不这样做的原因。但结果是没有，这是一个完全有效的优化:
 
 \begin{lstlisting}[style=styleCXX]
 int f(const std::vector<int>& v, bool b) {
@@ -252,10 +250,11 @@ int f(const std::vector<int>& v, bool b) {
 		sum += g(a);
 	}
 	return sum;
-} 
+} 
+
 \end{lstlisting}
 
-Now let us modify the example slightly:
+现在让我们稍微修改一下这个例子:
 
 \begin{lstlisting}[style=styleCXX]
 int g(int a);
@@ -268,7 +267,7 @@ int f(const std::vector<int>& v, const bool& b) {
 } 
 \end{lstlisting}
 
-Why would you ever pass a bool parameter by const reference? The most common reason is templates: if you have a template function that doesn't need to make a copy of the argument, it has to declare the parameter as const T\&, assuming T can be anything. If T is deduced as bool, you now have a const bool\& parameter. The change may be minimal, but the effect on the optimization is profound. If you think that the optimization we made earlier is still valid, consider our example in a larger context. Now you can see everything (assume that the compiler still cannot):
+为什么要通过\texttt{const}引用传递\texttt{bool}形参呢？最常见的原因是模板:如果有一个模板函数不需要复制实参，则必须声明形参为\texttt{const T\&}，这里假设\texttt{T}可以是任何类型。如果\texttt{T}推断为\texttt{bool}类型，那么现在就有了一个\texttt{const bool\&}形参。这里的变化可能很小，但对优化的影响是深远的。如果还认为我们之前所做的优化有效，请在更大的上下文中考虑我们的示例。现在可以看到所有内容(假设编译器仍然不能):
 
 \begin{lstlisting}[style=styleCXX]
 bool flag = false;
@@ -288,9 +287,9 @@ int main() {
 }
 \end{lstlisting}
 
-Note that by calling g(), we can change b because b is a reference bound to a global variable that is also accessible inside g(). On the first iteration, b is false, but the call to g() has a side effect: b changes to true. If the parameter were passed by value, it would not have happened: the value is captured at the very beginning of the function and does not track the caller's variable. But with pass-by-reference, it does happen, and the second iteration of the loop is no longer dead code. On every iteration, the condition must be evaluated, and optimization is not possible. We want to stress, once again, the difference between what the programmer may know and what the compiler can prove: you may know for sure that you don't have any global variables in your code, or you may know exactly what the function g() does. The compiler cannot make any such guesses and has to assume that the program does (or at some point in the future will do) something like we demonstrated in the previous example, and that makes the optimization potentially unsafe. 
+注意，通过调用\texttt{g()}，我们可以改变\texttt{b}，因为\texttt{b}是一个绑定到全局变量的引用，该全局变量也可以在\texttt{g()}中访问。在第一次迭代中，\texttt{b}为false，但是对\texttt{g()}的调用有一个副作用:\texttt{b}变为true。如果参数按值传递，则不会发生这种情况:值在函数最开始捕获，并且不跟踪调用者的变量。但是通过引用传递，并且循环的第二次迭代不再是固定的代码。在每次迭代中，必须计算条件，并且不可能进行优化。我们想再一次强调，“开发者知道的”和“编译器知道的”之间的区别是，可能在代码中没有全局变量，或者确切地知道函数\texttt{g()}的作用。编译器不能做出这样的猜测，并且必须假设程序做了(或在将来的某个时候会做)类似于我们在前面的例子中演示的事情，这使得优化可能不安全。 
 
-Again, this would not have happened if the function g() was inlined and the compiler could see that it does not modify any global variables. But you cannot expect your entire code to be inlined, so at some point, you have to consider how to help the compiler determine what it doesn't know on its own. In the current example, the easiest way to do this is to introduce a temporary variable (of course, in this simple example, you can just do the optimization by hand, but this is not practical in more complex, real-life code). To make the example slightly more realistic, we are going to remember that the function f() probably came from a template instantiation. We do not want to make a temporary copy of the parameter b of an unknown type, but we do know that it must be convertible to bool, so that can be our temporary variable:
+如果函数\texttt{g()}是内联的，并且编译器知道它没有修改全局变量，那么这种情况就不会发生。但不能期望所有代码都内联，因此在某些情况下，必须考虑如何帮助编译器确定它不知道的内容。当前的示例中，最简单的方法是引入一个临时变量(当然，在这个简单的示例中，可以手工进行优化，但这在更复杂的实际代码中并不实用)。为了让这个例子更真实一点，我们要记住函数\texttt{f()}可能来自一个模板的实例化。我们不想对未知类型的形参\texttt{b}进行复制，但我们知道它必须可以转换为\texttt{bool}类型，因此\texttt{bool}类型可以作为临时变量的类型:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename T>
@@ -301,18 +300,19 @@ int f(const std::vector<int>& v, const T& t) {
 		if (b) sum += g(a);
 	}
 	return sum;
-} 
+} 
+
 \end{lstlisting}
 
-The compiler still has to assume that the function g() might change the value of t. But that no longer matters: the condition uses the temporary variable b, which definitely cannot be changed because it is not visible outside of the function f(). Of course, if the function g() did have access to a global variable that changed the second argument of f(), our transformation has changed the result of the program. By creating this temporary variable, we are telling the compiler that this situation does not happen. This is the additional information that the compiler cannot come up with on its own. 
+编译器仍然假设函数\texttt{g()}可能会改变\texttt{t}的值。但这不再重要:条件使用了临时变量\texttt{b}，它绝对不能改变，因为它在函数\texttt{f()}之外不可见。当然，如果函数\texttt{g()}可以访问，并改变\texttt{f()}第二个参数的全局变量，那么我们的转换就改变了程序的结果。通过创建这个临时变量，我们告诉编译器这种情况不会发生。这是编译器自己无法获得的信息。 
 
-The lesson here is simple, in theory, but quite hard in practice: if you know something about your program that the compiler cannot know to be true, you must assert it in a way the compiler can use. One reason this is hard to do is that we don't normally think about our program the way the compiler does, and it is very difficult to let go of the implicit assumptions you know with certainty to be absolutely true. 
+在理论上这很容易理解，但在实践中相当困难:若已知一些东西，但编译器不可能知道，就需要以一种编译器可以使用的方式进行断言。这很难做到的一个原因是，我们通常不会像编译器那样思考我们的程序，而且很难放弃自己知道绝对正确的隐性假设。 
 
-By the way, did you notice that we declared the temporary variable b to be const? This is mostly for our own benefit, to prevent any bugs arising from accidentally modifying it. But it also helps the compiler. You may wonder why: the compiler should be able to see that nothing changes the value of b. Unlike the earlier tricky situation, this case is simple: the compiler sees everything done to b. However, you cannot be certain that the compiler knows something just because the knowledge is available: analyzing the program takes time, and the programmer is willing to wait only so long for the compiler to do its job. On the other hand, syntax checking is mandatory: if we declare the variable const and try to change it, the program will not compile, and we will never get to the optimization step. So the optimizer can assume that any const variable indeed does not change. There is yet another reason to declare objects const whenever possible, but we will get to that in the next chapter. 
+这里我们把临时变量\texttt{b}声明为\texttt{const}了吗？这主要是为避免因意外修改而产生的错误，但这也有助于编译器。编译器能够看到没有改变\texttt{b}。与前面复杂的情况不同，这种情况很简单:编译器看到了对\texttt{b}的所有操作。然而，不能仅因为这些是可用的就确定编译器一定了解:分析程序需要时间，开发者只愿意等待编译器完成它的工作。另一方面，语法检查是必须的:如果声明变量\texttt{const}并试图修改，程序将无法编译，我们将不会进入优化步骤。因此，优化器可以假设任何\texttt{const}变量实际上都不会改变。在可能的情况下将对象声明为\texttt{const}还有另一个原因，我们会在下一章中讨论这个问题。 
 
-So here is the second lesson, right on the heels of the first one: if you know something about your program that you can easily communicate to the compiler, do so. This advice does go against a very common recommendation: don't create temporary variables unless they make the program easier to read – the compiler will just get rid of them anyway. The compiler might indeed get rid of them, but it does keep (and use) the additional information expressed by their presence.
+若已知一些东西，可以很尝试和编译器通信。这个建议确实违背了一个通用的建议:不要创建临时变量，除非它们使程序更容易阅读——编译器会删除它们。编译器可能确实会删除它们，但会保留(并使用)它们所表达的信息。
 
-Another very common situation that prevents the compiler from doing optimizations is the possibility of aliasing. Here is an example of a function that initializes two C-style strings:
+另一个阻止编译器进行优化的常见情况是混叠的可能性。下面是一个函数初始化两个C风格字符串的例子:
 
 \begin{lstlisting}[style=styleCXX]
 void init(char* a, char* b, size_t N) {
@@ -320,10 +320,11 @@ void init(char* a, char* b, size_t N) {
 		a[i] = '0';
 		b[i] = '1';
 	}
-}
+}
+
 \end{lstlisting}
 
-Writing memory one byte at a time is rather inefficient. There are much better ways to initialize all characters to the same value. This version will be much faster:
+每次写入一个字节相当低效，有更好的方法来将所有字符初始化为相同的值。这个版本将会更快:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -335,9 +336,9 @@ void init(char* a, char* b, size_t N) {
 }
 \end{lstlisting}
 
-You can write this code by hand, but the compiler will never do this optimization for you, and it is important to understand why. When you see this function, you expect it to be used as intended, that is, to initialize two character arrays. But the compiler has to consider the possibility that the two pointers a and b point to the same array or overlapping parts of one array. To you, it probably makes no sense to call init() this way: the two initializations will overwrite each other. The compiler has just one concern, though: how to not change the behavior of your code, whatever that may be. 
+可以手工编写这段代码，但编译器不会做这种优化，理解其中的原因很重要。看到这个函数时，会希望它按照预期的方式使用，即初始化两个字符数组。但编译器必须考虑两个指针\texttt{a}和\texttt{b}是否指向同一个数组或者一个数组部分有重叠的可能性。以这种方式调用\texttt{init()}可能没有任何意义，这两个初始化将相互覆盖。然而，编译器只关心一个问题:如何不改变代码的行为。 
 
-The same problem can happen in any function that takes multiple parameters by reference or by a pointer. For example, consider this function:
+同样的问题也可能发生在通过引用或指针接受多个形参的函数中。例如，以下函数:
 
 \begin{lstlisting}[style=styleCXX]
 void do_work(int& a, int& b, int& x) {
@@ -347,15 +348,15 @@ void do_work(int& a, int& b, int& x) {
 }
 \end{lstlisting}
 
-The compiler cannot do any optimizations that would be invalid if a and b and x are bound to the same variable. This is known as aliasing: the same variable is known in the code under two different names or aliases. In this case, specifically, the compiler has to read x from memory after incrementing a. Why? Because a and x could refer to the same value and the compiler cannot make the assumption that x remains unchanged.
+如果\texttt{a}、\texttt{b}和\texttt{x}绑定到同一个变量，编译器就不能做无效的优化。这就是所谓的别名:若同一个变量在代码中有两个不同的名字，则其中给一个名称即为别名。在这种情况下，编译器必须在\texttt{a}递增后从内存中读取\texttt{x}。为什么呢？因为\texttt{a}和\texttt{x}可以指向相同的值，而编译器不能假设\texttt{x}保持不变。
 
-How do you address this problem if you know for sure that the aliasing is not going to happen? In C, there is a keyword restrict that informs the compiler that a particular pointer is the only way to access the value within the scope of the current function:
+如果确定不会发生混叠，该如何解决这个问题呢？在C语言中，有一个关键字\texttt{restrict}，它告诉编译器一个特定的指针是访问当前函数范围内的唯一方法:
 
 \begin{lstlisting}[style=styleCXX]
 void init(char* restrict a, char* restrict b, size_t N);
 \end{lstlisting}
 
-Inside the init() function, the compiler can assume that the entire array a can be accessed only through this pointer. This applies to scalar variables as well. The restrict keyword is not, so far, a part of the C++ standard. Nonetheless, many compilers support this feature, although using different syntaxes (restrict, \_\_restrict, \_\_restrict\_\_). For singular values (in particular, references), creating a temporary variable often solves the problem as follows:
+在\texttt{init()}函数中，编译器可以假设整个数组\texttt{a}只能通过这个指针访问，这也适用于标量变量。目前为止，\texttt{restrict}关键字还不是C++标准的一部分。即便如此，还是可以使用\texttt{restrict}， \texttt{\_\_restrict}、\texttt{\_\_restrict\_\_})表示，并且许多编译器还支持这个特性。对于奇异值(特别是引用)，创建一个临时变量通常可以解决如下问题:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -369,19 +370,19 @@ void do_work(int& a, int& b, int& x) {
 }
 \end{lstlisting}
 
-The compiler will likely eliminate the temporary variable (not allocate any memory for it), but now it has the guarantee that both a and b are incremented by the same amount. Would the compiler actually do the optimization? The easiest way is to compare the assembly output as follows:
+编译器可能会消除临时变量(不为它分配任何内存)，但现在它保证\texttt{a}和\texttt{b}都加了相同的数量。编译器真的会进行优化吗？最简单的方法是比较汇编输出，如下所示:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter10/images/1.jpg}\\
-Figure 10.1 – x86 assembly output before (left) and after (right) the aliasing optimization
+图10.1 - x86汇编输出在优化之前(左)和之后(右
 \end{center}
 
-Figure 10.1 shows the x86 assembly generated by GCC for the increment operations (we omit the function call and the branch, which are identical in both cases). With the aliasing, the compiler has to do two reads from memory (mov instructions). With the manual optimization, there is only one read.
+图10.1展示了GCC为递增操作生成的x86汇编码(我们省略了函数调用和分支，它们在两种情况下是相同的)。使用别名，编译器必须从内存中读取两次(mov指令)。在手动优化中，只有一次读取。
 
-How important are these optimizations? It depends on many factors, so you should not embark on a project to eliminate all aliasing in your code without doing some measurements first. Profiling your code will tell you which parts are performance-critical; there, you have to examine all optimization opportunities. Optimizations that end up helping the compiler by supplying it with additional knowledge are often some of the easiest to implement (the compiler does the hard work). 
+这些优化有多重要？其取决于许多因素，所以在没有进行一些测试之前，不应该着手一个消除代码中所有的别名。分析器会告诉你哪些部分是性能关键的，那里有更多的优化机会。通过为编译器提供额外的信息，来帮助编译器的优化通常是最容易实现的(编译器已经做了最困难的工作)。 
 
-The flipside of the recommendation to supply the compiler with hard-to-discover information about your program is this: don't worry about things the compiler can figure out easily. This issue comes up in different contexts, but one of the more common scenarios is using functions that validate their inputs. In your library, you have a swap function that works on pointers:
+向编译器提供有关程序的难以发现信息建议的另一面是，不必担心编译器可以很容易地找到的东西。这个问题会在不同的上下文中出现，但更常见的场景是使用函数来验证输入。在库中，有一个用于交换指针的函数:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename T>
@@ -393,7 +394,7 @@ void my_swap(T* p, T* q) {
 }
 \end{lstlisting}
 
-The function accepts null pointers but doesn't do anything with them. In your own code, for some reason, you have to check the pointers anyway, and you call my\_swap() only if both are non-null (maybe you need to do something else if they are null, so you have to check). Ignoring all the other work you may do, the calling code looks like this:
+该函数接受空指针，但不对它们做任何操作。在代码中，由于某种原因，无论如何都必须检查指针，并且只有在两者都是非空的情况下才调用\texttt{my\_swap()}(如果它们是空的，也许需要做一些其他的事情，所以必须检查)。忽略其他工作，调用代码看起来会像这样:
 
 \begin{lstlisting}[style=styleCXX]
 void f(int* p, int* q) {
@@ -401,31 +402,31 @@ void f(int* p, int* q) {
 }
 \end{lstlisting}
 
-An inordinate amount of time is spent by C++ programmers arguing whether the redundant check affects the performance. Should we try to remove the check at the call site? Assuming we cannot, should we create another version of my\_swap() that does not test its inputs? The key observation here is that the function my\_swap() is a template (and a small function), so it is almost certainly going to be inlined. The compiler has all the necessary information to determine that the second test for null is redundant. Does it? Instead of trying to benchmark the possible performance difference (which would be very small in any case), we will compare the assembly output of both programs. If the compiler generates identical machine code with and without the redundant if() statement, we can be certain that there is no performance difference. Here is the assembly output on x86 generated by GCC:
+C++开发者花费了过多的时间来争论冗余检查是否会影响性能。我们应该试着删除调用点的检查吗？假设不能，我们应该创建另一个版本的\texttt{my\_swap()}，从而不测试它的输入吗？这里的关键是\texttt{my\_swap()}函数是一个模板(和一个小函数)，所以肯定会内联。编译器拥有所有必要的信息来确定第二个null测试是冗余的。不是这样吗？我们将比较两个程序的汇编输出，而不是尝试对可能的性能差异进行基准测试(在任何情况下，这个差异都是非常小的)。如果编译器生成的机器代码有冗余\texttt{if()}和没有冗余\texttt{if()}，则可以确定没有性能差异。下面是GCC在x86上生成的汇编码:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter10/images/2.jpg}\\
-Figure 10.2 – Assembly output with (left) and without (right) redundant pointer test
+图10.2 - 有(左)和没有(右)冗余指针测试的汇编码
 \end{center}
 
-On the left in Figure 10.2 is the code generated for the program with two if() statements, one inside my\_swap() and one outside. On the right is the code for the program with a special non-testing version of my\_swap(). You can see that the machine code is absolutely identical (if you can read x86 assembly, you will also notice that there are only two comparisons in both cases, not four). 
+图10.2的左边是为程序生成的两个\texttt{if()}语句的代码，一个在\texttt{my\_swap()}中，一个在外部。右边是\texttt{my\_swap()}的特殊非测试版本的程序代码。可以看到汇编代码是完全相同的(如果能够阅读x86汇编，还会注意到在这两种情况下只有两次比较，而不是四次)。 
 
-As we already said, the inlining plays the crucial role here: if my\_swap() wasn't inlined, the first test, in function f(), is good because it avoids the unnecessary function call and allows the compiler to optimize the calling code better for the case when one of the pointers is null. The test inside my\_swap() is now redundant, but the compiler will generate it anyway because it doesn't know whether my\_swap() is called elsewhere, maybe without any guarantees on inputs. It is still highly unlikely that the performance difference would be measurable because the second test is 100\% predictable by the hardware (we talked about this in Chapter 3, CPU Architecture, Resources, and Performance Implications).
+内联在这里起着至关重要的作用:如果\texttt{my\_swap()}没有内联，在函数\texttt{f()}中进行第一次测试是不错的主意，因为它避免了不必要的函数调用，并允许编译器可以更好地优化，以应对其中一个指针为空的情况。\texttt{my\_swap()}中的测试现在是冗余的，但编译器无会生成它，因为它不知道\texttt{my\_swap()}是否在别处调用，可能没有任何输入的保证。因为第二次测试是100\%可预测的(我们在第3章中讨论过)，所以性能差异几乎没有。
 
-By the way, the most common example of this situation is probably the operator delete: C++ allows deleting a null pointer (nothing happens). However, many programmers still write code like this:
+这种情况最常见的可能是操作符\texttt{delete}，C++允许删除空指针(什么都不会发生)。然而，许多开发者仍然这样写代码:
 
 \begin{lstlisting}[style=styleCXX]
 if (p) delete p; 
 \end{lstlisting}
 
-Does it impact the performance, even in theory? No: you can look at the assembly output and convince yourself that, with or without the extra check, there is only one comparison with null. 
+它是否会影响性能，甚至在理论上？不会。可以查看汇编输出，并说服自己，无论是否进行额外检查，都只对null进行了一次比较。 
 
-Now that you have a better understanding of how the compiler sees your program, let us see one more useful technique for getting better optimization out of the compiler.
+现在，已经更好地理解了编译器如何阅读程序的。那么我们继续了解一种更有用的技术，它可以更好地优化编译器。
 
-\subsubsubsection{10.2.4\hspace{0.2cm}Lifting knowledge from runtime to compile time}
+\subsubsubsection{10.2.4\hspace{0.2cm}将认知从运行时提升到编译时}
 
-The method we are about to discuss here boils down to one thing: give the compiler more information about the program, in this case, by converting runtime information into compile-time information. In the following example, we need to process a lot of geometric objects represented by the Shape class. They are stored in a container (if the type is polymorphic, it would be a container of pointers). The processing consists of doing one of two operations: we either shrink each object or grow it. Let's see how:
+我们将在这里讨论的方法归结为一件事:通过将运行时信息转换为编译时信息，为编译器提供有关程序的更多信息。下面的例子中，我们需要处理许多由\textit{Shape}类表示的几何对象。它们存储在一个容器中(如果类型是多态的，将是一个指针容器)。该处理包括两种操作之一:缩小或放大对象。让我们来看看代码:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -440,11 +441,11 @@ void process(std::vector<Shape>& v, op_t op) {
 }
 \end{lstlisting}
 
-To generalize, we have a function whose behavior is controlled by one or more configuration variables at runtime. Often, these variables are Boolean (for readability, we chose an enum). We have already seen that if the configuration parameter op is passed by reference, the compiler has to leave the comparison inside the loop and evaluate it for every shape. Even if the parameter is passed by value, many compilers will not hoist the branch out of the loop: it requires duplicating the body of the loop (one loop for shrink and one for grow), and the compilers are wary of bloating the code too much. 
+概括地说，我们有一个函数，它的行为在运行时由一个或多个变量控制。通常，这些变量都是布尔型(为了便于阅读，我们选择了枚举)。我们已经看到，如果配置参数\texttt{op}通过引用传递，编译器必须将比较留在循环中，并对每个形状求值。即使参数是按值传递的，许多编译器也不会将分支提升出循环。需要复制循环体(一个循环用于收缩，一个循环用于增长)，编译器担心代码过于膨胀。 
 
-This concern should be taken seriously: a larger executable takes longer to load, and more code increases the stress on the instruction cache (i-cache, used to cache the upcoming instructions the same way as the data caches cache the data that is about to be used by the CPU). However, in some cases, this optimization is still the right choice: often, you know that a lot of data is processed without changing the configuration variables. Maybe these variables are even constant for the entire run of the program (you load the configuration once and use it). 
+这个问题应该认真对待:更大的可执行文件需要更长的加载时间，更多的代码增加了指令缓存的压力(i-cache，用于缓存即将到来的指令，就像数据缓存即将被CPU使用一样)。但是，在某些情况下，这种优化是正确的选择:通常，会在不更改配置变量的情况下处理大量数据。也许这些变量在整个程序运行过程中都是不变的(只加载一次配置，然后使用)。 
 
-It is easy to rewrite our simple example to move the branch out of the loop, but if the code is complex, so is the refactoring. We can get some assistance from the compiler if we are willing to give it assistance in turn. The idea is to convert the runtime value into the compile-time one:
+重写我们的简单示例，将分支移出循环很容易，但如果代码很复杂，那么重构也会很复杂。如果我们愿意反过来帮助编译器，可以从编译器处得到一些帮助。其思想是将运行时值转换为编译时值:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -463,9 +464,9 @@ void process(std::vector<Shape>& v, op_t op) {
 }
 \end{lstlisting}
 
-The entire (potentially large) old function process() is converted to a template, but other than that, there are no changes. Specifically, we did not move the branch out of the loop. However, the condition controlling the branch is now a compile-time constant (the template parameter). The compiler will eliminate the branch, and the corresponding dead code, in each template instantiation. In the rest of our program, the configuration variable is still a runtime value, just one that doesn't change very often (or not at all). So we still need a runtime test, but it is used only to decide which template instantiation to call.
+整个(可能很大)旧函数\texttt{process()}转换为一个模板，除此之外，没有任何变化。具体来说，我们没有将分支移出循环。但是，控制该分支的条件现在是一个编译时常量(模板参数)。编译器会在每个模板实例化中消除分支和相应的固定代码。在程序的其余部分，配置变量仍然是一个运行时值，只是一个不经常更改(或根本不更改)的值罢了。因此，我们仍然需要一个运行时测试，但它仅用于决定调用哪个实例化的模板。
 
-This approach can be generalized. Imagine that we need to compute some properties for each shape, like volume, dimensions, weight, and so on. This is all done by a single function because a lot of the calculations are shared between different properties. But it takes time to compute properties we do not need, so we may implement a function like this:
+这种方法可以推广。假设需要计算每个形状的一些属性，比如体积、尺寸、重量等。这都可以由一个函数完成，因为许多计算可以在不同的属性之间共享。但它需要时间来计算我们不需要的属性，所以可以实现这样的函数:
 
 \begin{lstlisting}[style=styleCXX]
 void measure(const std::vector<Shape>& s,
@@ -473,7 +474,7 @@ void measure(const std::vector<Shape>& s,
 	double* volume, double* weight);
 \end{lstlisting}
 
-A null pointer is valid and indicates that we do not need that result. Inside the function, we write the code optimally for a particular combination of requested values: we do common computations only once, and we don't compute anything we do not need. However, this check is done inside the loop over shapes, and this time, it is a pretty complex set of conditions. If we need to process a lot of shapes for the same set of measurements, hoisting the conditions out of the loop makes sense, but the compiler is unlikely to do it, even if it can. Again, we can write a template with many non-type parameters: they will be Boolean values like need\_length, need\_width, and so on. Inside that template, the compiler will eliminate all the branches that never get executed for a particular combination of measurements because now this is compile-time information. The function that is called at runtime has to forward the call to the correct template instantiation based on which pointers are non-null. One of the most efficient implementations of this is a lookup table:
+空指针是有效的，它表示我们不需要这个结果。在函数内部，我们为请求值的特定组合编写最优的代码，只执行一次普通的计算。然而，这种检查是在循环中对形状进行的，这一次是一组相当复杂的条件。如果需要为同一组度量处理许多种形状，需要将条件提升到循环之外是有意义的，但编译器不太可能这样做(即使它可以)。同样，我们可以编写带有许多非类型形参的模板，它们将是布尔值，如\texttt{need\_length}，\texttt{need\_width}等。在该模板内部，因为现在这是编译时信息，编译器将消除所有从未执行的分支。在运行时调用的函数必须根据指针是否为空，将数据调用或转发到正确的模板实例化。最有效的实现方式是查找表:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -500,8 +501,8 @@ double* length, … ) {
 }
 \end{lstlisting}
 
-This generates a great deal of code: each variant of the measurement is a new function. The effect of such a significant transformation should always be validated by profiling. However, in cases where the measurements are relatively simple (say, many shapes are a cube) and the same set of measurements is requested for many (millions) of shapes, this change can yield substantial performance gains. 
+这将生成大量代码:测试的每个变体都是一个新函数。这样一个重要转换的效果应该通过分析来验证。但是，在测试相对简单的情况下(例如，许多形状都是一个立方体)，并且对许多(数百万)形状请求相同的测试集时，这种更改可以获得可观的性能收益。 
 
-When working with a particular compiler, it pays to know its capabilities, including the optimizations. Such level of detail is beyond the scope of this book, and it is volatile knowledge – the compilers evolve quickly. Instead, this chapter lays the foundation for the understanding of compiler optimizations and gives you, the reader, the frame of reference to advance your understanding. Let us recap the main points of what we learned.
+使用特定的编译器时，了解编译器的功能(包括优化)很有用。这样的详细程度超出了本书的范围，而且这是一种易变的知识——编译器发展得很快。相反，本章为理解编译器优化奠定了基础，并为读者提供了参考框架。让我们总结一下我们学过的要点。
 
 

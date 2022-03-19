@@ -1,9 +1,9 @@
-In this chapter, we have explored the second of the main areas of C++ efficiency: helping the compiler generate more efficient code. 
+本章中，我们研究了C++效率的第二个主要方面:帮助编译器生成更高效的代码。 
 
-The goal of this book is to arm you with the understanding of the interaction between your code, the computer, and the compiler so that you can make these determinations with good judgment and solid understanding. 
+本书的目标是帮助读者理解代码、计算机和编译器之间的相互作用，以便读者们能够判断和理解编译器做出的这些决定。 
 
-The easiest way to help the compiler optimize your code is to follow the general rules of thumb for effective optimization, many of which are also rules of good design: minimize the interfaces and interactions between different sections of the code, organize the code into blocks, functions, and modules, each of which has simple logic and well-defined interface boundaries, avoid global variables and other hidden interactions, and so on. The fact that these are also best design practices is not coincidental: generally, code that is easy for a programmer to read is also easy for the compiler to analyze.
+帮助编译器优化代码的最简单的方法是遵循有效优化的经验规则，其中许多也是好的设计规则:尽量减少代码不同部分之间的接口和交互，将代码组织成块、函数和模块，每个模块都有简单的逻辑和定义良好的接口边界，避免全局变量和其他隐藏交互等。这些也是最佳设计实践其实并非巧合:通常，程序员容易阅读的代码，编译器会更容易分析。
 
-More advanced optimizations often require examining the code produced by the compiler. If you notice the compiler not doing some optimization, consider whether there is a scenario where that optimization is invalid: think not what happens in your program but what can happen in a given fragment of code (for example, you may know that you never use global variables, but the compiler has to assume that you might). 
+更高级的优化通常需要检查编译器生成的代码。如果有注意到编译器没有做一些优化，考虑一下是否存在这种优化无效的情况:不要考虑程序中发生了什么，而是考虑给定代码片段中可能发生的事情(例如，你可能知道自己从不使用全局变量，但编译器会假设你可能会使用全局变量)。 
 
-In the next chapter, we are going to explore a very subtle area of C++ (as well as software design in general) that can have unexpected overlap with the study of performance.
+下一章中，我们将探索C++的一个非常微妙的领域(以及一般的软件设计)，它可能与性能研究有意想不到的重叠。
