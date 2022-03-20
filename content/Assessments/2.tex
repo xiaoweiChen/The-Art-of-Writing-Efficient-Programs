@@ -1,17 +1,17 @@
 \begin{enumerate}
 \item 
-Performance measurements are needed for two main reasons. First, they are used to define targets and describe the current status; without such measurements, we cannot say whether performance is poor or excellent; neither can we judge whether the performance targets are met. Second, measurements are used to study the effects of various factors on performance, evaluate the results of code changes and other optimizations.
+需要性能测试主要有两个原因。首先，用来定义目标和描述当前状态，没有这样的衡量指标，就不能说性能是好还是不好，我们也不能判断是否达到了目标。其次，测量用于研究各种因素对性能的影响，评估代码更改和其他优化的结果。
 
 \item 
-There is no single way to measure performance for all situations because there are usually too many contributing factors and causes to analyze using a single approach and because of the sheer volume of data that is needed to characterize the performance fully.
+没有一种方法可以衡量所有情况下的性能，因为使用一种方法通常会有太多的影响因素和原因需要分析，而且需要大量的数据来充分描述性能。
 
 \item 
-Benchmarking done by manual instrumentation of the code has the advantage that it can collect any data you want, and it is easy to put the data in context: for each line of code, you know what function or step of the algorithm it belongs to. The main limitation is in the invasive nature of the method: you have to know what parts of the code to instrument and be able to do so; any areas of the code that are not covered by the data gathering instrumentation will not be measured.
+通过代码的手工工具进行基准测试的优点是，可以收集您想要的数据，并且很容易将数据放在上下文中，明确的知道每一行代码属于哪个函数或算法的哪个步骤。主要的局限性在于这种方法的侵掠性:必须知道代码的哪些部分可以进行检测，并且能够这样做，任何未被数据收集工具覆盖的代码区域都不会进行测量。
 
 \item
-Profiling is used to gather data on the distribution of the execution time or other metrics across the program. It can be done on the function or module level or at a lower level down to a single machine instruction. However, collecting the data at the lowest level of detail for the entire program at once is usually not practical, so the programs are usually profiled in stages, from coarse to fine granularity profiles.
+分析用于收集关于程序中执行时间或其他测试的数据。它可以在功能或模块级别上完成，也可以在更低的级别上完成，只需要一条机器指令。然而，一次收集整个程序的最低详细级别的数据通常是不现实的，因此程序通常是分阶段进行的，从粗粒度到细粒度进行分析。
 
 \item
-Small scale and micro-benchmarks are used to quickly iterate on code changes and evaluate their impact on performance. They can also be used to analyze the performance of small code fragments in detail. Care must be taken to ensure that the context of the execution in the micro-benchmark resembles that of the real program as closely as possible.
+小规模和微基准测试用于对代码更改进行快速迭代，并评估它们对性能的影响。还可以用于详细分析小代码片段的性能。必须确保微基准测试中的执行上下文与实际程序的上下文尽可能相似。
 	
 \end{enumerate}

@@ -1,20 +1,20 @@
 \begin{enumerate}
 \item 
-Modern CPUs have multiple computing units, many of which can operate at the same time. Using as much of the CPU computing power as possible at any time is the way to maximize a program's efficiency
+现代的CPU有多个计算单元，其中许多可以同时运行。尽可能多地使用CPU计算能力，是使程序效率最大化的方法。
 
 \item 
-Any two computations that can be done at the same time take only as much time as the longer of the two computations; the other one is effectively free. In many programs, we can replace some computations that are to be done in the future with other computations that can be done now. Often the tradeoff is doing more computations now than would have been done later, but even that improves the overall performance as long as the extra computations take no additional time because they are done in parallel with some other work that has to be done anyway.
+任何两个可以在同一时间完成的计算，只需要两个计算中较长的时间，另一个看上去不花费任何时间。许多程序中，我们可以用现成的计算来代替一些将来要完成的计算。这种权衡通常是现在比以后做更多的计算，但即使这样，只要计算不需要额外的时间，就可以提高整体性能，因为这些计算是与其他工作是并行的关系。
 
 \item 
-This situation is known as data dependency. The countermeasure is the pipelining, where part of the future computation that does not depend on any unknown data is executed in parallel with the code that precedes it in the program order.
+这种情况称为数据依赖。解决方法是使用流水线，不依赖于任何未知数据的部分计算，将与程序顺序中在其之前的代码并行执行。
 
 \item
-Conditional branches make the future computations indeterminate, which prevents the CPU from pipeline them. The CPU attempts to predict the code that will be executed so that it can maintain the pipeline. Whenever such a prediction fails, the pipeline must be flushed, and the results of all instructions that were predicted incorrectly are discarded.
+条件分支使计算具有不确定性，这就阻碍了CPU对它们进行流水线处理。CPU试图预测将要执行的代码，以便维护流水线。每当这样的预测失败时，流水必须刷新，所有预测错误的指令结果都将丢弃。
 
 \item
-Any code that may or may not be needed but is executed based on the CPU's branch prediction is evaluated speculatively. In the speculative execution context, any action that cannot be undone must not be fully committed: the CPU cannot overwrite the memory, do any I/O operations, issue interrupts, or report any errors. The CPU has the necessary hardware to hold these actions suspended until the speculatively executed code is confirmed as real code, or not. In the latter case, all would-be results of the speculative execution are discarded with no observable effects.
+根据CPU的分支预测执行的代码可能需要，也可能不需要，进行预测性评估。在投机执行的环境中，任何不能撤消的操作都不能完全提交:CPU不能覆盖内存，不能做任何I/O操作，不能发出中断，也不能报告任何错误。CPU有必要的硬件来暂停这些操作，直到预测执行的代码确认为真正的代码，或者不是。在后一种情况下，投机执行的所有结果都会被丢弃，对可见性没有影响。
 
 \item 
-A well-predicted branch typically has only a minor impact on performance. Therefore, the two main solutions to performance degradation caused by mispredicted branches are: rewrite the code such that the conditions become more predictable or change the computations to use conditionally accessed data instead of conditionally executed code. The latter is known as branchless computing.
+一个分支预测良好的程序，通常只对性能的影响很小。因此，两种主要的解决方案是:重写代码，使条件变得更可预测，或者更改计算，使用有条件访问的数据。后者称为无分支计算。
 	
 \end{enumerate}
