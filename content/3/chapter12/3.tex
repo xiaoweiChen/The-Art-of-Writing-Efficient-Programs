@@ -1,41 +1,41 @@
 
-As we said, performance is one of the design goals, equal in importance to other constraints and requirements. Thus, the answer to the problem of "this design results in poor performance" is the same as what we would do if the issue was "this design does not provide the features we need." In both cases, we need a different design, not a worse design. We are just more used to evaluating designs based on what they do rather than how fast they do it.
+性能是设计目标之一，与其他约束和需求同等重要。因此，“这种设计导致了糟糕的性能”问题的回答与“这种设计没有提供我们需要的功能”问题的回答是一样的。这两种情况下，我们都需要不同的设计。我们只是更习惯于根据他们做的怎么样来评估设计，而不是做得有多快。
 
-To help you choose performance-promoting design practices on the first try, we will now go over several design guidelines that specifically target good performance. They are also solid design principles with good reasons to embrace them: following these guidelines will not make your design worse. 
+为了在第一次尝试时，选择性能提升设计实践，我们现在将介绍几个专门针对良好性能的设计指南。它们也是可靠的设计原则，我们有充分的理由去了解它们:遵循这些原则不会让设计变得更糟。 
 
-The first two such guidelines deal with the interaction of different components of a design (functions, classes, modules, processes, any components). First, we recommend that these interactions convey as little information as possible for the overall system to still function. Second, we suggest that different components provide each other with as much information as they have about the expected outcome of the interaction. If you think this is a contradiction, you are absolutely correct. Design is often the art of resolving contradictions, and the way you do it is this: both contradicting statements are true, just not at the same time or in the same place. What follows is a good illustration of this (much more general) technique of managing contradictions in design.
+前两条指导原则处理设计中不同组件(函数、类、模块、过程、任何组件)的交互。首先，建议这些交互传递尽可能少的信息，以便整个系统能正常工作。其次，建议不同的组件相互提供尽可能多的关于交互预期结果的信息。如果认为这是一组矛盾，也是是对的。设计通常是解决矛盾的艺术，两个矛盾的陈述都是正确的，只是时间或空间不同。下面的例子很好地说明了这种(更普遍的)管理设计矛盾的方法。
 
-\subsubsubsection{12.3.1\hspace{0.2cm}The minimum information principle}
+\subsubsubsection{12.3.1\hspace{0.2cm}最小信息原则}
 
-Let us start with the first guideline: communicate as little information as possible. Context is of utmost importance here: specifically, we recommend that a component reveals as little information as possible about how it handles a particular request. The interaction between components is governed by a contract. We are used to this idea when we talk about the interfaces of classes and functions, but it is a much broader concept. For example, the protocol used to communicate between two processes is a contract. 
+让我们从第一条准则开始:尽可能少地交互信息。上下文在这里是最重要的:具体地说，我们建议组件尽可能少地暴露它如何处理特定请求的信息。组件之间的交互是由约定控制的。当我们讨论类和函数的接口时，已经习惯了这个想法，但它是一个更广泛的概念，用比如于两个进程之间通信的协议，就是一个约定。 
 
-In any such interface or interaction, the party that makes and fulfills a promise must not volunteer any additional information. Let us look at some specific examples. We will start with a class that implements a basic queue and ask ourselves, what is a good interface from the point of view of efficiency?
+在此类接口或交互中，作出和履行承诺的一方不得提供额外的信息。让我们看一些具体的例子。我们将从实现基本队列的类开始，然后问自己，从效率的角度来看，什么是好的接口？
 
-One of the methods allows us to check whether the queue is empty. Note that the caller didn't ask the queue how many elements it has, just whether or not it's empty. While some implementations of the queue may cache the size and compare it with zero to resolve this request, for other implementations, it may be more efficient to determine whether the queue is empty than to count elements. The contract says, "I will return true if the queue is empty." Even if you think you know the size, don't make any additional promises: do not volunteer any information that wasn't requested. This way, you are free to change your implementation later. 
+其中有一个方法允许我们检查队列是否为空。请注意，调用者并没有询问队列有多少元素，而只是询问队列是否为空。虽然队列的某些实现可能会缓存大小，并将其与0进行比较以应对此请求。但对于其他实现，确定队列是否为空可能比计算元素更有效。约定中，“如果队列为空，我将返回true。”即使知道大小，也不要做任何承诺:不要主动提供任何额外的信息。这样，以后就可以自由地更改实现了。 
 
-Similarly, the methods to enqueue and dequeue should guarantee only that a new element is added to or removed from the queue. For popping an element from the queue, we have to handle the case of an empty queue or declare the result of such an attempt undefined (the approach chosen by the STL). You might notice that the STL queue, so far, exhibits an excellent interface from the efficiency point of view: it fulfills the contract for a queue data structure without revealing any unnecessary details. In particular, a std::queue is an adapter that can be implemented on top of one of several containers. The fact that the queue can be implemented as a vector, deque, or a list tells us that the interface is doing a great job concealing the details of the implementation.
+类似地，入队和出队的方法应该只保证向队列中添加或删除新元素。从队列中弹出一个元素，必须处理空队列的情况，或者声明未定义尝试的结果(STL选择的方法)。可能注意到，STL队列从效率的角度展示了一个出色的接口，其完成了对队列数据结构的约定，而没有透露任何不必要的细节。特别是，\texttt{std::queue}是一种适配器，可以在几个容器中的一个上实现。队列可以实现为\texttt{vector}、\texttt{deque}或\texttt{list}，这个例子告诉我们，接口需要隐藏实现细节。
 
-For an opposite example of an interface leaking too much implementation information, consider another STL container, the unordered set (or map). The std::unordered\_set container has an interface that allows us to insert new elements and check if a given value is already in the set (so far, so good). By definition, it lacks an internal order of elements, and the performance guarantees provided by the standard make it clear that the data structure uses hashing. Perforce, the section of the interface that explicitly refers to hashing cannot be considered gratuitous: in particular, it is necessary to specify a user-given hash function. But the interface goes further and, through methods such as bucket\_count(), exposes the fact that the underlying implementation must be a separate-chaining hash table with buckets for resolving hash conflicts. It is, therefore, impossible to create a fully STL-compliant unordered set using, for example, an open addressing hash table. This interface constrains the implementation and may prevent you from using a more efficient implementation.
+对于接口泄漏太多实现信息的反面例子，考虑另一个STL容器，无序\texttt{set}(或\texttt{map})。\texttt{std::unor\break dered\_set}容器有一个接口，允许插入新元素并检查给定的值是否已经在集合中(目前为止，一切正常)。根据定义，它缺乏元素的内部顺序，并且标准提供的性能保证清楚地表明数据结构使用了哈希。所以，接口中显式地引用哈希的部分是必要的:特别是，必须指定一个用户给定的哈希函数。但是这个接口走得更远，通过像\texttt{bucket\_count()}这样的方法，暴露了一个事实，即底层实现必须是一个带有桶的离散链接哈希表，以解决哈希冲突。因此，不可能使用开放寻址哈希表创建一个完全符合STL的无序\texttt{set}。此接口限制了实现，并可能阻止使用更高效的实现。
 
-While we used class design for simple examples, the same principle can be applied to APIs of larger modules, client-server protocols, and other interactions between components of the system: when designing a component that responds to a request or provides a service, offer a terse contract and reveal the information needed by the requestor and nothing else.
+虽然我们在简单的例子中使用了类设计，但同样的原则也可以应用于更大模块的API，客户端-服务器协议，以及系统组件之间的其他交互:在设计响应请求或提供服务的组件时，只需提供简洁的约定，并只显示请求者所需的信息即可。
 
-The design guideline of revealing minimum information, or minimum promise, is essentially a generalization of a popular guideline for class interfaces: the interface should not reveal the implementation. Also, consider that correcting a violation of this guideline is going to be quite difficult: if your design leaks implementation details, the clients will come to rely on them and will break once you change the implementation. Thus, so far, designing for performance is consistent with general good design practices. With the next guideline, we start to expose the tension between different design goals and the corresponding best practices.
+最小信息或最小承诺的设计准则，本质上是对类接口设计准则的概括:接口不应暴露实现。此外，要考虑到纠正违反这条指导原则的行为会相当困难:如果设计泄露了实现细节，那么客户将依赖于它们，并且若更改了实现，就会破坏客户的代码。因此，为性能而设计与一般的设计实践是一致的。在下一个指导方针中，我们将开始介绍不同设计目标和相应最佳实践之间的关系。
 
 
 
-\subsubsubsection{12.3.2\hspace{0.2cm}The maximum information principle}
+\subsubsubsection{12.3.2\hspace{0.2cm}最大信息原则}
 
-While the component that fulfills the request should avoid unnecessarily disclosing anything that might constrain the implementation, the opposite is true for the component that makes the request. The requestor or the caller should be able to provide specific information about what exactly is needed. Of course, the caller supplies the information only if there is an appropriate interface for it, and, thus, what we are really saying is the interface should be designed to allow such "complete" requests.
+虽然完成请求的组件应该避免暴露任何可能限制实现的信息，但对于发出请求的组件来说，情况正好相反。请求者或调用者应该能够提供关于具体需要什么的特定信息。当然，调用方只有在有合适的接口时才提供信息，因此接口应该允许这样的“完整”请求。
 
-In particular, to provide the best performance, it is often important to know the intent behind the request. Again, an example should make it easier to understand the concept.
+特别是，要提供最佳性能，了解请求背后的意图通常很重要。同样，通过一个例子，应该会让你更容易理解这个概念。
  
-Let us start with a random access sequence container. Random access means that we can access an arbitrary i-th element of the container without the need to access any other elements. The usual way this is done is with the index operator:
+让我们从一个随机访问序列容器开始。随机访问意味着我们可以访问容器中的任意第\texttt{i}个元素，而不需要访问其他元素。通常的方法是使用索引运算符:
 
 \begin{lstlisting}[style=styleCXX]
 T& operator[](size_t i) { return … i-th element …; }
 \end{lstlisting}
 
-With this operator, we can, for example, iterate over the container:
+有了这个操作符，我们就可以遍历容器了:
 
 \begin{lstlisting}[style=styleCXX]
 container<T> cont;
@@ -46,11 +46,11 @@ for (size_t i = 0; i != cont.size(); ++i) {
 }
 \end{lstlisting}
 
-From the point of view of efficiency, this is not the best way: we are using a random access iterator for sequential iteration. Generally, when you use a more powerful or more capable interface but utilize only a fraction of its capabilities, you should be concerned about efficiency: the extra flexibility of this interface may have come at the cost of some performance, which you are wasting if you do not use these features. 
+从效率的角度来看，这不是最好的方法，因为我们使用随机访问迭代器进行顺序迭代。通常，对于更强大或功能更强大的接口，但只使用了它的一小部分功能时，就应该关注效率。该接口的灵活性可能会以性能为代价，如果不使用这些特性，就会浪费性能。 
 
-We do not have to go far for an example. Let us consider std::deque: it is a block-allocated container that supports random access. In order to access arbitrary element i, we have to first calculate which block contains this element (generally, a modulo operation) and the index of the element within the block, then find the address of the block in the auxiliary data structure (block pointer table) and index into the block. This process has to be repeated for the next element, even though, in most cases, the element will reside in the same block, and we already know its address. This happens because the request for an arbitrary element does not contain enough information: there is no way to express that we are going to ask for the next element soon. Consequently, the deque cannot handle the traversal in the most efficient manner.
+举个例子，我们不需要走得太远。设想\texttt{std::deque}是一个支持随机访问的块分配容器。为了访问任意元素\texttt{i}，必须首先计算哪个块包含这个元素(通常是一个取模操作)和块中元素的索引，然后在辅助数据结构(块指针表)中找到块的地址，并在块中进行索引。对于下一个元素，必须重复这个过程。不过在大多数情况下，元素将驻留在同一个块中，而且我们对地址已知。这是因为对任意元素的请求没有包含足够的信息，没有办法表示我们将很快请求下一个元素。因此，\texttt{deque}不能以最有效的方式处理遍历。
 
-The alternative way for scanning the entire container is to use the iterator interface:
+另一种遍历整个容器的方法是使用迭代器:
 
 \begin{lstlisting}[style=styleCXX]
 for (auto it = cont.begin(); it != cont.end(); ++it) {
@@ -59,7 +59,7 @@ for (auto it = cont.begin(); it != cont.end(); ++it) {
 }
 \end{lstlisting}
 
-The implementer of the deque can assume that incrementing (or decrementing) an iterator is an operation that is done frequently. Therefore, if you have an iterator it and access the corresponding element *it, odds are good that you are going to ask for the next element. The deque iterator can store the block pointer or the index of the right entry in the block pointer table, which would make accessing all elements within one block much cheaper. With the help of a simple benchmark, we can verify that indeed it is much faster to traverse the deque using an iterator than using an index:
+\texttt{deque}的实现者可以假设迭代器的自增(或自减)是一个经常执行的操作。因此，如果有一个迭代器\texttt{it}并访问相应的元素\texttt{*it}，很可能会请求下一个元素。\texttt{deque}迭代器可以在块指针表中存储块指针或右变元素的索引，这将使访问一个块中的所有元素成本更低。通过一个简单的基准测试，可以验证使用迭代器遍历\texttt{deque}容器确实比使用索引更快:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -90,19 +90,19 @@ void BM_iter(benchmark::State& state) {
 }
 \end{lstlisting}
 
-The results show very impressive performance differences:
+性能差异显著:
 
 \hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter12/images/1.jpg}\\
-Figure 12.1 – Traversal of std::deque using index versus iterator
+图12.1 - 使用索引和迭代器遍历\texttt{std::deque}
 \end{center}
 
-It is very important to point out the key difference between designing for performance and optimizing for performance. There is no guarantee that the iterator access to a deque is faster: a particular implementation may, in fact, use the index operator to implement the iterator. Such a guarantee may come only from an optimized implementation. In this chapter, we are interested in the design. The design can't really be "optimized," although, if you talk about an "efficient design," others will likely understand what you mean. The design can allow or prevent certain optimizations, so it is more accurate to talk about "performance-hostile" and "performance-friendly" design (the latter is often called an efficient design). 
+指出为性能而设计和为性能而优化之间的关键区别非常重要。不能保证迭代器访问\texttt{deque}容器的速度更快:实际上，特定的实现可能会使用索引操作符来实现迭代器，这样的保证可能来自一个优化的实现。本一章中，我们感兴趣的是设计。尽管，谈论“有效的设计”时，其他人可能会理解这话的意思，但设计不能真正地“优化”。设计可以允许或阻止某些优化，所以更准确的说法是“性能敌对”或“性能友好”的设计(后者通常也称为有效设计)。
 
-In our deque example, the index operator interface is as efficient as it can be for random access, and it treats sequential iteration as a particular case of random access. There is no way for the caller to say, "I will probably ask for the adjacent element next." Conversely, from the existence of the iterator, we can infer that it is likely to be incremented or decremented. The implementation is free to make this increment operation more efficient.
+在\texttt{deque}示例中，索引操作符对于随机访问是高效的，并且它将顺序迭代视为随机访问的一种特殊情况。调用者不可能说:“接下来我可能会请求相邻的元素。”相反，根据迭代器的存在性，我们可以推断它可能是递增或递减的。该实现可以使这种增量操作执行的更有效。
 
-Let us take our container example one step further. This time, we consider a custom container that functions essentially as a tree, but, unlike std::set, we do not store the values in the tree nodes. Instead, we store the values in a sequence container (data store), while the tree nodes contain pointers to elements of this container. The tree is essentially an index into the data store, so it needs a custom comparison function: we want to compare the values, not the pointers.
+让我们进一步讨论容器的例子。这一次，我们考虑一个自定义容器，功能上是一个树，但与\texttt{std::set}不同，我们不将值存储在树节点中。相反，我们将值存储在序列容器(数据存储)中，而树节点包含指向该容器元素的指针。树本质上是数据存储的索引，因此需要一个定制的比较函数:我们想要比较的是值，而不是指针。
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -125,9 +125,9 @@ template <typename T> class index_tree {
 };
 \end{lstlisting}
 
-When a new element is inserted, it is added to the end of the data store, while the pointer is added to the appropriate place in the index as determined by the comparison of the elements. Why would we choose such implementation over std::set? In some cases, we may have requirements that force our hand: for example, the data store may be a memory-mapped file on a disk. In other cases, we may choose this implementation for performance benefits, even though at first glance, the extra memory use and the indirect access to elements through the pointer should degrade the performance. 
+插入新元素时，将添加到数据存储的末尾，而指针将添加到由元素比较确定的索引中的适当位置。为什么要选择这样的实现，而不是\texttt{std::set}呢？在某些情况下，可能会有强制的需求，例如：数据存储可能是磁盘上的内存映射文件。其他情况下，为了提高性能，我们可以选择这种实现，可能乍一看，额外的内存使用和通过指针间接访问元素会降低性能。 
 
-To see the performance advantage of this indexed tree container, let us examine the operation that does the search for an element that satisfies a given predicate. We can do this search easily, assuming our container provides iterators that simply iterate over the index set; the dereference operator should return the indexed element, not the pointer:
+为了了解这个索引树容器的性能优势，我们检查搜索满足给定谓词的元素的操作。假设容器提供了迭代器，可以简单地遍历索引集，就可以轻松地进行搜索;解引用操作符应该返回索引的元素值，而不是指针:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -154,7 +154,7 @@ template <typename T> class index_tree {
 };
 \end{lstlisting}
 
-To determine whether a value that meets certain requirements has been stored in the container, we can simply iterate over the entire container and check the predicate for every value:
+要确定一个满足特定要求的值是否已经存储在容器中，只需遍历整个容器，并检查每个值的谓词:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename C, typename F> bool find(const C& c, F f) {
@@ -165,9 +165,9 @@ template <typename C, typename F> bool find(const C& c, F f) {
 }
 \end{lstlisting}
 
-What information do we supply to the container when we access it using the iterators, as we did just now? Just like before, we tell it that we intend to access the next element, every time. We do not tell it anything about the reason we are doing this. Does the intent matter? In this case, very much so. Look carefully at what we really need to do: we need to access every element in the container until we find one that meets the given condition. If this seems like restating the same thing, you are not being pedantic enough. Nowhere in this statement of requirement did we say that we want to access container elements in order, only that we need to iterate over all of them. If we had an API call that tells the container to check all elements but does not require any particular order, the container implementation would be free to optimize the access order. For our indexed container, the optimal access order is to iterate over the data store vector itself: this provides the best memory access pattern (sequential access). The actual order of the elements in the store is, in our case, the order in which they were added, but it does not matter: all we are asking to return is a Boolean value; we do not even ask where the matching element is located. To put it another way, while there may be multiple elements that satisfy the condition, the caller wants to know whether at least one such element exists. We did not ask for the value of the element or for any specific element: this is the request to "find any," not "find first." 
+当使用迭代器访问容器时，我们向容器提供了什么信息？告诉它我们打算每次访问下一个元素。我们并没有告诉它这样做的原因。原因重要吗？在这种情况下，确实如此。仔细看看真正需要做什么:需要访问容器中的每个元素，直到找到满足给定条件的元素。如果这看起来像是在重述同样的事情，那你还没被教条化。在这个需求中，我们没有说要按顺序访问容器元素，只是说需要遍历所有元素。如果有一个API，它告诉容器检查所有元素，但不要求任何特定的顺序，容器就可以自由地优化访问顺序。对于我们的索引容器，最优的访问顺序是遍历数据存储本身，这就提供了最佳的内存访问模式(顺序访问)。在我们的例子中，元素在存储中的实际顺序，就是它们添加的顺序，但这无关紧要。我们要求返回的只是一个布尔值，甚至不询问匹配元素的位置。换句话说，虽然可能有多个元素满足这个条件，但调用者想知道是否存在一个这样的元素。我们没有请求元素或任何特定元素的值:这是“查找任意一个”的请求，而不是“先查找”的请求。 
 
-Here is the version of the interface that allows the caller to supply all the relevant information and a possible implementation:
+下面的版本用的是这种接口，允许调用者提供所有相关信息和可能的实现:
 
 \hspace*{\fill} \\ %插入空行
 \noindent
@@ -184,39 +184,39 @@ template <typename T> class index_tree {
 };
 \end{lstlisting}
 
-Is it faster? Again, a benchmark can answer. The difference is more pronounced if the value is not found or found rarely:
+快吗？同样，基准测试可以回答这个问题。如果该值未找到，或很少找到，则这种性能差异会更为明显:
 
-\hspace*{\fill} \\ %插入空行
+%\hspace*{\fill} \\ %插入空行
 \begin{center}
 \includegraphics[width=0.9\textwidth]{content/3/chapter12/images/2.jpg}\\
-Figure 12.2 – Search in an indexed data store using iterators vs. find() member function
+图12.2 - 使用迭代器和\texttt{find()}成员函数在索引数据存储中进行搜索
 \end{center}
 
-Once again, it is very important to take a step back and reevaluate this example as a lesson for software design instead of a particular optimization technique. In this context, it is not important that our find() member function is so much faster than the iterator-based search. What is important at the design stage is that it might be faster with the appropriate implementation. The reason it might be faster is the knowledge of the caller's intent. 
+再次强调，退一步评估这个例子是非常重要的，它是软件设计的经验，而不是一个特定的优化技术。这个上下文中，\texttt{find()}成员函数是否比基于迭代器的搜索快得多并不重要。在设计阶段，重要的是适当的实现可能会更快。它可能更快的原因是因为知道调用者的意图。 
 
-Compare the information supplied by the caller using non-member vs. member find(). When the non-member find() function calls the container interface, we tell the container, "let me see the values of all container elements, one by one, in order." We don't actually need most of this, but that's the information we give the container because that's the only information we can channel through the iterator interface. On the other hand, the member find() allows us to make the following request: "examine all elements in any order and tell me if there is at least one that matches this condition." This request imposes much fewer restrictions: it is a high-level request that leaves the details to the container itself. In our example, the implementer took advantage of this freedom to provide much better performance.
+使用非成员和成员\texttt{find()}比较调用者提供的信息，当非成员\texttt{find()}函数调用容器接口时，我们告诉容器:“让我依次查看所有容器元素的值。”实际上并不需要这些操作，但这是给容器的信息，因为这是我们能通过迭代器接口传递的唯一信息。另一方面，成员\texttt{find()}允许我们发出以下请求:“以任意顺序检查所有元素，并告诉我是否至少有一个元素符合这个条件。”这个请求施加的限制要少得多，其将细节留给容器本身。在我们的示例中，实现者利用这种自由提供了更好的性能。
 
-At the design stage, you will likely not know that such optimized implementation is possible. The very first implementation of the member find() might as well run the iterator loop or call std::find\_if. It is also possible that you will never get to optimizing this function because, in your applications, it is rarely called and is not a performance bottleneck. But software systems tend to live longer than you expect, and fundamental redesign is difficult and time-consuming. A good system architecture should not restrict the evolution of the system for years, sometimes decades, even as new features are added and performance requirements change.
+在设计阶段，可能不知道这样的优化实现。成员\texttt{find()}的第一个实现也可以运行迭代器循环或调用\texttt{std::find\_if}。开发者也可能永远不会优化这个函数，因为在应用程序中，它很少调用，并且不是性能瓶颈。但是软件系统的寿命往往比预期的要长，而且重新设计是困难和耗时的。一个好的系统架构不应该限制系统的发展，甚至可以满足添加新的特性和性能需求。
 
-Again, we have seen the difference between a performance-friendly and a performance-hostile design. The same principle applies, of course, to interactions between system components and is not limited to the classes: when designing a component that responds to a request or provides a service, allow the requestor to supply all relevant information, in particular, to express the intent behind the request.
+我们再次看到了性能友好型和性能敌对型设计之间的区别。当然，同样的原则也适用于系统组件之间的交互，而不限于类:在设计响应请求或提供服务的组件时，允许请求者提供所有相关的信息，特别是表达请求背后的意图。
 
-This is a more controversial guideline for several reasons. First of all, it explicitly goes against the popular approach to class design: never implement a (public) member function for a task that does not require privileged access and can be implemented entirely through an existing public API. There are several ways we can reason about this. First of all, one can say that "can be implemented ten times slower" does not really qualify as "can be implemented," so the guideline does not apply. The counterpoint is that at the design stage, you may not even know that you need this performance. The other important rule that we may be violating is "do not optimize prematurely," although this rule should not be taken simplistically: in particular, a reasonable proponent of this rule will often add, "but do not pessimize prematurely either." The latter, in the context of design, means making design decisions that cut off future optimization opportunities. 
+由于几个原因，这是一个更有争议性的指南。首先，它明显地违背了类设计的主流方法:永远不要为不需要特权访问，且完全可以通过现有的公共API实现的任务实现(public)成员函数。关于这个问题，我们有几种理由。首先，有人可能会说“可以以十倍的速度实现”并不真正符合“可以实现”的标准，因此该指导方针并不适用。相反，在设计阶段，甚至可能不知道需要这种性能。我们可能会违反的另一个重要规则是“不要过早地优化”，尽管不应该简单地理解这条规则，这条规则的合理支持者经常会补充说，“但也不要过早地悲观”。后者在设计的背景下，意味着做出设计决策，封闭未来的优化空间。
 
-The use of the maximum information principle (or information-rich interface) is, thus, a matter of balance and sound judgment. Consider that, in general, violating this guideline is not nearly as maleficent as not following the previous rule: if your interface or contract exposes unnecessary information, it is very hard to take it back from all the clients who came to rely on it. On the other hand, if your interface does not allow the client to supply the relevant intent information, the client may be forced into an inefficient implementation. But nothing will break after you add the more information-rich interface later, and the clients can transition to this interface as needed.
+最大信息原则(或信息丰富的接口)的使用是一个平衡和合理判断的问题。考虑到这一点，违反这条原则远不如不遵守前面的规则那么有害。若接口或约定暴露了不必要的信息，那么很难从依赖它的客户端收回这些信息。另一方面，如果接口不允许客户端提供相关的意图信息，那么客户端可能会执行低效率的实现。但是，在添加了信息更丰富的接口之后，一切就不同了，客户端可以根据需要转换到这个接口上。
 
-The decision about whether to provide a more information-rich interface upfront, thus, hinges on several factors: 
+因此，决定是否在一开始就提供一个信息丰富的接口，取决于以下几个因素: 
 
 \begin{itemize}
 \item 
-How likely is it that this component or this interaction between components is going to be performance-critical? While guessing about the performance of a particular code is to be discouraged, you usually know the general requirements for the components in question: a database that is accessed millions of times per second is likely to be a performance bottleneck somewhere, while the system that serves employee addresses for paychecks twice a month can be designed conservatively and optimized later if needed.
+这个组件或组件之间的交互对性能至关重要的可能性有多大？虽然不鼓励猜测特定代码的性能，但需要知道有关组件的一般需求:每秒访问数百万次的数据库很可能成为某个地方的性能瓶颈，而每月为员工提供两次发薪地址的系统可以进行保守地设计，并在需要时再进行优化。
 
 \item 
-How broad is the impact of this design decision? In particular, if the inefficient implementation proliferates, how entrenched would it be by the time we add a new, higher-level interface? A class that is used once or twice can be easily updated along with its clients; a communication protocol that will become the standard for the entire system and will be used in a restful API that stores messages on disk for weeks and months should have extensibility built into it from the start, including an option for future information-rich requests.
+这个设计决策的影响有多大？特别是，如果低效的实现泛滥，那当添加一个新的、更高级别的接口时，替换难度会有多大呢？一个类使用一到两次，可以很容易地随着它的客户端更新。一个通信协议将成为整个系统的标准，并将用于一个轻量级协议API中，该API将消息存储在磁盘上长达数周或数月的时间，从一开始就应该具有可扩展性，包括用于未来更丰富信息请求的选项。
 \end{itemize}
 
-Often, these choices are not clear-cut and rely on the designer's intuition tempered with knowledge and experience. This book can help with the former, and practice takes care of the latter. 
+通常情况下，这些选择并不明确，取决于设计师的直觉和经验。本书对前者有帮助，在实践中可以解决后者的问题。 
 
-As you have seen throughout this section, we often focus on the interfaces and data organization when considering the performance implications of different design decisions. In the following two sections, we will turn explicitly to these two subjects, starting with the interface design.
+正如您在本节中看到的，在考虑不同设计决策的性能影响时，我们经常关注接口和数据组织。在下面的两个部分中，我们将展开讨论这两个主题，从接口设计开始。
 
 
 

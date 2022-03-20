@@ -1,19 +1,19 @@
 
-Design is often the art of compromise; there are competing goals and requirements that must be balanced. In this section, we are going to talk specifically about performance-related trade-offs. You will make many such decisions when designing high-performance systems. Here are some to be aware of.
+设计往往是妥协的艺术，有一些相互竞争的目标和要求必须得到平衡。本节中，将具体讨论与性能相关的权衡。在设计高性能系统时，需要做出许多这样的决定。以下是需要注意的问题。
 
-\subsubsubsection{12.6.1\hspace{0.2cm}Interface design}
+\subsubsubsection{12.6.1\hspace{0.2cm}接口设计}
 
-We have witnessed the benefits of exposing implementation as little as possible throughout this chapter. But there is a tension between the freedom to optimize that we gain in doing so vs. the cost of very abstract interfaces. 
+本章中，我们已经看到了尽可能少地公开实现的好处。但是，我们从中获得的优化自由与非常抽象的接口的成本之间存在着一种矛盾。 
 
-This tension requires making trade-offs between optimizing different components: an interface that does not restrict the implementation in any way usually limits the client quite severely. For example, let us revisit our collection of points. What can we do without restricting its implementation? We cannot allow any insertions except at the end (the implementation may be a vector, and copying half the collection is unacceptable). We can only append to the end, which means we cannot maintain sorted order, for example. There can be no random access (the collection may be stored in a list). We may be unable to provide even a reverse iterator if the collection is compressed. A point collection that leaves almost unlimited freedom to the implementer is restricted to forward iterators (streaming access) and maybe append operations. Even the latter is a restriction, some compression schemes require finalizing the data before it can be read, so the collection can be in a write-only state or a read-only state.
+这种矛盾关系需要在优化不同的组件之间进行权衡:不以任何方式限制实现的接口通常会对客户端造成相当严重的限制，例如：让我们重新回顾点的集合。在不限制其实施的情况下，我们能做什么？不允许任何插入操作，除非在末尾(实现可以是一个\texttt{vector}，复制集合的一半在性能上是不可接受的)。我们只能追加到末尾，这意味着不能保持有序，例如：不允许随机访问(集合可以存储在列表中)。如果压缩集合，甚至可能无法提供反向迭代器。给实现者留下几乎无限自由的点集合，现在只能使用前向迭代器(流访问)和追加操作。即使是后者也是一种限制，一些压缩方案要求在读取数据之前对数据进行处理，因此集合可以处于只写或只读状态。
 
-We are not giving this example to demonstrate how rigorous pursuit of implementation-agnostic APIs leads to unrealistic restrictions on the clients. Quite the contrary: this is a valid design for processing large amounts of data. The collections are written by appending to the end; there is no particular order to the data until the writing is finalized. Finalization may include sorting and compression. To read the collection, we uncompress it on the fly (if our compression algorithm works on several points at once, we need a buffer to hold uncompressed data). If the collection must be edited, we can use the algorithm we first introduced in Chapter 4, Memory Architecture and Performance, for memory-efficient editing or strings: we always read the entire collection from the beginning to the end; each point is modified as needed, new points are added, etc. We write the results into the new collection and eventually delete the original one. This design allows for very efficient data storage, both in terms of memory use (high compression) and in terms of efficient memory access (cache-friendly sequential accesses only). It also requires the clients to implement all their operations in terms of streaming access and read-modify-write operations. 
+我们给出这个示例，并不是为了演示追求与实现无关的API如何导致对客户端的限制。恰恰相反，这是处理大量数据的有效设计。集合通过添加到末尾进行写入，在写入完成之前，数据没有特定的顺序。最终可能包括排序和压缩。要读取集合，需要动态地解压缩它(如果压缩算法同时在几个点上工作，需要一个缓冲区来保存未压缩的数据)。如果集合需要编辑，可以使用我们在第4章中介绍的算法，来实现内存高效的编辑或字符串，总是从头到尾读取整个集合，并根据需要修改每个点，添加新的点等。我们将结果写入新的集合，并最终删除原来的集合。这种设计允许非常高效的数据存储，无论是在内存使用(高压缩)方面，还是在高效的内存访问方面(仅缓存友好的顺序访问)。它还要求客户端实现流访问和读-改-写的所有操作。 
 
 You can arrive at the same point from the other end: if you analyze your data access patterns and conclude that you can live with streaming access and read-modify-write updates, you can make that part of your design. Not a specific compression scheme, of course, but the high-level data organization: writing must be finalized before anything can be read, and the only way to alter the data is to copy the entire collection to a new one, modifying its content during copying as needed. 
 
 An interesting observation about this trade-off is that not only may we have to balance performance requirements against ease of use or other design considerations, but there is usually a decision to be made about which aspect of performance is more important. Usually, the low-level components should be given precedence: their architecture is more fundamental to the overall design than the choice of algorithms in higher-level components. Thus, it is harder to change later, which makes it more important to make an informed design decision. Note that, when it comes to designing components, there are other trade-offs to be made. 
 
-\subsubsubsection{12.6.2\hspace{0.2cm}Component design}
+\subsubsubsection{12.6.2\hspace{0.2cm}组件设计}
 
 We have just seen that sometimes for one component to have a great performance by design, limitations must be imposed on other components whose performance then requires careful choice of algorithms and skillful implementation. But this is not the only trade-off we have to make. 
 
@@ -25,7 +25,7 @@ What should be avoided is creating "back doors" in the interfaces that are made 
 
 Another design aspect we have not concerned ourselves at all with so far is error handling, so a few words are in order.
 
-\subsubsubsection{12.6.3\hspace{0.2cm}Errors and undefined behavior}
+\subsubsubsection{12.6.3\hspace{0.2cm}错误和未定义行为}
 
 Error handling is one of those things that are often treated as an afterthought but should be an equal and important factor in design decisions. In particular, it is very difficult to add exception safety (and, by extension, error safety) to a program that was not designed with a particular exception-handling methodology in mind.
 

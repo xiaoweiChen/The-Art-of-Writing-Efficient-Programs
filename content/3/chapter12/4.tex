@@ -1,15 +1,15 @@
 
-There are many books and articles that present best practices for API design. They usually focus on usability, clarity, and flexibility. The common guidelines, such as "make the interfaces clear and easy to use correctly" and "make it difficult to misuse the interfaces," do not directly address performance but also do not interfere with the practices that promote good performance and efficiency. In the previous section, we have addressed two important guidelines that should be remembered when designing interfaces for performance. In this section, we will explore some more specific guidelines that target performance explicitly. Many high-performance programs rely on concurrent execution, so it makes sense to address design for concurrency first.
+有许多书籍和文章介绍了API设计的最佳实践。他们通常关注可用性、清晰度和灵活性。常见的指导方针，如“使接口清晰且易于正确使用”和“使接口难以误用”，并不直接处理性能问题，但也不会干扰促进良好性能和效率的实践。在前一节中，我们讨论了在为性能设计接口时应该记住的两条重要准则。在本节中，我们将探讨一些针对性能的更具体的指导方针。许多高性能程序依赖于并发执行，因此首先解决并发设计是有意义的。
 
-\subsubsubsection{12.4.1\hspace{0.2cm}API design for concurrency}
+\subsubsubsection{12.4.1\hspace{0.2cm}并发的API设计}
 
-The most important rule when designing concurrent components and their interfaces is to provide clear thread-safety guarantees. Note that "clear" does not mean "strong": in fact, for optimum performance, it is often better to provide weaker guarantees on low-level interfaces. The approach chosen by the STL is a fine example to follow: all methods that may change the state of the object offer the weak guarantee: the program is well-defined as long as only one thread is using the container at any time. 
+设计并发组件及其接口时，最重要的规则是提供明确的线程安全的保证。注意，“明确”并不意味着“健壮”。事实上，为了获得最佳性能，在底层接口上提供较弱的保证通常性能更好。STL选择的方法是一个很好的例子，所有可能改变对象状态的方法都提供了一个弱保证:只要有一个线程在使用容器，程序就是定义良好的。 
 
-If you want a stronger guarantee, you can use locks at the application level. A much better practice is to create your own locking classes that offer a strong guarantee on the interfaces you want. Sometimes, these classes are just locking decorators: they wrap every member function of the decorated object in a lock. More often, there are multiple operations that must be protected by a single lock.
+如果想要更强的保证，可以在应用程序级别使用锁。一个更好的方式是创建自己的锁，为接口提供强有力的保证。有时，这些类只是锁的装饰器:它们将装饰对象的每个成员函数封装在锁中。更常见的情况是，一个锁必须保护多个操作。
 
-Why? Because it makes no sense to allow the clients to see a particular data structure after "half " of the operation is done. This leads us to a more general observation: as a rule, the thread-safe interfaces should also be transactional. The state of the component (class, server, database, and so on) should be valid before an API call is made and after it is made. All invariants promised by the interface contract should be maintained. It is highly likely that, during the execution of the requested member function (for classes), the object went through one or more states that would not be considered as valid by the clients: it does not maintain the specified invariants. The interface should make it impossible for another thread to observe the object in such an invalid state. Let us illustrate with an example.
+为什么？因为在操作完成“一半”之后，让客户端看到特定的数据结构是没有意义的。这将我们引向一个更普遍的情况:作为一条规则，线程安全的接口也应该是事务性的。组件(类、服务器、数据库等)的状态在进行API调用之前和调用之后都应该有效，接口保证了所有不变量都应该得到维护。很有可能的情况是，在执行请求的成员函数(用于类)期间，对象经历了一个或多个无效的状态，其不维护指定的不变量。该接口应该使其他线程不能观察到处于这种无效状态的对象。让我们用一个例子来说明。
 
-Recall our index tree from the previous section. If we want to make this tree thread-safe (which is a short-hand for offering the strong guarantee), we should make inserting new elements safe even when called from multiple threads at the same time:
+回想一下上一节的索引树。如果我们想让这棵树是线程安全的(这是提供强保证的简称)，应该让插入新元素是安全的，即使在多个线程同时调用时也是安全的:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename T> class index_tree {
@@ -23,22 +23,23 @@ template <typename T> class index_tree {
 	std::set<T*, compare_ptr<T>> idx_;
 	std::vector<T> data_;
 	std::mutex m_;
-};
+};
+
 \end{lstlisting}
 
-Of course, other methods have to be protected as well. It is obvious that we do not want to lock the push\_back() and the insert() calls separately: what would the client do with an object that has the new element in the data store but not in the index? According to our interface, it is not even defined whether or not this new element is in the container: if we scan the index using the iterators, it is not, but if we scan the data store using find(), then it is. This inconsistency tells us that the invariants of the index tree container are maintained before and after but not in the middle of the insertion. Therefore, it is very important that no other thread can see such an ill-defined state. We accomplish this by making sure that the interface is both thread-safe and transactional. It is safe to call multiple member functions concurrently; some threads will block and wait for other threads to complete their work, but there is no undefined behavior. Each member function moves the object from one well-defined state to another well-defined state (in other words, it executes a transaction such as adding a new element). The combination of these two factors makes the object safe to use.
+当然，其他方法也必须受到保护。显然，我们不想分别锁定\texttt{push\_back()}和\texttt{insert()}。客户端将如何处理一个对象，客户如何处理数据存储中有新元素但不在索引中的对象？根据接口，甚至没有定义这个新元素是否在容器中。使用迭代器遍历索引，也不行，但如果使用\texttt{find()}查找数据存储，那么应该是可以的。这种不一致性告诉我们，索引树容器的不变量是在插入前和后维护的。因此，其他线程不能看到这样一个定义不明确的状态，这一点非常重要。我们通过确保接口同时是线程安全的和事务性的来实现这一点。同时调用多个成员函数是安全的，一些线程会阻塞并等待其他线程完成。每个成员函数将对象从一个定义良好的状态移动到另一个定义良好的状态(换句话说，它执行一个事务，比如添加一个新元素)。这两个因素的组合使得对象的使用是安全的。
 
-If you need a counter-example (what not to do when designing interfaces for concurrency), recall the discussion of std::queue in Chapter 7, Data Structures for Concurrency. The interface for removing elements from the queue is not transactional: front() returns the front element but does not remove it, while pop() removes the front element but returns nothing, and both yield undefined behavior if the queue is empty. Locking these methods individually does us no good, so a thread-safe API has to use one of the approaches we considered in Chapter 7, Data Structures for Concurrency, to construct a transaction and guard it with a lock.
+如果需要一个反例(设计并发接口时不要做什么)，回想一下第7章中关于\texttt{std::queue}的讨论。从队列中删除元素的接口不是事务性的:\texttt{front()}返回前端元素但不删除它，而\texttt{pop()}删除前端元素但不返回任何东西。如果队列为空，这两种方法都会产生未定义行为。单独锁定这些方法对我们没有好处，所以线程安全的API必须使用我们在第7章(并发的数据结构)中考虑过的方法来构造事务，并用锁来保护。
 
-Now we turn to efficiency: as you can see, it would do us no good if the individual objects that serve as building blocks of our container did their own locking. Imagine if std::deque<T>::push\_back() was itself guarded by a lock. It would make the deque thread-safe (assuming other relevant methods were locked too, of course). But it would not do us any good since we still need to guard the entire transaction with a lock. All it does is wastes some time acquiring and releasing a lock that we do not need.
+现在我们转向效率，如果作为容器构建块的各个对象都进行自我锁定，那么效率肯定很低。想象一下，若\texttt{std::deque<T>::push\_back()}本身用一个锁保护，将使\texttt{deque}线程安全(当然，假设其他相关方法也进行锁定)。但这对我们没有好处，因为我们仍然需要用锁来保护整个事务。它所做的只是浪费一些时间来获取和释放一个我们不需要的锁。
 
-Also, remember that not all data is being accessed concurrently. In a well-designed program that minimizes the amount of shared state, most work is done on thread-specific data (objects and other data that is exclusive to one thread) and updates to the shared data are relatively infrequent. The objects that are exclusive to one thread should not incur the overhead of locking or other synchronization.
+另外，请记住并不是所有的数据都是并发访问的。在将共享状态的数量最小化的程序中，大多数工作都是在特定于线程的数据(对象和独占一个线程的其他数据)上完成的，对共享数据的更新相对较少。独占线程的对象不应该使用锁或其他同步操作。
 
-It seems that we now have a contradiction: on the one hand, we should design our classes and other components with thread-safe transactional interfaces. On the other hand, we should not burden these interfaces with locks or other synchronization mechanisms because we might be building higher-level components that do their own locking. 
+我们现在似乎有了一个矛盾:一方面，应该用线程安全的事务接口来设计类和其他组件。另一方面，不应该用锁或其他同步机制来增加这些接口的负担，因为我们可能正在构建进行锁操作的高级组件。 
 
-The general approach to resolving this contradiction is to do both: provide non-locking interfaces that can be used as building blocks of higher-level components and provide thread-safe interfaces where it makes sense. Often, the latter is accomplished by decorating the non-locking interface with a lock guard. Of course, this has to be done within reason. First of all, any non-transactional interfaces are there exclusively for single-threaded use or for building higher-level interfaces. Either way, they do not need to be locked. Second, there are some components and interfaces that, in a particular design, are used in a narrow context. Maybe a data structure is designed specifically for the work that is being done on each thread separately; again, there is no reason to add the overhead of concurrency to it. Some components may be, by design, intended for concurrent use only and are top-level components – they should have thread-safe transactional interfaces. This still leaves many classes and other components that are likely to be used both ways and need locking and non-locking variants. 
+解决这一矛盾的一般方法是两种都做:提供非锁定接口(可以用作高级组件的构建块)和提供线程安全接口(有意义的地方)。通常，后者是通过使用锁保护来装饰非锁定接口来实现的。当然，必须在合理范围内进行。首先，任何非事务性接口都是专为单线程或构建高级接口而存在的。不管怎样，它们都不需要锁定。其次，在特定的设计中，有一些组件和接口是在上下文中使用，也许数据结构是专门为每个线程单独完成的工作而设计的。同样，也没有理由增加并发性的开销。根据设计，有些组件可能仅用于并发使用，并且是顶级组件——它们应该具有线程安全的事务接口。这仍然保留了许多类和其他组件，它们可能以两种方式使用，并且需要锁定和非锁定不同版本。
 
-There are, fundamentally, two ways to go about it. The first is to design a single component that can use locking if requested, for example:
+从根本上说，有两种方法可以做到这一点。第一种是设计一个可以在请求时使用锁的组件，例如:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename T> class index_tree {
@@ -55,7 +56,7 @@ template <typename T> class index_tree {
 };
 \end{lstlisting}
 
-For this to work, we need a conditional lock\_guard. It is possible to construct one using std::optional or std::unique\_ptr, but it's inelegant and inefficient. It is much easier to write our own RAII class similar to std::lock\_guard:
+为此，需要一个条件\texttt{lock\_guard}。可以构建一个使用\texttt{std::optional}或\texttt{std::unique\_ptr}，但这种方式不好看，效率还低。编写类似\texttt{std::lock\_guard}的RAII类就要容易得多:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename L> class optional_lock_guard {
@@ -72,7 +73,7 @@ template <typename L> class optional_lock_guard {
 };
 \end{lstlisting}
 
-In addition to being non-copyable, std::lock\_guard is also non-movable. You can follow the same design or make your class movable. For classes, you can often handle the locking condition at compile time instead of runtime. This approach uses a policy-based design with a locking policy:
+除了不可复制之外，\texttt{std::lock\_guard}还是不可移动的。可以遵循相同的设计或使类可移动。对于类，通常可以在编译时而不是运行时处理锁定条件。这种方法使用具有锁定策略的设计:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename T, typename LP> class index_tree : private 
@@ -85,7 +86,7 @@ LP {
 };
 \end{lstlisting}
 
-We should have at least two versions of the locking policy LP:
+应该至少有两个版本的锁定策略LP:
 
 \begin{lstlisting}[style=styleCXX]
 struct locking_policy {
@@ -99,16 +100,16 @@ struct non_locking_policy {
 };
 \end{lstlisting}
 
-Now we can create index\_tree objects with weak or strong thread-safety guarantees:
+现在我们可以创建具有弱或强线程安全保护的\texttt{index\_tree}对象:
 
 \begin{lstlisting}[style=styleCXX]
 index_tree<int, locking_policy> strong_ts_tree;
 index_tree<int, non_locking_policy> weak_ts_tree;
 \end{lstlisting}
 
-Of course, this compile-time approach works well for classes but may not be applicable to other types of components and interfaces. For example, when communicating with a remote server, you may want to notify it at runtime whether the current session is shared or exclusive.
+当然，这种编译时方法适用于类，但可能不适用于其他类型的组件和接口。例如，在与远程服务器通信时，可能希望在运行时了解当前会话是共享的，还是独占的。
 
-The second option is the one we discussed earlier, a locking decorator. In this version, the original class (index\_tree) offers only the weak thread-safety guarantee. The strong guarantee is provided by this wrapper class:
+第二个选项在前面讨论过，锁的装饰器。在这个版本中，原来的类(\texttt{index\_tree})只提供了弱的线程安全保证。这个封装类提供了强保证:
 
 \begin{lstlisting}[style=styleCXX]
 template <typename T> class index_tree_ts :
@@ -125,40 +126,40 @@ private index_tree<T>
 };
 \end{lstlisting}
 
-Note that, while encapsulation is generally preferred to inheritance, the advantage of the inheritance here is that we can avoid copying all the constructors of the decorated class. 
+注意，虽然封装通常优于继承，但这里继承的优点是可以避免复制修饰类的所有构造函数。 
 
-The same approaches can be applied to other APIs: an explicit parameter to control locking vs. a decorator. Which one to use depends largely on the particulars of your design – they both have their pros and cons. Note that, even if the overhead of locking is insignificant compared to the work done by a particular API call, there may be good reasons to avoid gratuitous locking: in particular, such locking greatly increases the amount of code that should be vetted for possible deadlocks.
+同样的方法也可以应用于其他API:使用显式的参数来控制锁和装饰器。使用哪一种主要取决于设计细节——它们有各自的优点和缺点。注意，即使锁的开销与特定API调用所做的工作相比微不足道，也要避免使用不必要的锁。特别是，这种锁添加了检查死锁的代码。
 
-Note that there is a lot of overlap between the guideline that all thread-safe interfaces should be transactional and the best practices for designing exception-safe, or, more generally, error-safe interfaces. The latter is more complex because not only do we have to guarantee a valid state before and after the call to an interface but also that the system remains in a well-defined state after an error is detected. 
+所有线程安全的接口都应该是事务性的准则与设计异常安全(或更普遍地说，错误安全的接口)的最佳实践之间有很多重叠。后者更复杂，因为我们不仅要保证调用接口前后的有效状态，而且在检测到错误后，系统仍要保持良好定义的状态。 
 
-From the point of view of performance, error handling is essentially overhead: we do not expect errors to be frequent (otherwise, they are not really errors but regularly occurring situations we have to deal with). Fortunately, the best practices for writing error-safe code, such as using RAII objects for cleanup, are also quite efficient and rarely impose significant overhead. Nonetheless, some error conditions are quite difficult to detect reliably, as we have seen in Chapter 11, Undefined Behavior and Performance.
+从性能的角度来看，错误处理本质上是开销:我们并不期望错误会频繁出现(否则，它们就不是真正的错误，而是必须处理的情况)。幸运的是，编写错误安全代码的最佳实践(比如使用RAII对象进行清理)也非常有效，很少会带来明显的开销。尽管如此，一些错误条件是很难检测出来的，正如在第11章中看到的那样。
 
-There are several guidelines for designing efficient concurrent APIs that we have learned in this section:
+本节中，我们了解了一些设计高效并发API的指导原则:
 
 \begin{itemize}
 \item 
-Interfaces intended for concurrent use should be transactional.
+用于并发使用的接口应该是事务性的。
 
 \item 
-Interfaces should provide the minimum necessary thread-safety guarantee (weak guarantee for interfaces that are not intended to be used concurrently).
+接口应该提供最小的必要线程安全保证(对于不打算并发使用的接口提供弱保证)。
 
 \item 
-For interfaces that are used both as a client-visible API and as building blocks for higher-level components that create their own, more complex transactions and provide the appropriate locking, it is often desirable to have two versions: one with the strong thread-safety guarantee and another with the weak one (or, locking and non-locking). This can be done with conditional locking or using decorators.
+对于既用作客户端可见API，又用作创建自己的、更复杂的事务，需要提供锁的高级组件构建块接口，通常希望有两个版本:一个具有强线程安全保证，另一个具有弱(或锁定和非锁定)线程安全保证。这可以通过条件锁定或使用装饰器来实现。
 \end{itemize}
 
-These guidelines are in general agreement with other best practices for designing robust and clear APIs. Thus, it is rare that we have to make design trade-offs to allow better performance. 
+这些指导原则与设计健壮且清晰的API的其他最佳实践大体一致。因此，为了获得更好的性能，我们很少需要做出设计上的权衡。 
 
-Let us now leave behind the issues of concurrency and turn to other areas of design for performance.
+现在让我们将并发问题抛在脑后，转而讨论性能设计的其他领域。
 
-\subsubsubsection{12.4.2\hspace{0.2cm}Copying and sending data}
+\subsubsubsection{12.4.2\hspace{0.2cm}复制和发送数据}
 
-This discussion is going to be a generalization of the matters we covered in Chapter 9, High-Performance C++, when we talked about unnecessary copying. Using any interface, not just a C++ function call, usually involves sending or receiving some data. This is a very general notion, and we won't be able to offer any specific guidelines that are universally applicable beyond the equally general "be mindful of the cost of data transfer." We can elaborate this a little for some common types of interfaces. 
+这个讨论将是我们在第9章中讨论的问题的总结，当时我们讨论了不必要的复制。使用任何接口，而不仅仅是C++函数，通常都需要发送或接收一些数据。这是一个非常笼统的概念，除了同样普遍的“注意数据传输的成本”之外，无法提供任何普遍适用的指导方针。对于一些常见的接口类型，我们可以对此进行一些说明。 
 
-We have already discussed the overhead of copying memory in C++ and the resulting considerations for the interfaces. We covered the implementation techniques in Chapter 9, High-Performance C++. For the design, we can emphasize the generally important guideline: have a well-defined data ownership and lifetime management. The reason it comes up in the context of performance is that often excessive copying is a side effect of muddled ownership, a workaround for data disappearing while it's still being used because the lifetime of many pieces of the complex system is not well-understood. 
+我们已经讨论了C++中复制内存的开销，以及对接口的考虑，并在第9章中讨论了实现技术。对于设计，我们可以强调通用的指导原则:拥有定义良好的数据所有权和生命周期管理。它出现在性能上下文中的原因是，过度复制通常是所有权混乱导致的，这是一种解决数据在使用时消失的方法，因为复杂系统的许多部分的生命周期没有被很好地理解。 
 
-A very different set of issues needs to be managed in distributed programs, client-server applications, or, generally, any interface between components where bandwidth constraints matter. In these situations, data compression is often used: we trade CPU time for bandwidth because it costs processing time to compress and decompress the data, but the transmission is going to be faster. Often, the decision of whether to compress the data in a particular channel cannot be made at the design time: we simply don't know enough to make an informed trade-off. Thus, it is important to design the system to allow for the possibility of compression. This has some non-trivial implications for designing the interfaces of the data structures that may be converted to a compressed format. If your design calls for compressing the entire set of data, transmitting it, then converting it back to the decompressed format, then the interfaces you use to work with the data do not change, but the memory requirements grow because you will have both compressed and uncompressed representations stored in memory at some point. The alternative is a data structure that stores compressed data internally, which takes some forethought when it comes to designing its interfaces. 
+在分布式程序、客户端-服务器应用程序，或者在带宽限制很重要的组件之间的任何接口中，都需要管理一些问题。在这些情况下，通常会使用数据压缩:我们用CPU时间换取带宽，因为压缩和解压缩数据会消耗处理时间，但传输速度会更快。通常，是否压缩特定通道中的数据不能在设计时做出决定，因为已知信息不够，无法做出权衡。因此，在设计系统时考虑压缩的可能性就很重要，这对于设计可转换为压缩格式的数据结构的接口具有重要意义。如果设计要求压缩整个数据集，将其传输，然后将其转换回已解压缩的格式，那么用于处理数据的接口不会改变，但内存需求会增加，因为在某个时刻内存中存储了已压缩和未压缩的状态。另一种是在内部存储压缩数据的结构，在设计接口时需要事先进行考虑。 
 
-As an example, imagine that we have a simple struct for storing three-dimensional locations and maybe some attributes:
+举个例子，假设使用一个简单的结构来存储三维位置和一些属性:
 
 \begin{lstlisting}[style=styleCXX]
 struct point {
@@ -168,7 +169,7 @@ struct point {
 };
 \end{lstlisting}
 
-A very popular guideline says that we should avoid getter and setter methods that do nothing but access the corresponding data member; we are advised against doing this:
+一个非常流行的准则是，我们应该避免getter和setter方法，它们只访问相应的数据成员。这里，我们不建议这样做:
 
 \begin{lstlisting}[style=styleCXX]
 class point {
@@ -180,7 +181,7 @@ class point {
 };
 \end{lstlisting}
 
-We store these objects in a collection of points:
+我们将这些对象存储在一个\texttt{point}集合中:
 
 \begin{lstlisting}[style=styleCXX]
 class point_collection {
@@ -188,7 +189,7 @@ class point_collection {
 };
 \end{lstlisting}
 
-This design served us fine for a while, but the requirements evolved, and now we have to store and transmit millions of points. It is hard to imagine how we might introduce internal compression with this interface: the index operator returns a reference to an object that must have three double data members accessible directly. If we had getters and setters, we might have been able to implement the point as a proxy to a compressed set of points inside the collection:
+这种设计在一段时间内还不错，但随着需求不断变化，现在我们必须存储和传输数百万个点。很难想象如何用这个接口引入内部压缩:索引操作符返回一个对对象的引用，该对象必须有三个可直接访问的\texttt{double}数据成员。如果我们有getter和setter，可能已经能够将这个点实现为集合内的一个压缩点集的代理了:
 
 \begin{lstlisting}[style=styleCXX]
 class point {
@@ -200,13 +201,13 @@ class point {
 };
 \end{lstlisting}
 
-The collection stores compressed data and can decompress parts of it on the fly to get access to the point identified by the point\_id\_. 
+集合存储压缩数据，并可以动态地解压其中的部分数据，可以通过\texttt{point\_id\_}访问相应的点。
 
-Of course, an even more compression-friendly interface would be one that requires us to iterate over the entire collection of points sequentially. Now you should realize that we just revisited the guideline that instructs us to reveal as little information as possible about the internal workings of our collection. The focus on compression serves to provide us with a particular point of view. If you think about the possibility of data compression, or, generally, alternative data representations for storage and transmission, you have to also think about restricting access to this data. Maybe you can come up with algorithms that do all the required computations without using random access to the data? If you limit access by design, you preserve the possibility of compressing the data (or taking advantage of the limited access pattern in some other way). 
+当然，更有利于压缩的接口会要求我们顺序地遍历整个集合。我们刚刚重新回顾了指导方针，该指导方针要求尽可能少地透露关于集合内部工作的信息。对压缩的关注为我们提供了一个特殊的点。如果考虑数据压缩的可能性，或者存储和传输的替代数据的表示，还必须考虑限制对该数据的访问。也许可以想出一种算法，不用随机访问数据就能完成所有需要的计算？如果通过设计限制访问，那么就能保留了压缩数据的可能性(或以其他方式利用有限的访问模式)。
 
-There are other types of interfaces, of course, and they all have their own runtime, memory, and storage space costs associated with transmitting large volumes of data. When designing for performance, consider the possibility that these costs will become performance-critical and try to limit the interfaces for maximum freedom of internal data representation. Of course, this, like anything else, should be practiced within reason; it is highly unlikely that a hand-written configuration file will ever become a performance bottleneck (computers read faster than you write, in any format). 
+当然，还有其他类型的接口，它们都有与传输大量数据的运行时、内存和存储空间成本相关。在进行性能设计时，考虑到这些成本可能对性能至关重要，并尝试限制接口，以实现内部数据表示的最大自由化。当然，这和其他任何事情一样，都应该在合理的范围内进行，比如手写的配置文件不太可能成为性能瓶颈(无论哪种格式，通常读要比写快)。 
 
-We have touched on the matter of data layout as it affects the interface design. Let us now focus directly on the performance impact of data organization.
+我们已经谈到了数据布局的问题，因为它会影响接口设计。现在让我们直接关注数据组织对性能的影响。
 
 
 
