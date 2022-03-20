@@ -1,6 +1,6 @@
-The obvious question that arises from the last section is, why does the standard have UB at all? Why doesn't it specify the result for every situation? A slightly subtler question that acknowledges the reality that C++ is used on a wide variety of hardware with very different properties is this: why doesn't the standard fall back on implementation-defined behavior instead of leaving it undefined?
+上一节提出的问题是，为什么标准里会提到UB？为什么没有为它每一种情况指定结果？基于C++会在具有不同属性的各种硬件上使用这一事实，所产生的问题是:为什么标准不回到实现定义的行为上，而不是不定义它呢？
 
-The last example from the previous section provides us with a perfect demonstration vehicle for the rationale behind the existence of UB. The statement is that an infinite loop is UB; another way of saying that is that the standard does not require a specific outcome from a program that enters an infinite loop (the standard is more nuanced than that, and some forms of infinite loops will cause the program to hang, but these details are not important at the moment). To understand why the rule is there, consider the following code:
+上一节的最后一个示例为我们提供了一个完美的演示，以说明UB存在的理由。表示无限循环是UB，另一种说法是，标准不要求进入无限循环的程序有特定的结果(标准比这更微妙，某些形式的无限循环会导致程序挂起，但这些细节目前并不重要)。为了理解为什么会有这中规则，先来看看下面的代码:
 
 \begin{lstlisting}[style=styleCXX]
 size_t n1 = 0, n2 = 0;
@@ -10,7 +10,7 @@ void f(size_t n) {
 }
 \end{lstlisting}
 
-The loops are identical, so we are paying the overhead of the loop (increment of the loop variable and comparison) twice. The compiler clearly should do the following optimization by folding the loops together:
+这两个循环是相同的，所以我们要花费两次循环开销(循环变量的增量和比较)。编译器显然应该通过折叠循环来进行优化:
 
 \begin{lstlisting}[style=styleCXX]
 void f(size_t n) {
@@ -18,11 +18,11 @@ void f(size_t n) {
 }
 \end{lstlisting}
 
-Note, however, that this transformation is valid only if the first loop terminates; otherwise, the count n2 should never be incremented at all. It is impossible to know during compilation whether the loop terminates – it depends on the value of n. If n is odd, the loop runs forever (unlike signed integer overflow, incrementing the unsigned type size\_t past its maximum value is well defined, and the value rolls over back to zero). In general, it is not possible for the compiler to prove that a particular loop eventually terminates (this is a known NP-complete problem). The decision was made to assume that every loop eventually terminates and to allow the optimizations that would otherwise be invalid. Because these optimizations can make a program with an infinite loop invalid, such loops are considered UB, meaning the compiler does not have to preserve the behavior of a program with an infinite loop.
+但请注意，这种转换只有在第一个循环结束时才有效;否则，计数\texttt{n2}根本不会增加。在编译期间，不可能知道循环是否会结束——这取决于\texttt{n}。如果\texttt{n}是奇数，循环将永远运行下去(与有符号整数溢出不同，无符号类型大小的增量超过其最大值时很好定义，该值将回滚为零)。通常，编译器不可能知道某个特定的循环最终是否会终止(这是一个已知的NP完全问题)。假定每个循环最终都会终止，并允许进行无效的优化。这些优化可以使具有无限循环的程序无效，所以这种循环会认为是UB，这意味着编译器不必保留具有无限循环的行为。
 
-To avoid oversimplifying the issue, we must mention that not all types of UB defined in the C++ Standard have similar reasoning behind them. Some UB is introduced because the language has to be supported on different types of hardware, and some of these cases can be considered obsolete today. As this is a book on performance, we will focus on examples of UB that exist for reasons of efficiency or that can be used to improve certain optimizations.
+为了避免过度简化这个问题，我们必须指出，并不是C++标准中定义的所有类型的UB背后都有类似的原因。引入UB是因为语言必须在不同类型的硬件上得到支持，其中一些情况在今天看可能是过时的。因为这是一本关于程序性能的书，所以我们将重点关注那些为了提高效率而存在，或者可以用来改进某些优化的UB。
 
-In the next section, we will see more examples of how the compiler can use UB to its (and your) advantage.
+下一节中，我们将看到更多的例子，说明编译器如何使用UB来发挥它(和开发者自己)的优势。
 
 
 

@@ -1,15 +1,15 @@
-We have a whole chapter dedicated to the subject of UB in C++ and in programs in general. Why? Because this subject is inextricably linked to performance.
+我们用了整整一章专门讨论C++和程序中的UB。为什么这么做？因为这个主题与性能有着千丝万缕的关系。
 
-First of all, understand that UB occurs when the program receives an input that is outside of the contract that specifies the program's behavior. In addition, the specification also says that the program is not required to detect such input and issue a diagnostic. This is true for the UB as defined by the C++ Standard and for the UB of your own program.
+首先，当程序接收到指定程序行为之外的输入时，UB就会发生。此外，规范还说，程序不需要检测这样的输入和发出诊断。这对于C++标准定义的UB和自己程序的UB都是正确的。
 
-Next, the reason the specification (or the standard) does not cover all possible inputs and defining the results is mostly related to performance: UB is often introduced when it would be very expensive to produce a specific result reliably. For UB in C++, the variety of processor and memory architectures also leads to cases that are difficult to handle uniformly. Without a viable way to guarantee a specific result, the standard leaves the outcome undefined.
+其次，规范(或标准)没有涵盖所有可能的输入和定义结果的原因，主要与性能有关:当可靠地生成特定结果的成本非常昂贵时，通常会引入UB。对于C++中的UB，处理器和内存架构的多样性也会导致无法统一处理的情况。如果没有一种可行的方法来保证一个特定的结果，这个标准就没有明确结果的。
 
-Finally, the reason the program is not required to at least detect, if not handle, the invalid input is that such detection may also be very costly: sometimes it takes longer to confirm that the input is valid than to compute the result.
+最后，程序不需要检测(如果不处理)无效输入的原因是，这样的检测可能也会非常昂贵:有时确认输入是有效，会比计算结果花费更长的时间。
 
-You should keep these considerations in mind when designing software: it is always desirable to have a broad contract that defines the outcome for any or almost any input. But doing so can impose performance overhead on users who only provide the typical or "normal" input. When offered a choice between faster execution of a task the user wants to do and reliable execution of a task the user never wants to solve in the first place, most users will choose performance. As a compromise, you can offer the users a way to validate the inputs; if this validation is costly, it should be optional.
+设计软件时，应该牢记这些点:总是希望有一个广泛的约定来定义任何或几乎任何输入的结果，但是这样做会给那些只提供典型或“正常”输入的用户带来不必要的性能开销。当用户可以在更快地执行想要执行的任务，以及可靠地执行一开始就不想执行的任务之间做出选择时，大多数用户会选择性能。作为一种妥协，可以为用户提供一种验证输入的方法。如果这种验证的代价很高，那么它应该是可选的。
 
-When it comes to UB laid out by the C++ Standard, the tables are turned, and you are the user. It is essential to understand that if a program includes code with UB, the entire program is ill-defined, not just the one line in question. This is because the compiler can assume that UB never happens at runtime and reason backward from that to make the corresponding optimizations to your code. Modern compilers all do that to some extent, and future compilers will only be more aggressive in their deductions. 
+当涉及到C++标准的UB时，情况就变了，这时你就是用户。有必要理解，如果一个程序包含了UB的代码，那么整个程序都是定义不清的，而不仅仅是有问题的那一行。这是因为编译器可以假设UB永远不会在运行时发生，并据此推断对代码进行的相应优化。现代的编译器在某种程度上都会这样做，而未来的编译器可能会在他们的推断中更加激进。 
 
-Finally, many compiler developers also offer validation tools that can detect undefined behavior at run time – UB sanitizers. Just like a validator for the input of your own program, these tools take time to run, which is why the sanitizer is an optional tool. You should take advantage of it in your software testing and development process. 
+最后，许多编译器开发人员还提供了验证工具，可以在运行时检测未定义的行为——UB杀灭器。就像自己的程序的输入验证器一样，这些工具需要时间来运行，这就是为什么杀灭器是一个可选工具，应该在软件测试和开发过程中使用。
 
-We are almost at the end of the book; in the next, which is the final chapter, we will review everything we have learned with an eye for the implications and lessons for designing software.
+这本书我们快完了。在下一章，也就是最后一章，我们将回顾我们所学到的一切，并着眼于软件设计的含义和启示。
