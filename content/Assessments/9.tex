@@ -1,14 +1,14 @@
 \begin{enumerate}
 \item 
-If it is necessary to make a copy of the object, then passing it by value accomplishes that. The programmer has to be careful to avoid making a second, unnecessary copy. Usually, this is done by moving from the function parameter; however, the programmer is responsible for not using the moved-from object as the compiler will not prevent it.
+有必要复制一个对象时，可以按值传递该对象。开发者必须小心避免不必要的复制。通常，可以通过移动从函数参数完成。但无论如何，开发者都有责任不使用已移动对象。
 
 \item 
-In the most common case, when the function operates on the object but does not affect its lifetime, the function should not get any access that allows it to affect the ownership. Even if the object ownership is managed by shared pointers, such functions should use references or raw pointers instead of creating unnecessary copies of shared pointers.
+最常见的情况是，当函数操作对象不影响其生命周期时，函数不应获得影响所有权的访问。如果对象的所有权由共享指针管理，那么这些函数应该使用引用或指针，而不是创建共享指针的副本。
 
 \item 
-Return value optimization refers to the compiler optimization technique where a local variable is returned by value from a function. The optimization effectively removes the local variable and constructs the result directly in the memory allocated for it by the caller. This optimization is particularly useful in factory functions that must construct and return objects.
+返回值优化是编译器优化技术，其中局部变量由函数的值返回。优化有效地移除本地变量，并直接在调用者为其分配的内存中构造结果。这种优化在构造和返回对象的工厂函数中特别有用。
 
 \item
-In memory-bound programs, the run time is limited by the speed of getting data to and from memory. Using less memory often leads directly to a faster running program. The second reason is more straightforward: memory allocations themselves take time. In concurrent programs, they also involve a lock, which serializes part of the execution.
+内存受限的程序，其运行时间受限于从内存获取数据的速度。使用内存的减少通常会让程序的运行速度更快。第二个原因更简单，因为内存分配本身需要时间。在并行程序中，会涉及锁，锁会让并行程序的部分串行化。
 
 \end{enumerate}

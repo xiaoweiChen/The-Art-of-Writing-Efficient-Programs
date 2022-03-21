@@ -1,14 +1,14 @@
 \begin{enumerate}
 \item 
-The most important constraint is that the result (or, more strictly, the observable behavior) of the program must not change. The bar here is high: the compiler is allowed to optimize only when it can be proven that the results are correct for all possible inputs. The second consideration is practicality: the compiler has to make tradeoffs between compilation time and efficiency of the optimized code. Even with the highest optimization enabled, it may be too expensive to prove that some code transformations do not break the program. 
+最重要的约束是，程序的结果(或者更严格地说，可观察到的行为)必须不变。这里的门槛很高，只有当能够证明结果对所有可能的输入都是正确的，编译器才允许进行优化。其次考虑的是实用性，编译器必须在编译时间和优化代码的效率之间做出权衡。在启用了最高优化的情况下，证明某些代码转换不会破坏程序的代价可能会很大。 
 
 \item 
-In addition to the obvious effect (elimination of the function call), inlining enables the compiler to analyze a larger fragment of code. Without inlining, the compiler generally has to assume that "anything is possible" inside a function body. With inlining, the compiler can see, for example, whether the call to the function produces any observable behavior, such as I/O. The inlining is beneficial only up to a point: when overdone, it increases the size of the machine code. Also, the compilers have difficulties analyzing very long code fragments (the longer the fragment, the more memory and time it takes for the optimizer to process it). Compilers have heuristics that determine whether a particular function is worth inlining.
+除了明显的效果(消除函数调用)外，内联使编译器能够分析更大的代码段。如果没有内联，编译器通常会假设在函数体中“任何事情都是可能的”。例如，编译器可以看到对函数的调用是否产生任何可观察的行为，比如I/O。内联只在一定程度上是有益的。当内联过度时，它会增加机器码的大小。此外，编译器很难分析非常长的代码段(片段越长，优化器处理它所需的内存和时间就越多)。编译器具有判断某个函数是否值得内联的方法。
 
 \item 
-If the compiler does not make an optimization, it is often because this transformation is not guaranteed to be correct. The compiler does not have the same knowledge of how the program is going to be used that the programmer does; any combination of inputs is assumed to be valid. The other common reason is that the optimization is not expected to be universally effective. The compiler may be right on this count, but if the measurements show that the programmer is right, the optimization would have to be forced into the source code somehow.
+编译器不会进行优化，这通常是因为不能保证这个优化是正确的。编译器对如何使用程序的了解与开发者不同，编译器会假定输入的组合是有效的。另一个常见的原因是，预期的优化不会都那么有效。在这一点上，编译器可能是正确的，但如果测量结果表明开发者是正确的，可以在源代码中进行强制优化。
 
 \item
-The main benefit of inlining is not that it eliminates the cost of the function call. Rather, it is that it allows the compiler to see what is going on inside the function. This enables continuous analysis of the code that immediately precedes and follows the function call. Some optimizations that were not possible when each section of the code was considered in isolation become possible when a larger code fragment is optimized as a single basic block.
+内联的主要好处不是消除了函数调用的成本。相反，它允许编译器看到函数内部发生了什么，允许对函数调用前后的代码进行分析。将一个更大的代码片段优化为单个基本块时，孤立地考虑每一段代码时，可以将不可能实现的优化变为可能。
 
 \end{enumerate}

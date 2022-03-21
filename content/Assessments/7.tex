@@ -1,18 +1,17 @@
 \begin{enumerate}
 \item 
-Any data structure designed for thread safety must have a transactional interface:
-every operation must either not change the state of the data structure or transform it from one well-defined state to another well-defined state.
+为线程安全而设计的数据结构必须有一个事务接口，每个操作要么不能更改数据结构的状态，要么不能将其从一个定义良好的状态转换为另一个定义良好的状态。
 
 \item 
-This comes to the general observation of the performance of concurrent code: the more shared variables there are, the slower the code is. A complex data structure usually needs more data shared between threads that access it concurrently. In addition, there are simple algorithms (some are wait-free) that allow limited threadsafe operations on the data structures.
+从总体上观察并发代码的性能，共享变量越多，代码就越慢。复杂数据结构通常需要在并发访问的线程之间共享更多的数据。另外，有一些简单的算法(有些是无等待的)允许对数据结构进行有限的线程安全操作。
 
 \item 
-With an efficient lock, a lock-guarded data structure is not necessarily slower. Often, it is faster. Again, it comes to how many variables are shared: a lock-free scheme that requires multiple atomic variables may be slower than a single lock. We also have to consider the locality of the access: if the data structure is accessed in one or two places (like a queue), the lock can be quite efficient. A data structure with many elements that can all be accessed simultaneously is likely to have very poor performance if the entire data structure must be locked every time.
+使用有效的锁，保护的数据结构不一定会变慢。通常，访问更快。其涉及到共享多少变量，需要多个原子变量的无锁模式可能比单个锁还慢。还必须考虑访问的位置，若数据结构只能在一两个位置(比如一个队列)访问数据，那么锁就会非常有效。如果每次都必须锁定整个数据结构，那么可以同时多个访问的数据结构，性能很可能会很差。
 
 \item
-The main challenge is that adding memory to a data structure is usually a very disruptive operation that requires rearranging large parts of the internal data. It is difficult to do this while allowing other concurrent operations on the same data structure. For a lock-guarded data structure, this is of little concern (sometimes the lock is held for much longer than usual when one thread has to manage memory, but long delays can happen for other reasons as well, the program has to expect it). In lock-free data structures, it is very hard to manage memory if it affects the entire data structure. Nodal data structures do all their memory management on a single thread and use the publishing protocol to add new nodes to the structure, but sequential data structures may require data reallocation or at least complex internal memory management. In such cases, double-checked locking should be used to lock down the entire data structure while its memory is being reorganized.
+主要的挑战是，向数据结构添加内存通常是一种具有破坏性的操作，需要重排大部分内部数据。在允许对同一数据结构进行并发操作的情况下，很难做到这一点。这与是否由锁保护的数据结构关系不大(有时当一个线程必须管理内存时，锁持有的时间比通常要长得多，但是由于其他原因，长时间的延迟也会发生，程序必须了解到这一点)，无锁数据结构中，若内存影响整个数据结构，则很难管理内存。节点数据结构在一个线程上完成所有的内存管理，并使用发布协议向结构中添加新的节点，但是顺序数据结构可能需要数据重新分配，或者需要复杂的内存管理。这种情况下，应该使用\textit{双重检查锁定}来锁定整个数据结构，同时对其内存进行重组。
 
 \item
-The A-B-A problem is common to all lock-free implementations of nodal data structures that use the position of data in memory to detect when a change was made. The problem happens when a new node is allocated in the memory of a previously deleted node. This creates the potential data race when another thread observes identical initial and final memory addresses, and the assumption is made that the data structure is unchanged. Multiple solutions exist, but all of them use various techniques to defer the deallocation of memory until the reallocation at the same address is no longer a problem.
+A-B-A问题是所有节点数据结构无锁实现的常见问题，这些实现使用内存中的数据位置来判断何时发生了更改。不过，在先前删除的节点的内存中分配新节点时，就会出现问题。当另一个线程观察到相同的内存地址时，假设数据结构没有改变，就会产生潜在的数据竞争。这里有多个解决方案，它们使用各种技术来延迟内存的重新分配，直到在同一地址的重新分配不再是一个问题。
 
 \end{enumerate}

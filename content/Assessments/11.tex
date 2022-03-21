@@ -1,14 +1,14 @@
 \begin{enumerate}
 \item 
-Undefined behavior is what happens when a program is executed out of contract: the specification says what the valid inputs are and what the results should be. If invalid input is detected, this is also a part of the contract. If the invalid input is not detected and the program proceeds on the (false) assumption that the input is valid, the results are undefined: the specification does not say what must happen.
+未定义行为是指程序在约定之外执行时所发生的情况，规范规定了有效的输入是什么以及结果应该是什么。当检测到无效输入是，这也是约定的一部分。没有检测到无效输入，程序继续(错误)。假设输入是有效的，结果未定义，规范没有说明必须发生什么。
 
 \item 
-In C++, there are two main reasons for allowing undefined behavior. First of all, there are operations that require hardware support or are executed differently on different hardware. It may be very difficult or even impossible to deliver a specific result on some hardware systems. The second reason is performance: it may be expensive to guarantee a specific outcome across all computing architectures.
+在C++中，允许未定义行为有两个主要原因。首先，有些操作需要硬件支持，或者在不同的硬件上需要执行不同的操作。在某些硬件系统上得到特定的结果可能非常困难，甚至是不可能的。第二个原因是性能:在所有计算体系结构中保证特定结果的代价非常昂贵。
 
 \item 
-No, an undefined result does not mean that the result must be wrong. The desired result is also permitted under undefined behavior, it's just not guaranteed. Further, undefined behavior taints the entire program. Compiling the same code in a file together with some other code may produce unexpected results. A new version of the compiler may be able to make better optimizations on the assumption that undefined behavior never happens. You should run the sanitizer and fix the errors it reports.
+不，一个未定义的结果并不意味着这个结果一定是错误的。合理的结果在未定义的行为下也是允许的，只是不能保证而已。此外，未定义行为会污染整个程序。将文件中的相同代码与其他代码一起编译，可能会产生意想不到的结果。新版本的编译器会在未定义行为不会发生的假设下进行更好的优化，所以开发者应该运行杀灭工具，并修复工具报告出来的错误。
 
 \item
-For the same reason, the C++ standard does it: performance. If there is a special case that is hard to handle correctly without adding overhead to the "normal" case, you may choose not to handle the special case at all. While it is preferable to detect this situation at run time, such detection may also be expensive. In this case, the input validation should be optional. If the user supplies an invalid input but fails to run the detection tool, the program's behavior is undefined since the algorithm itself assumes that the input is valid and that assumption has been violated.
+出于同样的原因，C++标准做到了:性能。如果不增加“正常”情况的开销，就很难正确处理特殊情况，所以可以选择根本不处理特殊情况。更可取的方式是在运行时检测这种情况，这种检测可能也很昂贵。在这种情况下，验证输入应该是可选的。用户提供了无效输入，但是没有运行检测工具，从而程序的行为没有定义，因为算法本身假设输入是有效的，导致违背了这个假设。
 
 \end{enumerate}

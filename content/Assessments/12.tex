@@ -1,14 +1,14 @@
 \begin{enumerate}
 \item 
-Design for performance boils down to creating a design that does not prevent high-performing algorithms and implementations by imposing constraints incompatible with such implementations.
+针对性能的设计可以归结为创建一种设计，这种设计不会通过强加与实现不兼容的限制，来阻止高性能算法和实现。
 
 \item 
-In general, the less the interface reveals the internal details of a component, the more freedom the implementer has. This should be balanced against the freedom of the client to use efficient algorithms.
+一般来说，接口显示组件的内部细节越少，实现者的自由度就越大。这应该与客户端使用高效算法的自由相平衡。
 
 \item 
-Higher-level interfaces allow for better performance because they allow the implementer to temporarily violate the invariants specified by the interface contract. The initial and the final states of the component are visible to the caller and must maintain these invariants. However, if the implementer knows that the intermediate states are not exposed to the outside world, a more efficient temporary state can often be found.
+高级接口允许有更好的性能，因为它们允许实现者临时违反接口指定的不变量。调用者可以看到组件的初始和最终状态，并且必须维护这些不变量。如果实现者知道中间状态可以不暴露于外部，那么通常可以找到更有效的方式处理临时状态。
 
 \item
-The short answer is, we can't. The objective is, then, to find a way to collect such measurements. This is done by measuring the performance of modeling benchmarks and prototypes and using the results to estimate performance limitations that result from different design decisions.
+简单的回答是，不能。因此，目标是找到一种收集此类测试数据的方法。这是通过建立模型的基准测试和原型的性能测试，并使用这些结果来评估不同设计决策所导致的性能限制来完成的。
 
 \end{enumerate}

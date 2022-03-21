@@ -1,11 +1,11 @@
 \begin{enumerate}
 \item 
-Any data structure designed for thread safety must have a transactional interface:Without the standard giving some guarantees on the behavior of C++ programs in the presence of threads, it is not possible to write any portable concurrent C++ programs. Of course, in practice, we were using concurrency long before C++11, but this was made possible by the compiler writers who chose to follow an additional standard, such as POSIX. The downside of that situation was that these additional standards varied. There was no portable way to write, for example, concurrent programs for Linux and Windows without conditional compilation and OS-specific extensions for each platform. Similarly, atomic operations were implemented as CPU-specific extensions. Also, there were some subtle differences between various standards followed by different compilers, which occasionally resulted in very hard-to-find bugs.
+任何为线程安全而设计的数据结构，都必须有事务接口:如果没有标准对存在线程的C++程序提供一些保证，就不可能编写任何可移植的并发C++程序。在实践中，我们早在C++11之前就在C++中使用了并发性，但这是由遵循额外标准(如POSIX)的编译器作者实现的。这种情况的缺点是扩展标准各有不同，例如：在没有条件编译和针对每个平台的特定于操作系统的扩展的情况下，没有可移植的方法来编写Linux和Windows的并发程序。类似地，原子操作实现为特定于CPU扩展。此外，不同编译器所遵循的标准之间也有一些细微的差异，这有时会导致非常难以发现的错误。
 
 \item 
-The use of parallel algorithms is very simple: any algorithm that has a parallel version can be invoked with an execution policy as the first argument. If this is the parallel execution policy, the algorithm will run on multiple threads. To achieve the best performance, on the other hand, it may be necessary to redesign parts of the program. In particular, parallel algorithms provide no benefit if the data sequence is too short (what constitutes short depends on the algorithm and the cost of operating on the data elements). It may be necessary, therefore, to redesign the program to operate on larger sequences at once.
+并行算法的使用非常简单，任何具有并行版本的算法都可以以执行策略作为第一个参数来调用。若是并行执行策略，则算法将在多个线程上运行。另一方面，为了达到最佳性能，可能需要重新设计程序的某些部分。特别是，当数据序列太短(什么是短取决于算法和操作数据元素的成本)，并行算法就有优势了。因此，可能有必要重新设计程序，从而操作更大的序列。
 
 \item 
-Coroutines are functions that can suspend their own execution. After suspension, the control is returned to the caller (or to the resumer if this is not the first suspension). The coroutine can be resumed from any location in the code, from a different function or another coroutine, even from another thread.
+协程是可以暂停正在执行的函数。挂起后，控制权返回给调用者(若这不是第一次挂起，则返回给断点)。协程可以从代码中的任何位置恢复，从不同的函数或另一个协程，甚至从另一个线程恢复。
 
 \end{enumerate}

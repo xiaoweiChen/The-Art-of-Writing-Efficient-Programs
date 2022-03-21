@@ -1,14 +1,14 @@
 \begin{enumerate}
 \item 
-Modern CPUs are significantly faster than even the best memories. The latency for accessing a random location in memory is several nanoseconds, enough time for the CPU to execute dozens of operations. Even in streaming access, the overall memory bandwidth is not enough to supply the CPU with the data at the same speed it can carry out the computations.
+现代CPU甚至比最好的内存都要快，访问内存中随机位置的延迟是几纳秒，这足以让CPU执行数十次操作。即使在流访问中，内存的总带宽也不足以以相同的速度为CPU提供数据，以执行计算。
 
 \item 
-The memory system includes a hierarchy of caches between the CPU and the main memory, so the first factor affecting the speed is the size of the data set: this ultimately determines whether the data fits into a cache or not. For a given size, the memory access pattern is critical: if the hardware can predict the next access, it can hide the latency by starting the transfer of data into the cache before this data is requested.
+内存系统包括CPU和主存之间的缓存层次结构，因此影响速度的第一因素是数据集的大小，这最终决定了数据是否适合缓存。对于给定的大小，内存访问模式是关键，若硬件可以预测下一次访问，就可以通过在请求数据之前开始将数据传输到缓存来隐藏延迟。
 
 \item 
-Often inefficient memory access is evident from a performance profile or timer output; this is particularly true for well-modularized code with good encapsulation of data. If the timing profile does not show the parts of the code that dominate the performance, the cache effectiveness profile may show which data is accessed inefficiently throughout the code.
+通常低效的内存访问是显式的性能数据文件或计时器输出，对于具有良好数据封装的模块化代码来说也是如此。在计时分析没有进行统计和分析的地方，缓存有效性可能会在整个代码中显示低效访问的数据。
 
 \item
-Any optimization that uses less memory is likely to improve memory performance since more of the data fits into the cache. However, sequential access to a large amount of data is likely to be faster than random access to a smaller amount of data, unless the smaller data fits into the L1 cache, or, at most, the L2 cache.Optimizations that directly target the memory performance usually take the form of data structure optimizations, aimed mostly at avoiding random access and indirect memory access. To go beyond these, we usually have to change the algorithms to change memory access patterns to more cache-friendly ones.
+使用较少内存的优化可能会提高内存性能，因为更多的数据适合于缓存。但对大量数据的顺序访问可能比对少量数据的随机访问要快，较小的数据适合L1缓存，或者适合L2缓存。直接针对内存性能的优化通常采用数据结构优化的形式，主要目的是避免随机访问和间接内存访问。除此之外，通常还必须改变算法，将内存访问模式改为更友好的缓存模式。
 
 \end{enumerate}
