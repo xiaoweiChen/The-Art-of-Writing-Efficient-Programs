@@ -303,7 +303,7 @@
 \newpage
 \thispagestyle{empty}
 \huge
-\textbf{LLVM Techniques, Tips, and Best Practices} 
+\textbf{The Art of Writing Efficient Programs} 
 \\[9pt]
 \normalsize
 An advanced programmer's guide to efficient hardware utilization and compiler optimizations using C++ examples \\ 
@@ -321,17 +321,17 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 
 \textit{掌握各种性能提升技术，如并发性、无锁编程、原子操作、并行性和内存管理。}
 
-免费硬件性能自提升结束了，随着CPU的升级，虽然程序本身的速度也在加快，现在情况不一样了。新架构的处理器时钟频率几乎达到了峰值，对现有的程序性能上的改进并不多。虽然处理器变得体积更大、性能更强，但这些能力的大部分都在增多的核数和其他“额外”计算单元消耗掉了。为了编写高效的软件，现在的开发者必须了解如何利用现有的计算资源进行编程，这本书将带你了解如何做到这一点。
+性能自提升的时代结束了，以前随着CPU的升级，程序本身的速度也在加快，现在情况不一样了。新架构的处理器时钟频率几乎达到了峰值，对现有的程序性能上的改进并不多。虽然处理器的体积更大、性能更强，但这些能力的都在增多的核数和其他的计算单元上消耗掉了。为了编写高效的软件，现在的开发者必须了解如何利用现有的计算资源进行编程，这本书将说明如何做到这一点。
 
-这本书涵盖了编写高效程序的所有主要方面，如：高效地使用CPU资源和内存，避免不必要的计算，性能测试，以及如何充分利用并发性和多线程。还将了解编译器优化，以及如何更有效地使用编程语言(C++)。最后，将了解设计决策如何对性能产生影响。
+这本书涵盖了编写高效程序的主要方面：高效地使用CPU资源和内存，避免不必要的计算，性能测试，以及如何充分利用并发性和多线程。还会了解编译器优化，以及如何更有效地使用编程语言(C++)。最后，了解设计决策如何对性能产生影响。
 
-读完这本书，您不仅将有足够的处理器和编译器知识来编写高效的程序，还能够理解使用这些技术和在提高性能时如何测量。而本书的核心在于如何学习。
+读完这本书，可以利用处理器和编译器的知识来编写高效的程序，还能够理解使用这些技术和在提高性能时如何进行测试。而本书的核心在于学习的方法论。
 
 \hspace*{\fill} \\ %插入空行
 \noindent\textbf{关键特性}
 \begin{itemize}
 \item 了解现代CPU的局限性及对性能的影响
-\item 了解如何避免编写效率低下的代码，并使用编译器进行最大优化
+\item 了解如何避免编写效率低下的代码，并使用编译器进行优化
 \item 了解编写高性能程序需要权衡策略和成本
 \end{itemize}
 
@@ -339,21 +339,21 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \noindent\textbf{内容纲要}
 \begin{itemize}
 \item 了解如何有效地使用程序中的硬件计算资源
-\item 理解内存顺序和内存栅栏之间的关系
+\item 理解内存序和内存栅栏之间的关系
 \item 熟悉不同数据结构和组织方式对性能的影响
 \item 评估并发内存访问对性能的影响，以及如何将影响最小化
 \item 了解何时使用和不使用无锁编程技术
 \item 探索提高编译器优化效率的不同方法
-\item 为避免效率低下的开发，对发数据结构和高性能数据结构设计API
+\item 为避免效率低下的开发，针对并发和高性能数据结构设计API
 \end{itemize}
 
 \hspace*{\fill} \\ %插入空行
 \noindent\textbf{作者简介}
 
-\textbf{Fedor G. Pikus}是Mentor Graphics公司(西门子公司)硅设计部门的首席工程科学家。他曾在谷歌担任高级软件工程师，在Mentor Graphics担任Calibre PERC、LVS、DFM的首席软件架构师。1998年，他从计算物理的学术研究转向软件行业，加入Mentor Graphics。Fedor是高性能计算和C++方面的公认专家，他在CPPCon, SD West, DesignCon, Software Development Journal上展示过作品，也是O'Reilly的作者。作为首席科学家，他的职责包括规划Calibre产品的长期技术方向，指导和培训从事这些产品、软件设计和架构的工程师，以及研究新的设计和软件技术。Fedor在物理学、EDA、软件设计和C++语言方面拥有超过25项专利和超过100篇论文和会议报告。
+\textbf{Fedor G. Pikus}是Mentor Graphics公司(西门子公司)硅设计部门的首席工程科学家。他曾在谷歌担任高级软件工程师，在Mentor Graphics担任Calibre PERC、LVS、DFM的首席软件架构师。1998年，他从计算物理的学术研究转向软件行业，加入Mentor Graphics。Fedor是高性能计算和C++方面公认的专家，他的作品在CPPCon, SD West, DesignCon, Software Development Journal上进行过展示，也是O'Reilly的作者。作为首席科学家，他的职责包括规划Calibre产品的长期技术方向，指导和培训从事这些产品、软件设计和架构的工程师，以及研究新的设计和软件技术。Fedor在物理学、EDA、软件设计和C++语言方面拥有超过25项专利和超过100篇论文和会议报告。
 \begin{center}
 \tt
-我要感谢我的妻子加林娜(Galina)，我的儿子亚伦(Aaron)和本杰明(Benjamin)，他们支持和鼓励我，对我信心十足，还有我的猫维尼(Pooh)，也会在我需要的时候鼓励我。
+我要感谢我的妻子加林娜(Galina)，我的儿子亚伦(Aaron)和本杰明(Benjamin)，他们支持和鼓励我，对我信心十足。还有我的猫维尼(Pooh)，也会在我需要的时候鼓励我。
 \end{center}
 
 \thispagestyle{empty}
@@ -366,7 +366,7 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 \hspace*{\fill} \\ %插入空行
 \noindent\textbf{本书相关}
 \begin{itemize}
-\item Github翻译地址：\\\url{https://github.com/xiaoweiChen/XXXXXX}
+\item Github翻译地址：\\\url{https://github.com/xiaoweiChen/The-Art-of-Writing-Efficient-Programs}
 \end{itemize}
 \newpage
 
