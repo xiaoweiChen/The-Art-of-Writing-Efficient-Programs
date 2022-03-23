@@ -1,14 +1,14 @@
-首先，需要一个C++编译器。本章的示例使用GCC或Clang编译器，在Linux系统上编译的。所有的Linux发行版都会将GCC作为常规安装的一部分，发行版中可能有较新的编译器版本。Clang编译器可以通过LLVM项目\url{http://llvm.org/}获得，尽管一些Linux发行版也维护它们自己的LLVM库。Windows上，Microsoft Visual Studio是最常用的编译器，当然GCC和Clang也可以用。
+首先，需要一个C++编译器。本章的示例使用GCC或Clang编译器，并在Linux上进行编译。所有的Linux发行版都会将GCC作为常规安装的一部分，发行版中可能有较新的编译器版本。Clang编译器可以通过LLVM项目\url{http://llvm.org/}获得。Windows上，Microsoft Visual Studio是最常用的编译器，当然GCC和Clang也可以使用。
 
 其次，需要一个分析工具。本章中，我们将使用Linux的perf性能分析器，其在大多数Linux发行版上都已安装(或可用于安装)。文档的地址:\url{https://perf.wiki.kernel.org/index.php/Main_Page}。
 
-还会演示另一个分析器的使用，来自于谷歌性能工具集(GperfTools)的CPU分析器，地址为:\url{https://github.com/gperftools/gperftools}(同样，您的Linux发行版，可以通过其源码进行安装)。
+还会演示另一个分析器的使用，来自于谷歌性能工具集(GperfTools)的CPU分析器，地址为:\url{https://github.com/gperftools/gperftools}(同样，可以通过其源码进行安装)。
 
-还有是许多其他可用的分析工具，有免费的，也有商业的。它们展示了相同类型的信息，但以不同的方式和许多不同的分析选项呈现。通过本章的示例，可以了解什么是分析工具，以及可能存在的限制。有着良好纪律性的开发者，会对使用的工具细节进行详细的了解。
+还有是许多其他可用的分析工具，有免费的，也有商业的。它们以不同的方式展示了相同类型的信息，但会提供许多不同的分析选项进行呈现。通过本章的示例，可以了解什么是分析工具，以及可能存在的限制。有着良好纪律性的开发者，会对使用的工具细节进行详细的了解。
 
-最后，我们将使用微基准工具。本章中使用了\url{https://github.com/google/benchmark}谷歌基准库，很可能需要自己下载和安装(即使与Linux发行版一起安装，版本也很可能已经过时)，请按照页面上的安装说明进行安装。
+最后，使用微基准测试工具。本章中使用了\url{https://github.com/google/benchmark}谷歌基准库，需要自己下载和安装(即使与Linux发行版一起安装，版本也很可能过时)，请按照页面上的说明进行安装。
 
-安装了所有必要的工具后，我们准备进行第一次性能测试。
+安装了所有必要的工具后，就可以进行第一次性能测试了。
 
 本章代码地址： \url{https://github.com/PacktPublishing/The-Art-of-Writing-Efficient-Programs/tree/master/Chapter02}。
 
