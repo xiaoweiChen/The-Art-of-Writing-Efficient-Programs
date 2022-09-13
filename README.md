@@ -4,6 +4,8 @@ An advanced programmer's guide to efficient hardware utilization and compiler op
 
 (*一本高级编程指南，使用C++介绍如何高效利用硬件和编译器优化*)
 
+<a><img src="cover.jpg" height="256px" align="right"></a>
+
 * 作者：Fedor G. Pikus
 
 * 译者：陈晓伟
